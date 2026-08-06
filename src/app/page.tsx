@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   closestCenter,
@@ -27,11 +28,11 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
+  LogOut,
   Dumbbell,
   Flame,
   GripVertical,
   LayoutGrid,
-  Link2,
   ListChecks,
   Minus,
   MoveHorizontal,
@@ -40,6 +41,7 @@ import {
   Route,
   SkipForward,
   TimerReset,
+  Trash2,
   Trophy,
   Users,
   X,
@@ -78,34 +80,14 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
-type Rol = "entrenador" | "atleta";
-
-type Ejercicio = {
-  id: string;
-  nombre: string;
-  aclaraciones: string;
-  series: number;
-  repeticiones: number;
-  peso: number;
-  descanso: number;
-};
-
-type Bloque = {
-  id: string;
-  nombre: string;
-  tipo: string;
-  ejercicios: Ejercicio[];
-};
-
-type Rutina = {
-  id: string;
-  dia: string;
-  titulo: string;
-  objetivo: string;
-  duracion: number;
-  bloques: Bloque[];
-};
+import {
+  Bloque,
+  Ejercicio,
+  Rutina,
+  Usuario,
+  rutinasIniciales,
+  usuariosIniciales,
+} from "@/lib/rttp-data";
 
 type RegistroSerie = {
   peso: number;
@@ -114,304 +96,9 @@ type RegistroSerie = {
   omitida: boolean;
 };
 
-const ejercicio = (
-  id: string,
-  nombre: string,
-  series: number,
-  repeticiones: string,
-  peso: string,
-  aclaracionManual = "",
-  descanso = 60,
-): Ejercicio => {
-  let nombreLimpio = nombre;
-  const aclaraciones = new Set<string>();
-  const calificadores: Array<[RegExp, string]> = [
-    [/\s+con disco/gi, "Con disco"],
-    [/\s+con tope/gi, "Con tope"],
-    [/\s+a 1 pierna/gi, "A una pierna"],
-    [/\s+a una pierna/gi, "A una pierna"],
-    [/\s+a 2 piernas/gi, "A dos piernas"],
-    [/\s+a dos piernas/gi, "A dos piernas"],
-    [/\s+con cajón/gi, "Con cajón"],
-  ];
-
-  calificadores.forEach(([patron, aclaracion]) => {
-    if (patron.test(nombreLimpio)) {
-      aclaraciones.add(aclaracion);
-      nombreLimpio = nombreLimpio.replace(patron, "");
-    }
-  });
-
-  if (/segundos/i.test(repeticiones)) aclaraciones.add("Segundos");
-  if (/min/i.test(repeticiones)) aclaraciones.add("Minutos");
-  if (/c\/l/i.test(repeticiones)) aclaraciones.add("Cada lado");
-
-  const pesoNumerico = Number.parseFloat(peso.replace(",", "."));
-  if (!Number.isFinite(pesoNumerico)) aclaraciones.add(peso);
-  if (aclaracionManual) aclaraciones.add(aclaracionManual);
-
-  return {
-    id,
-    nombre: nombreLimpio.trim(),
-    aclaraciones: [...aclaraciones].filter(Boolean).join(" · "),
-    series,
-    repeticiones: Number.parseInt(repeticiones, 10) || 0,
-    peso: Number.isFinite(pesoNumerico) ? pesoNumerico : 0,
-    descanso,
-  };
-};
-
-const rutinasIniciales: Rutina[] = [
-  {
-    id: "dia-1",
-    dia: "Día 1",
-    titulo: "Fuerza de tren inferior",
-    objetivo: "Glúteos, cuádriceps e isquiotibiales",
-    duracion: 65,
-    bloques: [
-      {
-        id: "d1-entrada",
-        nombre: "Entrada en calor",
-        tipo: "Preparación",
-        ejercicios: [
-          ejercicio("d1-bici", "Bici", 1, "10 min", "Sin peso"),
-          ejercicio(
-            "d1-plancha",
-            "Plancha baja, lateral y lateral",
-            1,
-            "20 segundos",
-            "Con disco",
-          ),
-          ejercicio(
-            "d1-puente",
-            "Puente de glúteo isométrico",
-            1,
-            "30",
-            "20 kilos",
-          ),
-          ejercicio(
-            "d1-banda",
-            "Caminata lateral con banda",
-            1,
-            "4 C/L",
-            "Con banda",
-          ),
-        ],
-      },
-      {
-        id: "d1-activacion",
-        nombre: "Activación",
-        tipo: "Preparación específica",
-        ejercicios: [
-          ejercicio(
-            "d1-polea",
-            "Polea para cuádriceps e isquios",
-            3,
-            "10",
-            "Combinado",
-          ),
-        ],
-      },
-      {
-        id: "d1-bloque-1",
-        nombre: "Bloque 1",
-        tipo: "Alternado",
-        ejercicios: [
-          ejercicio("d1-hip", "Hip thrust", 3, "10", "Con barra"),
-          ejercicio(
-            "d1-estocadas",
-            "Estocadas con disco",
-            3,
-            "10",
-            "Con disco",
-          ),
-        ],
-      },
-      {
-        id: "d1-bloque-2",
-        nombre: "Bloque 2",
-        tipo: "Alternado",
-        ejercicios: [
-          ejercicio("d1-prensa", "Prensa a 2 piernas", 3, "10", "A elección"),
-          ejercicio(
-            "d1-sillon",
-            "Sillón de cuádriceps a 1 pierna",
-            3,
-            "10",
-            "A elección",
-          ),
-        ],
-      },
-      {
-        id: "d1-bloque-3",
-        nombre: "Bloque 3",
-        tipo: "Alternado",
-        ejercicios: [
-          ejercicio(
-            "d1-sentadilla",
-            "Sentadilla 3 tiempos",
-            3,
-            "20 segundos",
-            "20 kilos",
-          ),
-          ejercicio(
-            "d1-gluteos-polea",
-            "Glúteos en polea",
-            3,
-            "10",
-            "40",
-          ),
-        ],
-      },
-      {
-        id: "d1-final",
-        nombre: "Finalizador",
-        tipo: "Cierre",
-        ejercicios: [
-          ejercicio(
-            "d1-caminata-isquios",
-            "Caminata de isquiotibiales y sóleos de búlgara",
-            3,
-            "8",
-            "Sin peso",
-          ),
-        ],
-      },
-    ],
-  },
-  {
-    id: "dia-2",
-    dia: "Día 2",
-    titulo: "Fuerza unilateral",
-    objetivo: "Control, estabilidad y fuerza de piernas",
-    duracion: 68,
-    bloques: [
-      {
-        id: "d2-entrada",
-        nombre: "Entrada en calor",
-        tipo: "Preparación",
-        ejercicios: [
-          ejercicio("d2-bici", "Bici", 1, "10 min", "Sin peso"),
-          ejercicio(
-            "d2-abdominales",
-            "Abdominales bicicleta",
-            3,
-            "50",
-            "Sin peso",
-          ),
-          ejercicio(
-            "d2-isometrica",
-            "Sentadilla isométrica",
-            3,
-            "30",
-            "20 kilos",
-          ),
-          ejercicio(
-            "d2-granjero",
-            "Caminata de granjero",
-            3,
-            "4 C/L",
-            "Ir aumentando el peso",
-            "Atento a la técnica de caminata",
-          ),
-        ],
-      },
-      {
-        id: "d2-activacion",
-        nombre: "Activación",
-        tipo: "Preparación específica",
-        ejercicios: [
-          ejercicio(
-            "d2-polea",
-            "Polea para cuádriceps e isquios",
-            3,
-            "10",
-            "Combinado",
-          ),
-        ],
-      },
-      {
-        id: "d2-bloque-1",
-        nombre: "Bloque 1",
-        tipo: "Alternado",
-        ejercicios: [
-          ejercicio(
-            "d2-sentadilla-tope",
-            "Sentadillas con tope",
-            3,
-            "10",
-            "Barra",
-          ),
-          ejercicio(
-            "d2-gemelos",
-            "Gemelos a 1 pierna",
-            3,
-            "10",
-            "Barra",
-          ),
-        ],
-      },
-      {
-        id: "d2-bloque-2",
-        nombre: "Bloque 2",
-        tipo: "Alternado",
-        ejercicios: [
-          ejercicio(
-            "d2-prensa",
-            "Prensa a 1 pierna",
-            3,
-            "10",
-            "15 kilos",
-          ),
-          ejercicio(
-            "d2-gluteo-cajon",
-            "Glúteos a una pierna con cajón",
-            3,
-            "10",
-            "10 kilos",
-          ),
-        ],
-      },
-      {
-        id: "d2-bloque-3",
-        nombre: "Bloque 3",
-        tipo: "Alternado",
-        ejercicios: [
-          ejercicio(
-            "d2-bulgaras",
-            "Sentadillas búlgaras",
-            3,
-            "10",
-            "Disco",
-          ),
-          ejercicio(
-            "d2-sillon",
-            "Sillón de cuádriceps a 2 piernas",
-            3,
-            "10",
-            "A elección",
-          ),
-        ],
-      },
-      {
-        id: "d2-final",
-        nombre: "Finalizador",
-        tipo: "Cierre",
-        ejercicios: [
-          ejercicio(
-            "d2-curl",
-            "Curl nórdico invertido + glúteo medio",
-            3,
-            "10",
-            "Sin disco",
-          ),
-        ],
-      },
-    ],
-  },
-];
-
-const storageKey = "rttp-rutinas-v3";
+const storageKey = "rttp-rutinas-v4";
+const sessionStorageKey = "rttp-usuario-v1";
+const usersStorageKey = "rttp-usuarios-v1";
 
 function totalSeries(rutina: Rutina) {
   return rutina.bloques.reduce(
@@ -430,6 +117,12 @@ function cantidadEjercicios(rutina: Rutina) {
     (total, bloque) => total + bloque.ejercicios.length,
     0,
   );
+}
+
+function repeticionesObjetivo(item: Ejercicio) {
+  return item.repeticionesMin === item.repeticionesMax
+    ? `${item.repeticionesMin}`
+    : `${item.repeticionesMin}–${item.repeticionesMax}`;
 }
 
 function rondasDelBloque(bloque: Bloque) {
@@ -463,9 +156,14 @@ function pasosDeRutina(rutina: Rutina) {
 function Logo() {
   return (
     <div className="flex items-center gap-3">
-      <div className="grid size-9 place-items-center rounded-full border border-violet-200/15 bg-indigo-300/10 shadow-[inset_0_1px_0_rgba(255,255,255,.1)]">
-        <div className="size-3.5 rounded-full border-[3px] border-cyan-300 border-r-violet-400" />
-      </div>
+      <Image
+        src="/rttp-mark-v2.png"
+        alt=""
+        width={36}
+        height={36}
+        unoptimized
+        className="size-9 object-contain drop-shadow-[0_0_14px_rgba(99,102,241,.2)]"
+      />
       <div>
         <div className="text-sm font-semibold tracking-[0.24em] text-white">
           RTTP
@@ -478,46 +176,132 @@ function Logo() {
   );
 }
 
-function SelectorRol({
-  rol,
-  onChange,
+function LandingAcceso({
+  onAccess,
 }: {
-  rol: Rol;
-  onChange: (rol: Rol) => void;
+  onAccess: (email: string) => boolean;
 }) {
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+
+  function ingresar(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (onAccess(email)) return;
+    setError("No encontramos un usuario con ese email.");
+  }
+
   return (
-    <div className="grid grid-cols-2 gap-1 rounded-full border border-white/10 bg-black/55 p-1">
-      {(["entrenador", "atleta"] as Rol[]).map((item) => (
-        <button
-          key={item}
-          onClick={() => onChange(item)}
-          className={cn(
-            "rounded-full px-3 py-2 text-[11px] font-medium capitalize transition-all sm:px-4",
-            rol === item
-              ? "bg-indigo-50 text-indigo-950 shadow-lg"
-              : "text-indigo-100/45 hover:text-white",
-          )}
+    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#07080b] px-5 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(34,211,238,.15),transparent_32%),radial-gradient(circle_at_20%_80%,rgba(124,58,237,.2),transparent_38%)]" />
+      <div className="relative flex w-full max-w-sm flex-col items-center text-center">
+        <div className="relative size-32">
+          <Image
+            src="/rttp-mark-v2.png"
+            alt="Logo de RTTP"
+            fill
+            priority
+            unoptimized
+            sizes="128px"
+            className="object-contain drop-shadow-[0_18px_35px_rgba(79,70,229,.28)]"
+          />
+        </div>
+
+        <div
+          aria-label="RTTP"
+          className="mt-7 flex items-center gap-1 text-3xl font-semibold tracking-[0.18em]"
         >
-          {item}
-        </button>
-      ))}
-    </div>
+          <span className="bg-gradient-to-br from-cyan-200 to-cyan-400 bg-clip-text text-transparent">
+            R
+          </span>
+          <span className="bg-gradient-to-br from-blue-300 to-blue-500 bg-clip-text text-transparent">
+            T
+          </span>
+          <span className="bg-gradient-to-br from-indigo-300 to-indigo-500 bg-clip-text text-transparent">
+            T
+          </span>
+          <span className="bg-gradient-to-br from-violet-300 to-violet-500 bg-clip-text text-transparent">
+            P
+          </span>
+        </div>
+
+        <h1 className="mt-9 text-[2.35rem] font-light leading-[1.08] tracking-[-0.045em]">
+          <span className="block">¿Listo para volver</span>
+          <span className="block">a tu prime?</span>
+        </h1>
+        <Dialog>
+          <DialogTrigger
+            render={
+              <Button className="mt-9 h-12 min-w-44 rounded-full border border-blue-200/15 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500 px-8 text-white shadow-[0_12px_40px_rgba(79,70,229,.28)] hover:brightness-110" />
+            }
+          >
+            Acceder
+            <ArrowRight className="size-4" />
+          </DialogTrigger>
+          <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Ingresá a RTTP</DialogTitle>
+              <DialogDescription className="text-white/40">
+                Usá el email que registró tu entrenador.
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={ingresar} className="space-y-4">
+              <label className="block space-y-2">
+                <span className="text-xs text-white/55">Email</span>
+                <Input
+                  autoFocus
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setError("");
+                  }}
+                  placeholder="vos@email.com"
+                  aria-invalid={Boolean(error)}
+                  className="h-11 border-white/10 bg-black/35"
+                />
+              </label>
+              {error && (
+                <p role="alert" className="text-xs text-red-300">
+                  {error}
+                </p>
+              )}
+              <Button
+                type="submit"
+                disabled={!email.trim()}
+                className="h-11 w-full rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+              >
+                Entrar
+                <ArrowRight />
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </main>
   );
 }
 
 function AppShell({
-  rol,
-  onRolChange,
+  usuario,
+  vistaPrevia,
+  onClosePreview,
+  onLogout,
   children,
 }: {
-  rol: Rol;
-  onRolChange: (rol: Rol) => void;
+  usuario: Usuario;
+  vistaPrevia: boolean;
+  onClosePreview: () => void;
+  onLogout: () => void;
   children: React.ReactNode;
 }) {
+  const esEntrenador = usuario.rol === "entrenador";
+
   return (
     <div className="min-h-screen bg-[#07080b] text-white selection:bg-cyan-300 selection:text-black">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(34,211,238,.14),transparent_32%),radial-gradient(circle_at_10%_70%,rgba(124,58,237,.15),transparent_35%)]" />
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-white/[0.07] bg-[#0a0b0f]/92 px-5 py-7 backdrop-blur-xl lg:flex">
+      {esEntrenador && !vistaPrevia && (
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-white/[0.07] bg-[#0a0b0f]/92 px-5 py-7 backdrop-blur-xl lg:flex">
         <Logo />
         <nav className="mt-12 space-y-2">
           {[
@@ -545,22 +329,64 @@ function AppShell({
         <div className="mt-auto flex items-center gap-3 rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.06] p-3">
           <Avatar className="size-8 border border-violet-200/15">
             <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[10px] text-white">
-              SP
+              {usuario.nombre.slice(0, 1)}
             </AvatarFallback>
           </Avatar>
           <div>
-            <div className="text-xs">Sofía P.</div>
+            <div className="text-xs">{usuario.nombre}</div>
             <div className="text-[9px] text-indigo-100/35">Entrenador</div>
           </div>
         </div>
-      </aside>
+        </aside>
+      )}
 
-      <header className="fixed inset-x-0 top-0 z-40 flex h-18 items-center justify-between border-b border-white/[0.07] bg-[#07080b]/88 px-4 backdrop-blur-xl lg:left-56 lg:px-8">
+      <header
+        className={cn(
+          "fixed inset-x-0 top-0 z-40 flex h-18 items-center justify-between border-b border-white/[0.07] bg-[#07080b]/88 px-4 backdrop-blur-xl lg:px-8",
+          esEntrenador && !vistaPrevia && "lg:left-56",
+        )}
+      >
         <Logo />
-        <SelectorRol rol={rol} onChange={onRolChange} />
+        <div className="flex items-center gap-2">
+          {vistaPrevia && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClosePreview}
+              className="rounded-full text-white/55 hover:bg-white/[0.07] hover:text-white"
+            >
+              <ArrowLeft />
+              Volver a editar
+            </Button>
+          )}
+          {!vistaPrevia && (
+            <div className="hidden text-right sm:block">
+              <div className="text-[11px]">{usuario.nombre}</div>
+              <div className="text-[9px] text-white/30">
+                {usuario.rol === "entrenador" ? "Entrenador" : "Atleta"}
+              </div>
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={onLogout}
+            aria-label="Cerrar sesión"
+            className="rounded-full text-white/35 hover:bg-white/[0.07] hover:text-white"
+          >
+            <LogOut />
+          </Button>
+        </div>
       </header>
 
-      <main className="relative min-h-screen pt-18 lg:pl-56">{children}</main>
+      <main
+        className={cn(
+          "relative min-h-screen pt-18",
+          esEntrenador && !vistaPrevia && "lg:pl-56",
+        )}
+      >
+        {children}
+      </main>
     </div>
   );
 }
@@ -663,7 +489,7 @@ function FilaEjercicio({
           />
         </div>
       </div>
-      <div className="flex items-end justify-between gap-3 md:justify-start">
+      <div className="flex flex-wrap items-end justify-between gap-3 md:justify-start">
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -690,26 +516,48 @@ function FilaEjercicio({
             <Plus />
           </Button>
         </div>
-        <label className="w-20">
+        <label className="w-16 text-center">
           <Input
             type="number"
             inputMode="numeric"
             min={0}
-            value={item.repeticiones}
+            value={item.repeticionesMin}
             onChange={(event) =>
               onUpdate({
                 ...item,
-                repeticiones: Math.max(0, Number(event.target.value)),
+                repeticionesMin: Math.max(0, Number(event.target.value)),
               })
             }
-            aria-label={`Repeticiones de ${item.nombre}`}
-            className="h-8 border-white/10 bg-black/25 text-xs"
+            aria-label={`Repeticiones mínimas de ${item.nombre}`}
+            className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
-            repeticiones
+            reps. mín.
           </div>
         </label>
-        <label className="w-20">
+        <label className="w-16 text-center">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={item.repeticionesMin}
+            value={item.repeticionesMax}
+            onChange={(event) =>
+              onUpdate({
+                ...item,
+                repeticionesMax: Math.max(
+                  item.repeticionesMin,
+                  Number(event.target.value),
+                ),
+              })
+            }
+            aria-label={`Repeticiones máximas de ${item.nombre}`}
+            className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+            reps. máx.
+          </div>
+        </label>
+        <label className="w-20 text-center">
           <Input
             type="number"
             inputMode="decimal"
@@ -723,10 +571,33 @@ function FilaEjercicio({
               })
             }
             aria-label={`Peso de ${item.nombre}`}
-            className="h-8 border-white/10 bg-black/25 text-xs"
+            className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
             peso (kg)
+          </div>
+        </label>
+        <label className="w-20 text-center">
+          <Input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            placeholder="—"
+            value={item.descanso ?? ""}
+            onChange={(event) =>
+              onUpdate({
+                ...item,
+                descanso:
+                  event.target.value === ""
+                    ? null
+                    : Math.max(0, Number(event.target.value)),
+              })
+            }
+            aria-label={`Descanso de ${item.nombre}`}
+            className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          />
+          <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+            descanso (s)
           </div>
         </label>
       </div>
@@ -817,8 +688,18 @@ function BloqueEditor({
           <div className="py-1">
             {children}
             {bloque.ejercicios.length === 0 && (
-              <div className="m-3 rounded-2xl border border-dashed border-white/10 p-5 text-center text-[10px] text-white/30">
-                Arrastrá un ejercicio hasta acá
+              <div className="m-3 rounded-2xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] p-6 text-center">
+                <div className="mx-auto grid size-10 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200/70">
+                  <GripVertical className="size-4" />
+                </div>
+                <div className="mt-3 text-xs text-white/55">
+                  Este bloque está listo
+                </div>
+                <div className="mx-auto mt-1 max-w-xs text-[10px] leading-relaxed text-white/30">
+                  Agregá el primer ejercicio con el botón superior. Después
+                  podés arrastrarlo para ordenar la rutina o moverlo a otro
+                  bloque.
+                </div>
               </div>
             )}
           </div>
@@ -838,34 +719,52 @@ function DialogoEjercicio({
   const [open, setOpen] = useState(false);
   const [nombre, setNombre] = useState("");
   const [series, setSeries] = useState("3");
-  const [repeticiones, setRepeticiones] = useState("10");
+  const [repeticionesMin, setRepeticionesMin] = useState("10");
+  const [repeticionesMax, setRepeticionesMax] = useState("10");
   const [peso, setPeso] = useState("0");
+  const [descanso, setDescanso] = useState("");
   const [aclaraciones, setAclaraciones] = useState("");
   const [bloqueId, setBloqueId] = useState(bloques?.[0]?.id ?? "nuevo");
   const [nuevoBloque, setNuevoBloque] = useState("");
 
+  function cambiarApertura(siguiente: boolean) {
+    setOpen(siguiente);
+    if (siguiente) return;
+    setNombre("");
+    setSeries("3");
+    setRepeticionesMin("10");
+    setRepeticionesMax("10");
+    setPeso("0");
+    setDescanso("");
+    setAclaraciones("");
+    setBloqueId(bloques?.[0]?.id ?? "nuevo");
+    setNuevoBloque("");
+  }
+
   function agregar() {
     if (!nombre.trim() || (bloqueId === "nuevo" && !nuevoBloque.trim())) return;
     onAdd(
-      ejercicio(
-        `${nombre.toLowerCase().replace(/\W+/g, "-")}-${Date.now()}`,
-        nombre.trim(),
-        Math.max(1, Number(series) || 1),
-        repeticiones.trim() || "10",
-        peso.trim() || "0",
-        aclaraciones.trim(),
-      ),
+      {
+        id: `${nombre.toLowerCase().replace(/\W+/g, "-")}-${Date.now()}`,
+        nombre: nombre.trim(),
+        series: Math.max(1, Number(series) || 1),
+        repeticionesMin: Math.max(0, Number(repeticionesMin) || 0),
+        repeticionesMax: Math.max(
+          Number(repeticionesMin) || 0,
+          Number(repeticionesMax) || 0,
+        ),
+        peso: Math.max(0, Number(peso) || 0),
+        descanso:
+          descanso.trim() === "" ? null : Math.max(0, Number(descanso)),
+        aclaraciones: aclaraciones.trim(),
+      },
       bloqueId,
       nuevoBloque.trim(),
     );
-    setNombre("");
-    setAclaraciones("");
-    setNuevoBloque("");
-    setOpen(false);
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={cambiarApertura}>
       <DialogTrigger
         render={
           <Button className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200" />
@@ -919,11 +818,13 @@ function DialogoEjercicio({
               />
             </label>
           )}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             {[
               ["Series", series, setSeries],
-              ["Repeticiones", repeticiones, setRepeticiones],
+              ["Reps. mín.", repeticionesMin, setRepeticionesMin],
+              ["Reps. máx.", repeticionesMax, setRepeticionesMax],
               ["Peso", peso, setPeso],
+              ["Descanso", descanso, setDescanso],
             ].map(([label, value, setter]) => (
               <label key={label as string} className="space-y-2">
                 <span className="text-xs text-indigo-100/55">
@@ -938,6 +839,9 @@ function DialogoEjercicio({
                   }
                   min={0}
                   step={(label as string).startsWith("Peso") ? "0.5" : "1"}
+                  placeholder={
+                    (label as string).startsWith("Descanso") ? "Opcional" : ""
+                  }
                   value={value as string}
                   onChange={(event) =>
                     (setter as React.Dispatch<React.SetStateAction<string>>)(
@@ -967,36 +871,310 @@ function DialogoEjercicio({
           >
             Cancelar
           </DialogClose>
-          <Button
-            onClick={agregar}
-            disabled={
-              !nombre.trim() ||
-              (bloqueId === "nuevo" && !nuevoBloque.trim())
+          <DialogClose
+            render={
+              <Button
+                onClick={agregar}
+                disabled={
+                  !nombre.trim() ||
+                  (bloqueId === "nuevo" && !nuevoBloque.trim())
+                }
+                className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+              />
             }
-            className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
           >
             Agregar
-          </Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
+function DialogoNuevaRutina({
+  atleta,
+  onCreate,
+}: {
+  atleta: Usuario;
+  onCreate: (rutina: Rutina) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [dia, setDia] = useState("");
+  const [titulo, setTitulo] = useState("");
+  const [objetivo, setObjetivo] = useState("");
+  const [duracion, setDuracion] = useState("60");
+
+  function cambiarApertura(siguiente: boolean) {
+    setOpen(siguiente);
+    if (siguiente) return;
+    setDia("");
+    setTitulo("");
+    setObjetivo("");
+    setDuracion("60");
+  }
+
+  function crear() {
+    if (!dia.trim() || !titulo.trim()) return;
+
+    const timestamp = Date.now();
+    onCreate({
+      id: `rutina-${atleta.id}-${timestamp}`,
+      atletaId: atleta.id,
+      dia: dia.trim(),
+      titulo: titulo.trim(),
+      objetivo: objetivo.trim() || "Entrenamiento personalizado",
+      duracion: Math.max(1, Number(duracion) || 60),
+      bloques: [
+        {
+          id: `bloque-${timestamp}`,
+          nombre: "Bloque 1",
+          tipo: "Personalizado",
+          ejercicios: [],
+        },
+      ],
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={cambiarApertura}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="outline"
+            className="rounded-full border-indigo-200/10 bg-indigo-300/[0.05] text-white hover:bg-indigo-300/10 hover:text-white"
+          />
+        }
+      >
+        <Plus />
+        Nueva rutina
+      </DialogTrigger>
+      <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Crear rutina para {atleta.nombre}</DialogTitle>
+          <DialogDescription className="text-white/40">
+            Empezá con un bloque vacío. Después agregá y ordená los ejercicios
+            arrastrándolos.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-[1fr_88px] gap-3">
+            <label className="space-y-2">
+              <span className="text-xs text-white/55">Nombre</span>
+              <Input
+                autoFocus
+                value={titulo}
+                onChange={(event) => setTitulo(event.target.value)}
+                placeholder="Ej. Potencia"
+                className="border-white/10 bg-black/35"
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-xs text-white/55">Día</span>
+              <Input
+                value={dia}
+                onChange={(event) => setDia(event.target.value)}
+                placeholder="Día 1"
+                className="border-white/10 bg-black/35"
+              />
+            </label>
+          </div>
+          <label className="block space-y-2">
+            <span className="text-xs text-white/55">Objetivo</span>
+            <Input
+              value={objetivo}
+              onChange={(event) => setObjetivo(event.target.value)}
+              placeholder="Ej. Fuerza y estabilidad"
+              className="border-white/10 bg-black/35"
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="text-xs text-white/55">
+              Duración estimada (minutos)
+            </span>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={duracion}
+              onChange={(event) => setDuracion(event.target.value)}
+              className="border-white/10 bg-black/35"
+            />
+          </label>
+          <div className="rounded-2xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.04] p-4">
+            <div className="flex items-center gap-3">
+              <div className="grid size-9 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200">
+                <GripVertical className="size-4" />
+              </div>
+              <div>
+                <div className="text-xs text-white/75">
+                  Constructor flexible
+                </div>
+                <div className="mt-1 text-[10px] leading-relaxed text-white/35">
+                  Mové ejercicios dentro de un bloque o arrastralos hacia otro.
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose
+              render={<Button variant="ghost" className="text-white/45" />}
+            >
+              Cancelar
+            </DialogClose>
+            <DialogClose
+              render={
+                <Button
+                  type="button"
+                  onClick={crear}
+                  disabled={!dia.trim() || !titulo.trim()}
+                  className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+                />
+              }
+            >
+              Crear y editar
+              <ArrowRight />
+            </DialogClose>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DialogoNuevoAtleta({
+  usuarios,
+  onCreate,
+}: {
+  usuarios: Usuario[];
+  onCreate: (nombre: string, email: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+
+  function cambiarApertura(siguiente: boolean) {
+    setOpen(siguiente);
+    if (siguiente) return;
+    setNombre("");
+    setEmail("");
+    setError("");
+  }
+
+  function crear() {
+    const emailNormalizado = email.trim().toLowerCase();
+    if (
+      usuarios.some(
+        (item) => item.email.toLowerCase() === emailNormalizado,
+      )
+    ) {
+      setError("Ya existe un usuario con ese email.");
+      return;
+    }
+    onCreate(nombre.trim(), emailNormalizado);
+    setOpen(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={cambiarApertura}>
+      <DialogTrigger
+        render={
+          <button
+            aria-label="Agregar alumno"
+            title="Agregar alumno"
+            className="grid size-10 place-items-center rounded-full border border-dashed border-white/10 text-white/35 transition-colors hover:border-cyan-200/25 hover:bg-cyan-300/[0.07] hover:text-cyan-100"
+          />
+        }
+      >
+        <Plus className="size-4" />
+      </DialogTrigger>
+      <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Agregar alumno</DialogTitle>
+          <DialogDescription className="text-white/40">
+            Podrá ingresar a RTTP usando este email.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <label className="block space-y-2">
+            <span className="text-xs text-white/55">Nombre</span>
+            <Input
+              autoFocus
+              value={nombre}
+              onChange={(event) => setNombre(event.target.value)}
+              placeholder="Ej. Juan"
+              className="border-white/10 bg-black/35"
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="text-xs text-white/55">Email</span>
+            <Input
+              type="email"
+              autoComplete="off"
+              value={email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setError("");
+              }}
+              aria-invalid={Boolean(error)}
+              placeholder="juan@email.com"
+              className="border-white/10 bg-black/35"
+            />
+          </label>
+          {error && (
+            <p role="alert" className="text-xs text-red-300">
+              {error}
+            </p>
+          )}
+          <DialogFooter>
+            <DialogClose
+              render={<Button variant="ghost" className="text-white/45" />}
+            >
+              Cancelar
+            </DialogClose>
+            <Button
+              type="button"
+              onClick={crear}
+              disabled={!nombre.trim() || !email.trim()}
+              className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+            >
+              Agregar alumno
+              <ArrowRight />
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function HomeEntrenador({
+  usuarios,
+  atletas,
+  atleta,
   rutinas,
   rutina,
+  onSelectAtleta,
   onSelect,
   setRutina,
+  onCreateRutina,
+  onCreateAtleta,
+  onDeleteRutina,
   verComoAtleta,
 }: {
+  usuarios: Usuario[];
+  atletas: Usuario[];
+  atleta: Usuario;
   rutinas: Rutina[];
   rutina: Rutina;
+  onSelectAtleta: (id: number) => void;
   onSelect: (id: string) => void;
   setRutina: React.Dispatch<React.SetStateAction<Rutina>>;
+  onCreateRutina: (rutina: Rutina) => void;
+  onCreateAtleta: (nombre: string, email: string) => void;
+  onDeleteRutina: (id: string) => void;
   verComoAtleta: () => void;
 }) {
-  const [copiado, setCopiado] = useState(false);
   const [bloqueAbierto, setBloqueAbierto] = useState<string | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -1160,32 +1338,46 @@ function HomeEntrenador({
     setBloqueAbierto(bloqueDestinoId);
   }
 
-  function copiar() {
-    void navigator.clipboard?.writeText(window.location.href);
-    setCopiado(true);
-    window.setTimeout(() => setCopiado(false), 1500);
+  function crearYEditar(rutinaNueva: Rutina) {
+    onCreateRutina(rutinaNueva);
+    setBloqueAbierto(rutinaNueva.bloques[0].id);
   }
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-7 md:px-8 md:py-9">
+      <div className="mb-6 flex gap-2">
+        {atletas.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => onSelectAtleta(item.id)}
+            className={cn(
+              "flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors",
+              item.id === atleta.id
+                ? "border-cyan-200/25 bg-cyan-300/10 text-white"
+                : "border-white/[0.08] bg-white/[0.025] text-white/40 hover:text-white/70",
+            )}
+          >
+            <Avatar className="size-6">
+              <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[9px] text-white">
+                {item.nombre.slice(0, 1)}
+              </AvatarFallback>
+            </Avatar>
+            {item.nombre}
+          </button>
+        ))}
+        <DialogoNuevoAtleta usuarios={usuarios} onCreate={onCreateAtleta} />
+      </div>
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="mb-1 text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">
-            Rutinas de Kevin
+            Rutinas de {atleta.nombre}
           </div>
           <h1 className="text-3xl font-light tracking-tight">
             Plan de entrenamiento
           </h1>
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={copiar}
-            className="rounded-full border-indigo-200/10 bg-indigo-300/[0.05] text-white hover:bg-indigo-300/10 hover:text-white"
-          >
-            {copiado ? <Check /> : <Link2 />}
-            {copiado ? "Copiado" : "Compartir"}
-          </Button>
+        <div className="flex flex-wrap gap-2">
+          <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
           <Button
             onClick={verComoAtleta}
             className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
@@ -1222,10 +1414,62 @@ function HomeEntrenador({
                 {totalSeries(rutina)} series
               </p>
             </div>
-            <DialogoEjercicio
-              bloques={rutina.bloques}
-              onAdd={agregarEjercicio}
-            />
+            <div className="flex items-center gap-2">
+              <DialogoEjercicio
+                key={rutina.id}
+                bloques={rutina.bloques}
+                onAdd={agregarEjercicio}
+              />
+              <Dialog>
+                <DialogTrigger
+                  disabled={rutinas.length <= 1}
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Eliminar rutina"
+                      title={
+                        rutinas.length <= 1
+                          ? "Creá otra rutina antes de eliminar esta"
+                          : "Eliminar rutina"
+                      }
+                      className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200 disabled:opacity-20"
+                    />
+                  }
+                >
+                  <Trash2 />
+                </DialogTrigger>
+                <DialogContent className="border-white/10 bg-[#111217] text-white">
+                  <DialogHeader>
+                    <DialogTitle>¿Eliminar “{rutina.titulo}”?</DialogTitle>
+                    <DialogDescription className="text-white/40">
+                      La rutina dejará de estar disponible para {atleta.nombre}.
+                      Esta acción no se puede deshacer.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <DialogClose
+                      render={
+                        <Button variant="ghost" className="text-white/50" />
+                      }
+                    >
+                      Cancelar
+                    </DialogClose>
+                    <DialogClose
+                      render={
+                        <Button
+                          variant="destructive"
+                          onClick={() => onDeleteRutina(rutina.id)}
+                          className="bg-red-500 text-white hover:bg-red-400"
+                        />
+                      }
+                    >
+                      Eliminar rutina
+                    </DialogClose>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -1351,7 +1595,11 @@ function OverviewRutina({ rutina }: { rutina: Rutina }) {
                               {item.nombre}
                             </span>
                             <span className="shrink-0 text-[9px] tabular-nums text-white/35">
-                              {item.series}×{item.repeticiones} · {item.peso} kg
+                              {item.series}×{repeticionesObjetivo(item)}
+                              {item.peso > 0 ? ` · ${item.peso} kg` : ""}
+                              {item.descanso !== null
+                                ? ` · ${item.descanso} s`
+                                : ""}
                             </span>
                           </div>
                           {item.aclaraciones && (
@@ -1379,6 +1627,7 @@ function OverviewRutina({ rutina }: { rutina: Rutina }) {
 }
 
 function HomeAtleta({
+  atleta,
   rutinas,
   rutina,
   onSelect,
@@ -1386,6 +1635,7 @@ function HomeAtleta({
   progreso,
   onReset,
 }: {
+  atleta: Usuario;
   rutinas: Rutina[];
   rutina: Rutina;
   onSelect: (id: string) => void;
@@ -1397,12 +1647,12 @@ function HomeAtleta({
     <div className="mx-auto max-w-4xl px-4 py-7 md:px-8 md:py-9">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <div className="text-xs text-white/40">Hola, Kevin</div>
+          <div className="text-xs text-white/40">Hola, {atleta.nombre}</div>
           <h1 className="mt-0.5 text-2xl font-light">¿Entrenamos?</h1>
         </div>
         <Avatar className="size-10 border border-violet-200/15">
           <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
-            K
+            {atleta.nombre.slice(0, 1)}
           </AvatarFallback>
         </Avatar>
       </div>
@@ -1505,31 +1755,63 @@ function HomeAtleta({
 
 function CampoPrescripcion({
   label,
+  hint,
+  step = 1,
   value,
   onChange,
 }: {
   label: string;
+  hint: string;
+  step?: number;
   value: number;
   onChange: (value: number) => void;
 }) {
   return (
-    <label className="block rounded-2xl border border-white/[0.09] bg-black/30 p-4">
-      <span className="text-[9px] uppercase tracking-[0.16em] text-indigo-100/30">
+    <div className="rounded-2xl border border-white/[0.09] bg-black/30 p-3 text-center">
+      <div className="text-[9px] uppercase tracking-[0.16em] text-indigo-100/35">
         {label}
-      </span>
-      <Input
-        type="number"
-        inputMode={label.startsWith("Peso") ? "decimal" : "numeric"}
-        min={0}
-        step={label.startsWith("Peso") ? "0.5" : "1"}
-        value={value}
-        onChange={(event) =>
-          onChange(Math.max(0, Number(event.target.value)))
-        }
-        onPointerDown={(event) => event.stopPropagation()}
-        className="mt-2 h-auto border-0 bg-transparent p-0 text-xl font-light text-white shadow-none focus-visible:ring-0 sm:text-2xl"
-      />
-    </label>
+      </div>
+      <div className="mt-2 flex items-center justify-center gap-1">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Reducir ${label.toLowerCase()}`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => onChange(Math.max(0, value - step))}
+          className="size-8 rounded-full bg-white/[0.04] text-white/45 hover:bg-white/[0.09] hover:text-white"
+        >
+          <Minus />
+        </Button>
+        <Input
+          aria-label={label}
+          type="number"
+          inputMode={step < 1 ? "decimal" : "numeric"}
+          min={0}
+          step={step}
+          value={value}
+          onChange={(event) =>
+            onChange(Math.max(0, Number(event.target.value)))
+          }
+          onPointerDown={(event) => event.stopPropagation()}
+          className="h-10 w-16 border-0 bg-transparent p-0 text-center text-2xl font-light tabular-nums text-white shadow-none [appearance:textfield] focus-visible:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`Aumentar ${label.toLowerCase()}`}
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={() => onChange(value + step)}
+          className="size-8 rounded-full bg-white/[0.04] text-white/45 hover:bg-white/[0.09] hover:text-white"
+        >
+          <Plus />
+        </Button>
+      </div>
+      <div className="mt-1 text-[8px] uppercase tracking-[0.12em] text-white/20">
+        {hint}
+      </div>
+    </div>
   );
 }
 
@@ -1559,12 +1841,20 @@ function WorkoutMode({
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [vistaCalentamiento, setVistaCalentamiento] = useState<
+    "resumida" | "tarjetas"
+  >("resumida");
   const inicioPointer = useRef<number | null>(null);
   const distanciaPointer = useRef(0);
+  const esBloqueBreve =
+    bloque.ejercicios.length > 1 &&
+    (bloque.tipo.includes("Preparación") ||
+      bloque.tipo.includes("Circuito") ||
+      /entrada|activación|movilidad/i.test(bloque.nombre));
 
   const valorInicial: RegistroSerie = {
     peso: paso.peso,
-    repeticiones: paso.repeticiones,
+    repeticiones: paso.repeticionesMin,
     completada: false,
     omitida: false,
   };
@@ -1614,7 +1904,7 @@ function WorkoutMode({
           ? { ...existente, completada: false, omitida: true }
           : {
               peso: item.peso,
-              repeticiones: item.repeticiones,
+              repeticiones: item.repeticionesMin,
               completada: false,
               omitida: true,
             };
@@ -1642,6 +1932,38 @@ function WorkoutMode({
   function volver() {
     setDragX(0);
     setIndiceActivo((indice) => Math.max(0, indice - 1));
+  }
+
+  function completarRondaResumida() {
+    const objetivos = pasos.filter(
+      (item) =>
+        item.bloqueId === paso.bloqueId && item.ronda === paso.ronda,
+    );
+    const ids = new Set(objetivos.map((item) => item.pasoId));
+
+    setRegistros((actuales) => {
+      const siguientes = { ...actuales };
+      objetivos.forEach((item) => {
+        siguientes[item.pasoId] = {
+          peso: actuales[item.pasoId]?.peso ?? item.peso,
+          repeticiones:
+            actuales[item.pasoId]?.repeticiones ?? item.repeticionesMin,
+          completada: true,
+          omitida: false,
+        };
+      });
+      return siguientes;
+    });
+
+    const ultimoIndice = pasos.reduce(
+      (ultimo, item, index) => (ids.has(item.pasoId) ? index : ultimo),
+      indiceActivo,
+    );
+    if (ultimoIndice >= pasos.length - 1) {
+      onFinish();
+    } else {
+      setIndiceActivo(ultimoIndice + 1);
+    }
   }
 
   function esInteractivo(target: EventTarget) {
@@ -1693,7 +2015,7 @@ function WorkoutMode({
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-5xl flex-col overflow-hidden px-4 py-5 md:px-8 md:py-7">
+    <div className="mx-auto flex h-[calc(100dvh-4.5rem)] max-w-5xl flex-col overflow-hidden px-4 py-3 md:px-8 md:py-5">
       <div>
         <div className="mb-4 flex items-center justify-between">
           <Button
@@ -1720,7 +2042,43 @@ function WorkoutMode({
         />
       </div>
 
-      <div className="mx-auto mt-5 w-full max-w-lg">
+      <div className="mx-auto mt-3 w-full max-w-lg">
+        {esBloqueBreve && (
+          <div className="mb-3 flex items-center justify-between rounded-full border border-white/[0.08] bg-white/[0.025] p-1 pl-3">
+            <span className="text-[8px] uppercase tracking-[0.16em] text-white/30">
+              Prueba de vista
+            </span>
+            <div className="flex gap-1">
+              {[
+                {
+                  vista: "resumida" as const,
+                  Icon: ListChecks,
+                  label: "Vista rápida",
+                },
+                {
+                  vista: "tarjetas" as const,
+                  Icon: LayoutGrid,
+                  label: "Tarjetas",
+                },
+              ].map(({ vista, Icon, label }) => (
+                <button
+                  key={vista}
+                  onClick={() => setVistaCalentamiento(vista)}
+                  aria-pressed={vistaCalentamiento === vista}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full px-3 py-2 text-[9px] transition-colors",
+                    vistaCalentamiento === vista
+                      ? "bg-indigo-50 text-indigo-950"
+                      : "text-white/35 hover:text-white/65",
+                  )}
+                >
+                  <Icon className="size-3" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="mb-3 flex items-center justify-between">
           <div>
             <Badge className="border-violet-200/15 bg-violet-300/10 text-[9px] text-violet-100">
@@ -1730,7 +2088,14 @@ function WorkoutMode({
               Ronda {paso.ronda}/{paso.rondas}
             </span>
           </div>
-          <div className="flex gap-1.5">
+          <div
+            className={cn(
+              "flex gap-1.5",
+              esBloqueBreve &&
+                vistaCalentamiento === "resumida" &&
+                "hidden",
+            )}
+          >
             {bloque.ejercicios.map((item, index) => (
               <span
                 key={item.id}
@@ -1745,12 +2110,98 @@ function WorkoutMode({
           </div>
         </div>
 
-        <div className="relative min-h-[515px]">
+        {esBloqueBreve && vistaCalentamiento === "resumida" ? (
+          <div className="relative overflow-hidden rounded-[2rem] border border-cyan-200/[0.14] bg-[#101116] p-5 shadow-[0_30px_80px_rgba(0,0,0,.5)]">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(34,211,238,.14),transparent_37%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.15),transparent_42%)]" />
+            <div className="relative">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[9px] uppercase tracking-[0.16em] text-cyan-200/55">
+                    Vista rápida
+                  </div>
+                  <h1 className="mt-2 text-2xl font-light tracking-[-0.035em]">
+                    Toda la vuelta, de un vistazo
+                  </h1>
+                  <p className="mt-1 text-[10px] text-white/35">
+                    {bloque.ejercicios.length} ejercicios · vuelta {paso.ronda}{" "}
+                    de {paso.rondas}
+                  </p>
+                </div>
+                <div className="grid size-10 shrink-0 place-items-center rounded-full border border-cyan-200/15 bg-cyan-300/10 text-cyan-200">
+                  <ListChecks className="size-4" />
+                </div>
+              </div>
+
+              <div className="mt-5 divide-y divide-white/[0.07] rounded-2xl border border-white/[0.07] bg-black/20 px-4">
+                {bloque.ejercicios.map((item, index) => {
+                  const pasoDeRonda = pasos.find(
+                    (candidato) =>
+                      candidato.bloqueId === paso.bloqueId &&
+                      candidato.ronda === paso.ronda &&
+                      candidato.id === item.id,
+                  );
+                  const completado = pasoDeRonda
+                    ? registros[pasoDeRonda.pasoId]?.completada
+                    : false;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 py-3"
+                    >
+                      <div
+                        className={cn(
+                          "grid size-6 shrink-0 place-items-center rounded-full border text-[9px]",
+                          completado
+                            ? "border-cyan-200/20 bg-cyan-300 text-indigo-950"
+                            : "border-white/10 bg-white/[0.035] text-white/40",
+                        )}
+                      >
+                        {completado ? <Check className="size-3" /> : index + 1}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-xs text-white/80">
+                          {item.nombre}
+                        </div>
+                        {item.aclaraciones && (
+                          <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
+                            {item.aclaraciones}
+                          </div>
+                        )}
+                      </div>
+                      <div className="shrink-0 text-[10px] tabular-nums text-white/40">
+                        {item.series}×{repeticionesObjetivo(item)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Button
+                onClick={completarRondaResumida}
+                className="mt-5 h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100"
+              >
+                <Check />
+                {paso.ronda === paso.rondas
+                  ? "Completar calentamiento"
+                  : `Completar vuelta ${paso.ronda}`}
+              </Button>
+              <button
+                onClick={() => omitir("bloque")}
+                className="mt-3 w-full text-center text-[10px] text-white/30 transition-colors hover:text-white/60"
+              >
+                Saltar este bloque
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+        <div className="relative min-h-[445px]">
           {pasos[indiceActivo + 2] && (
-            <div className="absolute inset-x-8 top-6 h-[475px] rounded-[2rem] border border-blue-200/[0.06] bg-blue-300/[0.025]" />
+            <div className="absolute inset-x-8 top-4 h-[425px] rounded-[2rem] border border-blue-200/[0.06] bg-blue-300/[0.025]" />
           )}
           {proximo && (
-            <div className="absolute inset-x-4 top-3 h-[475px] rounded-[2rem] border border-violet-200/[0.09] bg-violet-300/[0.045]" />
+            <div className="absolute inset-x-4 top-2 h-[425px] rounded-[2rem] border border-violet-200/[0.09] bg-violet-300/[0.045]" />
           )}
           <div
             role="group"
@@ -1764,7 +2215,7 @@ function WorkoutMode({
               setDragX(0);
             }}
             className={cn(
-              "relative z-10 min-h-[475px] select-none overflow-hidden rounded-[2rem] border bg-[#101116] p-5 shadow-[0_30px_80px_rgba(0,0,0,.5)] md:p-6",
+              "relative z-10 min-h-[425px] select-none overflow-hidden rounded-[2rem] border bg-[#101116] p-4 shadow-[0_30px_80px_rgba(0,0,0,.5)] md:p-5",
               registro.completada
                 ? "border-cyan-300/30"
                 : registro.omitida
@@ -1778,7 +2229,7 @@ function WorkoutMode({
             }}
           >
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(34,211,238,.15),transparent_37%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.16),transparent_42%)]" />
-            <div className="relative flex min-h-[425px] flex-col">
+            <div className="relative flex min-h-[391px] flex-col">
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="text-[9px] uppercase tracking-[0.16em] text-indigo-100/30">
@@ -1887,7 +2338,7 @@ function WorkoutMode({
               </div>
 
               {paso.aclaraciones && (
-                <div className="mt-5 flex w-full flex-col rounded-xl border border-violet-300/15 bg-violet-300/[0.07] px-3 py-2.5">
+                <div className="mt-3 flex w-full flex-col rounded-xl border border-violet-300/15 bg-violet-300/[0.07] px-3 py-2">
                   <span className="text-[8px] uppercase tracking-[0.14em] text-violet-200/45">
                     Aclaraciones
                   </span>
@@ -1897,16 +2348,41 @@ function WorkoutMode({
                 </div>
               )}
 
-              <Separator className="my-5 bg-indigo-200/[0.08]" />
+              {paso.descanso !== null && (
+                <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-300/15 bg-blue-400/[0.07] px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className="grid size-8 place-items-center rounded-full bg-blue-300/10 text-blue-200">
+                      <TimerReset className="size-3.5" />
+                    </div>
+                    <div>
+                      <div className="text-[8px] uppercase tracking-[0.14em] text-blue-200/45">
+                        Descanso
+                      </div>
+                      <div className="mt-0.5 text-[10px] text-blue-100/60">
+                        Entre series
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-lg font-light tabular-nums text-blue-100">
+                    {paso.descanso}
+                    <span className="ml-1 text-[10px] text-blue-100/40">s</span>
+                  </div>
+                </div>
+              )}
+
+              <Separator className="my-3 bg-indigo-200/[0.08]" />
 
               <div className="grid grid-cols-2 gap-3">
                 <CampoPrescripcion
                   label="Repeticiones"
+                  hint={`Objetivo ${repeticionesObjetivo(paso)}`}
                   value={registro.repeticiones}
                   onChange={(repeticiones) => actualizar({ repeticiones })}
                 />
                 <CampoPrescripcion
-                  label="Peso (kg)"
+                  label="Peso"
+                  hint="Kilogramos"
+                  step={0.5}
                   value={registro.peso}
                   onChange={(peso) => actualizar({ peso })}
                 />
@@ -1947,7 +2423,7 @@ function WorkoutMode({
           </div>
         </div>
 
-        <div className="text-center">
+        <div className="-mt-1 text-center">
           <div
             className={cn(
               "h-4 text-[10px] text-orange-200 transition-opacity",
@@ -1962,7 +2438,7 @@ function WorkoutMode({
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-2 flex gap-2">
           <Button
             variant="outline"
             disabled={indiceActivo === 0}
@@ -1982,25 +2458,25 @@ function WorkoutMode({
           </Button>
         </div>
 
-        <div className="mt-4 flex items-center justify-between rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.04] p-3">
-          <div className="flex items-center gap-2 text-[10px] text-indigo-100/35">
-            <TimerReset className="size-3.5 text-violet-200" />
-            Descanso sugerido: {paso.descanso} s
-          </div>
+        <div className="mt-2 flex items-center justify-end rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.04] p-3">
           <div className="max-w-40 truncate text-[10px] text-indigo-100/35">
             Próximo: {proximo?.nombre ?? "Fin"}
           </div>
         </div>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 function RutinaCompletada({
+  atleta,
   feedback,
   setFeedback,
   onDone,
 }: {
+  atleta: Usuario;
   feedback: string;
   setFeedback: (value: string) => void;
   onDone: () => void;
@@ -2015,7 +2491,7 @@ function RutinaCompletada({
           </div>
           <h1 className="mt-5 text-3xl font-light">Rutina completada</h1>
           <p className="mt-2 text-xs text-indigo-100/40">
-            Excelente trabajo, Kevin.
+            Excelente trabajo, {atleta.nombre}.
           </p>
           <div className="my-6 flex justify-center gap-2">
             {[1, 2, 3, 4, 5].map((value) => (
@@ -2056,12 +2532,14 @@ function RutinaCompletada({
 }
 
 function ExperienciaAtleta({
+  atleta,
   rutinas,
   rutina,
   onSelect,
   registros,
   setRegistros,
 }: {
+  atleta: Usuario;
   rutinas: Rutina[];
   rutina: Rutina;
   onSelect: (id: string) => void;
@@ -2105,6 +2583,7 @@ function ExperienciaAtleta({
   if (pantalla === "final") {
     return (
       <RutinaCompletada
+        atleta={atleta}
         feedback={feedback}
         setFeedback={setFeedback}
         onDone={() => setPantalla("home")}
@@ -2114,6 +2593,7 @@ function ExperienciaAtleta({
 
   return (
     <HomeAtleta
+      atleta={atleta}
       rutinas={rutinas}
       rutina={rutina}
       onSelect={(id) => {
@@ -2128,18 +2608,46 @@ function ExperienciaAtleta({
 }
 
 export default function Home() {
-  const [rol, setRol] = useState<Rol>("entrenador");
+  const [usuarios, setUsuarios] = useState<Usuario[]>(usuariosIniciales);
   const [rutinas, setRutinas] = useState<Rutina[]>(rutinasIniciales);
   const [rutinaId, setRutinaId] = useState(rutinasIniciales[0].id);
+  const [usuarioId, setUsuarioId] = useState<number | null>(null);
+  const [atletaSeleccionadoId, setAtletaSeleccionadoId] = useState(1);
+  const [vistaPrevia, setVistaPrevia] = useState(false);
   const [registros, setRegistros] = useState<
     Record<string, RegistroSerie>
   >({});
   const [hidratado, setHidratado] = useState(false);
+  const usuario =
+    usuarios.find((item) => item.id === usuarioId) ?? null;
+  const atletasDelCoach = usuarios.filter(
+    (item) =>
+      item.rol === "atleta" && usuario?.atletaIds?.includes(item.id),
+  );
+  const atleta =
+    usuario?.rol === "atleta"
+      ? usuario
+      : atletasDelCoach.find((item) => item.id === atletaSeleccionadoId) ??
+        atletasDelCoach[0];
+  const rutinasDelAtleta = atleta
+    ? rutinas.filter((item) => item.atletaId === atleta.id)
+    : [];
   const rutina =
-    rutinas.find((item) => item.id === rutinaId) ?? rutinasIniciales[0];
+    rutinasDelAtleta.find((item) => item.id === rutinaId) ??
+    rutinasDelAtleta[0];
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
+      let usuariosDisponibles = usuariosIniciales;
+      const usuariosGuardados = window.localStorage.getItem(usersStorageKey);
+      if (usuariosGuardados) {
+        try {
+          usuariosDisponibles = JSON.parse(usuariosGuardados) as Usuario[];
+          setUsuarios(usuariosDisponibles);
+        } catch {
+          window.localStorage.removeItem(usersStorageKey);
+        }
+      }
       const guardadas = window.localStorage.getItem(storageKey);
       if (guardadas) {
         try {
@@ -2147,6 +2655,20 @@ export default function Home() {
         } catch {
           window.localStorage.removeItem(storageKey);
         }
+      }
+      const usuarioGuardado = Number(
+        window.localStorage.getItem(sessionStorageKey),
+      );
+      if (usuariosDisponibles.some((item) => item.id === usuarioGuardado)) {
+        setUsuarioId(usuarioGuardado);
+        const usuarioInicial = usuariosDisponibles.find(
+          (item) => item.id === usuarioGuardado,
+        );
+        setAtletaSeleccionadoId(
+          usuarioInicial?.rol === "atleta"
+            ? usuarioInicial.id
+            : usuarioInicial?.atletaIds?.[0] ?? 1,
+        );
       }
       setHidratado(true);
     });
@@ -2156,8 +2678,9 @@ export default function Home() {
   useEffect(() => {
     if (hidratado) {
       window.localStorage.setItem(storageKey, JSON.stringify(rutinas));
+      window.localStorage.setItem(usersStorageKey, JSON.stringify(usuarios));
     }
-  }, [rutinas, hidratado]);
+  }, [rutinas, usuarios, hidratado]);
 
   const setRutina: React.Dispatch<React.SetStateAction<Rutina>> = (action) => {
     setRutinas((actuales) =>
@@ -2168,20 +2691,144 @@ export default function Home() {
     );
   };
 
+  function acceder(email: string) {
+    const usuarioEncontrado = usuarios.find(
+      (item) => item.email === email.trim().toLowerCase(),
+    );
+    if (!usuarioEncontrado) return false;
+
+    const atletaId =
+      usuarioEncontrado.rol === "atleta"
+        ? usuarioEncontrado.id
+        : usuarioEncontrado.atletaIds?.[0] ?? 1;
+    const primeraRutina = rutinas.find((item) => item.atletaId === atletaId);
+    setUsuarioId(usuarioEncontrado.id);
+    setAtletaSeleccionadoId(atletaId);
+    setRutinaId(primeraRutina?.id ?? rutinasIniciales[0].id);
+    setVistaPrevia(false);
+    window.localStorage.setItem(
+      sessionStorageKey,
+      String(usuarioEncontrado.id),
+    );
+    return true;
+  }
+
+  function seleccionarAtleta(id: number) {
+    const primeraRutina = rutinas.find((item) => item.atletaId === id);
+    setAtletaSeleccionadoId(id);
+    if (primeraRutina) setRutinaId(primeraRutina.id);
+    setRegistros({});
+  }
+
+  function crearRutina(rutinaNueva: Rutina) {
+    setRutinas((actuales) => [...actuales, rutinaNueva]);
+    setRutinaId(rutinaNueva.id);
+  }
+
+  function crearAtleta(nombre: string, email: string) {
+    if (!usuario || usuario.rol !== "entrenador") return;
+    const id = Math.max(0, ...usuarios.map((item) => item.id)) + 1;
+    const timestamp = Date.now();
+    const nuevoAtleta: Usuario = {
+      id,
+      nombre,
+      email,
+      rol: "atleta",
+    };
+    const rutinaInicial: Rutina = {
+      id: `rutina-${id}-${timestamp}`,
+      atletaId: id,
+      dia: "Día 1",
+      titulo: "Nueva rutina",
+      objetivo: "Entrenamiento personalizado",
+      duracion: 60,
+      bloques: [
+        {
+          id: `bloque-${timestamp}`,
+          nombre: "Bloque 1",
+          tipo: "Personalizado",
+          ejercicios: [],
+        },
+      ],
+    };
+
+    setUsuarios((actuales) => [
+      ...actuales.map((item) =>
+        item.id === usuario.id
+          ? {
+              ...item,
+              atletaIds: [...(item.atletaIds ?? []), nuevoAtleta.id],
+            }
+          : item,
+      ),
+      nuevoAtleta,
+    ]);
+    setRutinas((actuales) => [...actuales, rutinaInicial]);
+    setAtletaSeleccionadoId(id);
+    setRutinaId(rutinaInicial.id);
+    setRegistros({});
+  }
+
+  function eliminarRutina(id: string) {
+    const restantes = rutinasDelAtleta.filter((item) => item.id !== id);
+    if (restantes.length === 0) return;
+    setRutinas((actuales) => actuales.filter((item) => item.id !== id));
+    setRutinaId(restantes[0].id);
+    setRegistros((actuales) =>
+      Object.fromEntries(
+        Object.entries(actuales).filter(([key]) => !key.startsWith(`${id}-`)),
+      ),
+    );
+  }
+
+  function salir() {
+    window.localStorage.removeItem(sessionStorageKey);
+    setUsuarioId(null);
+    setVistaPrevia(false);
+    setRegistros({});
+  }
+
+  if (!hidratado) {
+    return <div className="min-h-screen bg-[#07080b]" />;
+  }
+
+  if (!usuario) {
+    return <LandingAcceso onAccess={acceder} />;
+  }
+
+  if (!atleta || !rutina) {
+    return <LandingAcceso onAccess={acceder} />;
+  }
+
+  const mostrandoAtleta = usuario.rol === "atleta" || vistaPrevia;
+
   return (
-    <AppShell rol={rol} onRolChange={setRol}>
-      {rol === "entrenador" ? (
+    <AppShell
+      usuario={usuario}
+      vistaPrevia={vistaPrevia}
+      onClosePreview={() => setVistaPrevia(false)}
+      onLogout={salir}
+    >
+      {!mostrandoAtleta ? (
         <HomeEntrenador
-          rutinas={rutinas}
+          usuarios={usuarios}
+          atletas={atletasDelCoach}
+          atleta={atleta}
+          rutinas={rutinasDelAtleta}
           rutina={rutina}
+          onSelectAtleta={seleccionarAtleta}
           onSelect={setRutinaId}
           setRutina={setRutina}
-          verComoAtleta={() => setRol("atleta")}
+          onCreateRutina={crearRutina}
+          onCreateAtleta={crearAtleta}
+          onDeleteRutina={eliminarRutina}
+          verComoAtleta={() => setVistaPrevia(true)}
         />
       ) : (
         <ExperienciaAtleta
           key={rutina.id}
-          rutinas={rutinas}
+          atleta={atleta}
+          rutinas={rutinasDelAtleta}
           rutina={rutina}
           onSelect={setRutinaId}
           registros={registros}
