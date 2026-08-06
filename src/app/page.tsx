@@ -2642,7 +2642,17 @@ export default function Home() {
       const usuariosGuardados = window.localStorage.getItem(usersStorageKey);
       if (usuariosGuardados) {
         try {
-          usuariosDisponibles = JSON.parse(usuariosGuardados) as Usuario[];
+          const persistidos = JSON.parse(usuariosGuardados) as Usuario[];
+          usuariosDisponibles = [
+            ...persistidos,
+            ...usuariosIniciales.filter(
+              (semilla) =>
+                !persistidos.some(
+                  (item) =>
+                    item.id === semilla.id || item.email === semilla.email,
+                ),
+            ),
+          ];
           setUsuarios(usuariosDisponibles);
         } catch {
           window.localStorage.removeItem(usersStorageKey);
@@ -2651,7 +2661,14 @@ export default function Home() {
       const guardadas = window.localStorage.getItem(storageKey);
       if (guardadas) {
         try {
-          setRutinas(JSON.parse(guardadas) as Rutina[]);
+          const persistidas = JSON.parse(guardadas) as Rutina[];
+          setRutinas([
+            ...persistidas,
+            ...rutinasIniciales.filter(
+              (semilla) =>
+                !persistidas.some((item) => item.id === semilla.id),
+            ),
+          ]);
         } catch {
           window.localStorage.removeItem(storageKey);
         }

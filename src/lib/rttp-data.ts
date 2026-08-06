@@ -99,6 +99,19 @@ export const usuariosIniciales: Usuario[] = [
     email: "nacho@gmail.com",
     rol: "atleta",
   },
+  {
+    id: 4,
+    nombre: "Coach Test",
+    email: "testcoach@gmail.com",
+    rol: "entrenador",
+    atletaIds: [5],
+  },
+  {
+    id: 5,
+    nombre: "User Test",
+    email: "testuser@gmail.com",
+    rol: "atleta",
+  },
 ];
 
 const rutinasKevin: Rutina[] = [
@@ -498,4 +511,33 @@ const rutinasNacho: Rutina[] = [
   },
 ];
 
-export const rutinasIniciales = [...rutinasKevin, ...rutinasNacho];
+const rutinasTest: Rutina[] = [
+  {
+    id: "test-dia-1",
+    atletaId: 5,
+    dia: "Día 1",
+    titulo: "Rutina de prueba",
+    objetivo: "Espacio aislado para probar RTTP",
+    duracion: 30,
+    bloques: [
+      bloqueIndividual(
+        "test-bloque-1",
+        "Bloque de prueba",
+        ejercicio({
+          id: "test-sentadilla",
+          nombre: "Sentadilla de prueba",
+          series: 3,
+          repeticiones: 10,
+          descanso: 60,
+          aclaraciones: "Podés editar o reemplazar este ejercicio",
+        }),
+      ),
+    ],
+  },
+];
+
+export const rutinasIniciales = [
+  ...rutinasKevin,
+  ...rutinasNacho,
+  ...rutinasTest,
+];
