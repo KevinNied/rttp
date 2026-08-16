@@ -11,6 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## RTTP product context
 
 - RTTP means **Return To The Prime**. Keep the product in Spanish, mobile-first, dark, and focused on low-friction workout execution.
+- Prioritize mobile for the athlete workout experience, but treat the coach workspace as a first-class responsive desktop experience with efficient use of wide screens.
 - Roles come from the entered email. Athletes only see their experience; coaches manage their assigned athletes and may open an explicit athlete preview.
 - The current iteration uses structured local data and `localStorage`; Supabase and real authentication are intentionally deferred.
 - Exercises grouped in one block alternate by round. A block containing one exercise completes all its sets before moving forward.

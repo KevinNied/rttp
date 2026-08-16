@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   closestCenter,
@@ -97,8 +99,16 @@ type RegistroSerie = {
 };
 
 const storageKey = "rttp-rutinas-v4";
+const templatesStorageKey = "rttp-plantillas-v1";
 const sessionStorageKey = "rttp-usuario-v1";
 const usersStorageKey = "rttp-usuarios-v1";
+const selectedAthleteStorageKey = "rttp-atleta-seleccionado-v1";
+
+type PlantillaRutina = Omit<Rutina, "atletaId"> & {
+  entrenadorId: number;
+};
+
+type VistaEntrenador = "resumen" | "atletas" | "rutinas";
 
 function totalSeries(rutina: Rutina) {
   return rutina.bloques.reduce(
@@ -112,8 +122,8 @@ function totalSeries(rutina: Rutina) {
   );
 }
 
-function cantidadEjercicios(rutina: Rutina) {
-  return rutina.bloques.reduce(
+function cantidadEjercicios({ bloques }: Pick<Rutina, "bloques">) {
+  return bloques.reduce(
     (total, bloque) => total + bloque.ejercicios.length,
     0,
   );
@@ -151,6 +161,31 @@ function pasosDeRutina(rutina: Rutina) {
         })),
     ).flat();
   });
+}
+
+function rutinaDesdePlantilla(
+  plantilla: PlantillaRutina,
+  atletaId: number,
+): Rutina {
+  const idBase = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  return {
+    ...plantilla,
+    id: `rutina-${atletaId}-${idBase}`,
+    atletaId,
+    bloques: plantilla.bloques.map((bloque, bloqueIndex) => ({
+      ...bloque,
+      id: `bloque-${idBase}-${bloqueIndex}`,
+      ejercicios: bloque.ejercicios.map((ejercicio, ejercicioIndex) => ({
+        ...ejercicio,
+        id: `ejercicio-${idBase}-${bloqueIndex}-${ejercicioIndex}`,
+      })),
+    })),
+  };
+}
+
+function idPlantilla(entrenadorId: number) {
+  return `plantilla-${entrenadorId}-${Date.now()}`;
 }
 
 function Logo() {
@@ -285,12 +320,14 @@ function LandingAcceso({
 function AppShell({
   usuario,
   vistaPrevia,
+  vistaEntrenador,
   onClosePreview,
   onLogout,
   children,
 }: {
   usuario: Usuario;
   vistaPrevia: boolean;
+  vistaEntrenador: VistaEntrenador;
   onClosePreview: () => void;
   onLogout: () => void;
   children: React.ReactNode;
@@ -301,52 +338,73 @@ function AppShell({
     <div className="min-h-screen bg-[#07080b] text-white selection:bg-cyan-300 selection:text-black">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(34,211,238,.14),transparent_32%),radial-gradient(circle_at_10%_70%,rgba(124,58,237,.15),transparent_35%)]" />
       {esEntrenador && !vistaPrevia && (
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-white/[0.07] bg-[#0a0b0f]/92 px-5 py-7 backdrop-blur-xl lg:flex">
-        <Logo />
-        <nav className="mt-12 space-y-2">
-          {[
-            [LayoutGrid, "Inicio"],
-            [ListChecks, "Rutinas"],
-            [Users, "Atletas"],
-          ].map(([Icon, label], index) => {
-            const NavIcon = Icon as typeof LayoutGrid;
-            return (
-              <button
-                key={label as string}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-xl px-3.5 py-3 text-sm transition-colors",
-                  index === 1
-                    ? "bg-indigo-300/10 text-white"
-                    : "text-indigo-100/35 hover:bg-indigo-300/[0.07] hover:text-white/75",
-                )}
-              >
-                <NavIcon className="size-4" />
-                {label as string}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="mt-auto flex items-center gap-3 rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.06] p-3">
-          <Avatar className="size-8 border border-violet-200/15">
-            <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[10px] text-white">
-              {usuario.nombre.slice(0, 1)}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <div className="text-xs">{usuario.nombre}</div>
-            <div className="text-[9px] text-indigo-100/35">Entrenador</div>
+        <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/[0.07] bg-[#0a0b0f]/92 px-5 py-7 backdrop-blur-xl lg:flex">
+          <Logo />
+          <div className="mt-10 px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/25">
+            Workspace
           </div>
-        </div>
+          <nav className="mt-3 space-y-1.5">
+            {[
+              [LayoutGrid, "Resumen", "Vista general", "/entrenador", "resumen"],
+              [Users, "Atletas", "Gestioná tus alumnos", "/entrenador/atletas", "atletas"],
+              [ListChecks, "Rutinas", "Plantillas y planes", "/entrenador/rutinas", "rutinas"],
+            ].map(([Icon, label, description, href, vista]) => {
+              const NavIcon = Icon as typeof LayoutGrid;
+              return (
+                <Link
+                  key={label as string}
+                  href={href as string}
+                  className={cn(
+                    "group flex w-full items-center gap-3 rounded-2xl px-3 py-3.5 transition-colors",
+                    vista === vistaEntrenador
+                      ? "bg-indigo-300/10 text-white"
+                      : "text-indigo-100/45 hover:bg-indigo-300/[0.07] hover:text-white/80",
+                  )}
+                >
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.06] bg-white/[0.035]">
+                    <NavIcon className="size-4" />
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{label as string}</span>
+                    <span className="mt-0.5 block text-[10px] text-white/25 transition-colors group-hover:text-white/40">
+                      {description as string}
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
+          <div className="mt-auto flex items-center gap-3 rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.06] p-3.5">
+            <Avatar className="size-9 border border-violet-200/15">
+              <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[10px] text-white">
+                {usuario.nombre.slice(0, 1)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div className="truncate text-sm">{usuario.nombre}</div>
+              <div className="text-[10px] text-indigo-100/35">Entrenador</div>
+            </div>
+          </div>
         </aside>
       )}
 
       <header
         className={cn(
           "fixed inset-x-0 top-0 z-40 flex h-18 items-center justify-between border-b border-white/[0.07] bg-[#07080b]/88 px-4 backdrop-blur-xl lg:px-8",
-          esEntrenador && !vistaPrevia && "lg:left-56",
+          esEntrenador && !vistaPrevia && "lg:left-64",
         )}
       >
-        <Logo />
+        <div className={cn(esEntrenador && !vistaPrevia && "lg:hidden")}>
+          <Logo />
+        </div>
+        {esEntrenador && !vistaPrevia && (
+          <div className="hidden lg:block">
+            <div className="text-sm font-medium text-white/85">Panel de entrenador</div>
+            <div className="mt-0.5 text-[10px] text-white/30">
+              Organización y seguimiento de planes
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2">
           {vistaPrevia && (
             <Button
@@ -360,7 +418,12 @@ function AppShell({
             </Button>
           )}
           {!vistaPrevia && (
-            <div className="hidden text-right sm:block">
+            <div
+              className={cn(
+                "hidden text-right sm:block",
+                esEntrenador && "lg:hidden",
+              )}
+            >
               <div className="text-[11px]">{usuario.nombre}</div>
               <div className="text-[9px] text-white/30">
                 {usuario.rol === "entrenador" ? "Entrenador" : "Atleta"}
@@ -369,12 +432,12 @@ function AppShell({
           )}
           <Button
             variant="ghost"
-            size="icon-sm"
             onClick={onLogout}
             aria-label="Cerrar sesión"
-            className="rounded-full text-white/35 hover:bg-white/[0.07] hover:text-white"
+            className="h-9 rounded-full px-3 text-white/40 hover:bg-white/[0.07] hover:text-white"
           >
             <LogOut />
+            <span className="hidden text-xs lg:inline">Cerrar sesión</span>
           </Button>
         </div>
       </header>
@@ -382,7 +445,7 @@ function AppShell({
       <main
         className={cn(
           "relative min-h-screen pt-18",
-          esEntrenador && !vistaPrevia && "lg:pl-56",
+          esEntrenador && !vistaPrevia && "lg:pl-64",
         )}
       >
         {children}
@@ -395,19 +458,27 @@ function SelectorRutina({
   rutinas,
   rutinaActiva,
   onSelect,
+  desktopVertical = false,
 }: {
   rutinas: Rutina[];
   rutinaActiva: Rutina;
   onSelect: (id: string) => void;
+  desktopVertical?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div
+      className={cn(
+        "grid grid-cols-2 gap-2",
+        desktopVertical && "xl:grid-cols-1 xl:gap-3",
+      )}
+    >
       {rutinas.map((rutina, index) => (
         <button
           key={rutina.id}
           onClick={() => onSelect(rutina.id)}
           className={cn(
             "rounded-2xl border p-3 text-left transition-all",
+            desktopVertical && "xl:p-4",
             rutina.id === rutinaActiva.id
               ? index % 2 === 0
                 ? "border-blue-300/35 bg-blue-400/[0.10]"
@@ -418,8 +489,20 @@ function SelectorRutina({
           <div className="text-[10px] uppercase tracking-wider text-cyan-200/65">
             {rutina.dia}
           </div>
-          <div className="mt-1 truncate text-sm font-medium">{rutina.titulo}</div>
-          <div className="mt-1 text-[10px] text-indigo-100/35">
+          <div
+            className={cn(
+              "mt-1 truncate text-sm font-medium",
+              desktopVertical && "xl:mt-2 xl:text-base",
+            )}
+          >
+            {rutina.titulo}
+          </div>
+          <div
+            className={cn(
+              "mt-1 text-[10px] text-indigo-100/35",
+              desktopVertical && "xl:mt-2 xl:text-xs",
+            )}
+          >
             {cantidadEjercicios(rutina)} ejercicios · {totalSeries(rutina)} series
           </div>
         </button>
@@ -456,7 +539,7 @@ function FilaEjercicio({
         transition,
       }}
       className={cn(
-        "mx-3 my-2 grid gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-3 py-3 shadow-sm md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center",
+        "mx-3 my-2 grid gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-3 py-3 shadow-sm md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center xl:mx-4 xl:my-3 xl:gap-5 xl:px-4 xl:py-4",
         isDragging && "relative z-20 border-cyan-300/30 bg-[#161920] opacity-70 shadow-2xl",
       )}
     >
@@ -469,7 +552,7 @@ function FilaEjercicio({
         >
           <GripVertical className="size-4" />
         </button>
-        <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-violet-300/10 text-[10px] font-medium text-violet-100/60">
+        <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-violet-300/10 text-[10px] font-medium text-violet-100/60 xl:size-10 xl:text-xs">
           {item.nombre
             .split(" ")
             .map((palabra) => palabra[0])
@@ -477,7 +560,7 @@ function FilaEjercicio({
             .slice(0, 2)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm">{item.nombre}</div>
+          <div className="truncate text-sm xl:text-base">{item.nombre}</div>
           <Input
             value={item.aclaraciones}
             onChange={(event) =>
@@ -485,7 +568,7 @@ function FilaEjercicio({
             }
             aria-label={`Aclaraciones de ${item.nombre}`}
             placeholder="Agregar aclaraciones"
-            className="mt-1 h-6 border-0 bg-transparent p-0 text-[10px] text-violet-100/55 shadow-none placeholder:text-white/20 focus-visible:ring-0"
+            className="mt-1 h-6 border-0 bg-transparent p-0 text-[10px] text-violet-100/55 shadow-none placeholder:text-white/20 focus-visible:ring-0 xl:text-xs"
           />
         </div>
       </div>
@@ -516,47 +599,106 @@ function FilaEjercicio({
             <Plus />
           </Button>
         </div>
-        <label className="w-16 text-center">
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={item.repeticionesMin}
-            onChange={(event) =>
-              onUpdate({
-                ...item,
-                repeticionesMin: Math.max(0, Number(event.target.value)),
-              })
+        <div className="space-y-1">
+          <select
+            value={
+              item.repeticionesMin === item.repeticionesMax
+                ? "fijas"
+                : "rango"
             }
-            aria-label={`Repeticiones mínimas de ${item.nombre}`}
-            className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          />
-          <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
-            reps. mín.
-          </div>
-        </label>
-        <label className="w-16 text-center">
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={item.repeticionesMin}
-            value={item.repeticionesMax}
-            onChange={(event) =>
-              onUpdate({
-                ...item,
-                repeticionesMax: Math.max(
-                  item.repeticionesMin,
-                  Number(event.target.value),
-                ),
-              })
-            }
-            aria-label={`Repeticiones máximas de ${item.nombre}`}
-            className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          />
-          <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
-            reps. máx.
-          </div>
-        </label>
+            onChange={(event) => {
+              if (event.target.value === "fijas") {
+                onUpdate({
+                  ...item,
+                  repeticionesMax: item.repeticionesMin,
+                });
+              } else {
+                onUpdate({
+                  ...item,
+                  repeticionesMax: Math.max(
+                    item.repeticionesMin + 1,
+                    item.repeticionesMax,
+                  ),
+                });
+              }
+            }}
+            aria-label={`Tipo de repeticiones de ${item.nombre}`}
+            className="h-8 rounded-lg border border-white/10 bg-black/25 px-2 text-[10px] text-white outline-none focus:border-cyan-300/40"
+          >
+            <option value="fijas">Reps. fijas</option>
+            <option value="rango">Rango</option>
+          </select>
+          {item.repeticionesMin === item.repeticionesMax ? (
+            <label className="block w-28 text-center">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={item.repeticionesMin}
+                onChange={(event) => {
+                  const repeticiones = Math.max(0, Number(event.target.value));
+                  onUpdate({
+                    ...item,
+                    repeticionesMin: repeticiones,
+                    repeticionesMax: repeticiones,
+                  });
+                }}
+                aria-label={`Repeticiones de ${item.nombre}`}
+                className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              />
+              <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+                repeticiones
+              </div>
+            </label>
+          ) : (
+            <div className="flex gap-1">
+              <label className="w-16 text-center">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={item.repeticionesMin}
+                  onChange={(event) =>
+                    onUpdate({
+                      ...item,
+                      repeticionesMin: Math.min(
+                        item.repeticionesMax,
+                        Math.max(0, Number(event.target.value)),
+                      ),
+                    })
+                  }
+                  aria-label={`Repeticiones mínimas de ${item.nombre}`}
+                  className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+                  mín.
+                </div>
+              </label>
+              <label className="w-16 text-center">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={item.repeticionesMin}
+                  value={item.repeticionesMax}
+                  onChange={(event) =>
+                    onUpdate({
+                      ...item,
+                      repeticionesMax: Math.max(
+                        item.repeticionesMin,
+                        Number(event.target.value),
+                      ),
+                    })
+                  }
+                  aria-label={`Repeticiones máximas de ${item.nombre}`}
+                  className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+                  máx.
+                </div>
+              </label>
+            </div>
+          )}
+        </div>
         <label className="w-20 text-center">
           <Input
             type="number"
@@ -643,7 +785,7 @@ function BloqueEditor({
       <button
         onClick={onToggle}
         className={cn(
-          "flex w-full items-center justify-between px-4 py-3 text-left transition-colors",
+          "flex w-full items-center justify-between px-4 py-3 text-left transition-colors xl:px-5 xl:py-4",
           index % 2 === 0
             ? "bg-blue-400/[0.045] hover:bg-blue-400/[0.09]"
             : "bg-violet-400/[0.045] hover:bg-violet-400/[0.09]",
@@ -652,7 +794,7 @@ function BloqueEditor({
         <div className="flex items-center gap-2.5">
           <span
             className={cn(
-              "grid size-6 place-items-center rounded-full text-[9px] font-semibold text-indigo-950",
+              "grid size-6 place-items-center rounded-full text-[9px] font-semibold text-indigo-950 xl:size-7",
               index % 3 === 0
                 ? "bg-cyan-300"
                 : index % 3 === 1
@@ -662,8 +804,8 @@ function BloqueEditor({
           >
             {index + 1}
           </span>
-          <span className="text-xs font-medium">{bloque.nombre}</span>
-          <span className="hidden text-[9px] text-white/30 sm:inline">
+          <span className="text-xs font-medium xl:text-sm">{bloque.nombre}</span>
+          <span className="hidden text-[9px] text-white/30 sm:inline xl:text-[10px]">
             {bloque.tipo}
           </span>
         </div>
@@ -719,6 +861,10 @@ function DialogoEjercicio({
   const [open, setOpen] = useState(false);
   const [nombre, setNombre] = useState("");
   const [series, setSeries] = useState("3");
+  const [modoRepeticiones, setModoRepeticiones] = useState<"fijas" | "rango">(
+    "fijas",
+  );
+  const [repeticiones, setRepeticiones] = useState("10");
   const [repeticionesMin, setRepeticionesMin] = useState("10");
   const [repeticionesMax, setRepeticionesMax] = useState("10");
   const [peso, setPeso] = useState("0");
@@ -732,6 +878,8 @@ function DialogoEjercicio({
     if (siguiente) return;
     setNombre("");
     setSeries("3");
+    setModoRepeticiones("fijas");
+    setRepeticiones("10");
     setRepeticionesMin("10");
     setRepeticionesMax("10");
     setPeso("0");
@@ -748,11 +896,19 @@ function DialogoEjercicio({
         id: `${nombre.toLowerCase().replace(/\W+/g, "-")}-${Date.now()}`,
         nombre: nombre.trim(),
         series: Math.max(1, Number(series) || 1),
-        repeticionesMin: Math.max(0, Number(repeticionesMin) || 0),
-        repeticionesMax: Math.max(
-          Number(repeticionesMin) || 0,
-          Number(repeticionesMax) || 0,
+        repeticionesMin: Math.max(
+          0,
+          Number(
+            modoRepeticiones === "fijas" ? repeticiones : repeticionesMin,
+          ) || 0,
         ),
+        repeticionesMax:
+          modoRepeticiones === "fijas"
+            ? Math.max(0, Number(repeticiones) || 0)
+            : Math.max(
+                Number(repeticionesMin) || 0,
+                Number(repeticionesMax) || 0,
+              ),
         peso: Math.max(0, Number(peso) || 0),
         descanso:
           descanso.trim() === "" ? null : Math.max(0, Number(descanso)),
@@ -818,11 +974,9 @@ function DialogoEjercicio({
               />
             </label>
           )}
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {[
               ["Series", series, setSeries],
-              ["Reps. mín.", repeticionesMin, setRepeticionesMin],
-              ["Reps. máx.", repeticionesMax, setRepeticionesMax],
               ["Peso", peso, setPeso],
               ["Descanso", descanso, setDescanso],
             ].map(([label, value, setter]) => (
@@ -852,6 +1006,69 @@ function DialogoEjercicio({
                 />
               </label>
             ))}
+          </div>
+          <div className="space-y-2">
+            <span className="text-xs text-indigo-100/55">Repeticiones</span>
+            <div className="flex rounded-xl border border-white/10 bg-black/20 p-1 text-xs">
+              {[
+                ["fijas", "Número fijo"],
+                ["rango", "Mínimo y máximo"],
+              ].map(([modo, etiqueta]) => (
+                <button
+                  key={modo}
+                  type="button"
+                  onClick={() => setModoRepeticiones(modo as "fijas" | "rango")}
+                  className={cn(
+                    "flex-1 rounded-lg px-3 py-2 transition-colors",
+                    modoRepeticiones === modo
+                      ? "bg-cyan-300 text-indigo-950"
+                      : "text-white/45 hover:text-white",
+                  )}
+                >
+                  {etiqueta}
+                </button>
+              ))}
+            </div>
+            {modoRepeticiones === "fijas" ? (
+              <label className="block space-y-2">
+                <span className="text-xs text-indigo-100/55">
+                  Repeticiones
+                </span>
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={repeticiones}
+                  onChange={(event) => setRepeticiones(event.target.value)}
+                  className="border-white/10 bg-black/35"
+                />
+              </label>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <label className="space-y-2">
+                  <span className="text-xs text-indigo-100/55">Mínimas</span>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={repeticionesMin}
+                    onChange={(event) => setRepeticionesMin(event.target.value)}
+                    className="border-white/10 bg-black/35"
+                  />
+                </label>
+                <label className="space-y-2">
+                  <span className="text-xs text-indigo-100/55">Máximas</span>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={Number(repeticionesMin) || 0}
+                    value={repeticionesMax}
+                    onChange={(event) => setRepeticionesMax(event.target.value)}
+                    className="border-white/10 bg-black/35"
+                  />
+                </label>
+              </div>
+            )}
           </div>
           <label className="block space-y-2">
             <span className="text-xs text-indigo-100/55">Aclaraciones</span>
@@ -902,7 +1119,7 @@ function DialogoNuevaRutina({
   const [dia, setDia] = useState("");
   const [titulo, setTitulo] = useState("");
   const [objetivo, setObjetivo] = useState("");
-  const [duracion, setDuracion] = useState("60");
+  const [duracion, setDuracion] = useState("");
 
   function cambiarApertura(siguiente: boolean) {
     setOpen(siguiente);
@@ -910,17 +1127,17 @@ function DialogoNuevaRutina({
     setDia("");
     setTitulo("");
     setObjetivo("");
-    setDuracion("60");
+    setDuracion("");
   }
 
   function crear() {
-    if (!dia.trim() || !titulo.trim()) return;
+    if (!titulo.trim()) return;
 
     const timestamp = Date.now();
     onCreate({
       id: `rutina-${atleta.id}-${timestamp}`,
       atletaId: atleta.id,
-      dia: dia.trim(),
+      dia: dia.trim() || "Sin día asignado",
       titulo: titulo.trim(),
       objetivo: objetivo.trim() || "Entrenamiento personalizado",
       duracion: Math.max(1, Number(duracion) || 60),
@@ -952,8 +1169,7 @@ function DialogoNuevaRutina({
         <DialogHeader>
           <DialogTitle>Crear rutina para {atleta.nombre}</DialogTitle>
           <DialogDescription className="text-white/40">
-            Empezá con un bloque vacío. Después agregá y ordená los ejercicios
-            arrastrándolos.
+            Empezá con un bloque vacío y completá los demás datos cuando quieras.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -969,7 +1185,7 @@ function DialogoNuevaRutina({
               />
             </label>
             <label className="space-y-2">
-              <span className="text-xs text-white/55">Día</span>
+              <span className="text-xs text-white/55">Día (opcional)</span>
               <Input
                 value={dia}
                 onChange={(event) => setDia(event.target.value)}
@@ -979,7 +1195,7 @@ function DialogoNuevaRutina({
             </label>
           </div>
           <label className="block space-y-2">
-            <span className="text-xs text-white/55">Objetivo</span>
+            <span className="text-xs text-white/55">Objetivo (opcional)</span>
             <Input
               value={objetivo}
               onChange={(event) => setObjetivo(event.target.value)}
@@ -989,7 +1205,7 @@ function DialogoNuevaRutina({
           </label>
           <label className="block space-y-2">
             <span className="text-xs text-white/55">
-              Duración estimada (minutos)
+              Duración estimada (minutos, opcional)
             </span>
             <Input
               type="number"
@@ -1026,7 +1242,7 @@ function DialogoNuevaRutina({
                 <Button
                   type="button"
                   onClick={crear}
-                  disabled={!dia.trim() || !titulo.trim()}
+                  disabled={!titulo.trim()}
                   className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
                 />
               }
@@ -1036,6 +1252,206 @@ function DialogoNuevaRutina({
             </DialogClose>
           </DialogFooter>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DialogoDetallesRutina({
+  rutina,
+  onUpdate,
+}: {
+  rutina: Rutina;
+  onUpdate: (rutina: Rutina) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [titulo, setTitulo] = useState(rutina.titulo);
+  const [dia, setDia] = useState(rutina.dia);
+  const [objetivo, setObjetivo] = useState(rutina.objetivo);
+  const [duracion, setDuracion] = useState(String(rutina.duracion));
+
+  function cambiarApertura(siguiente: boolean) {
+    setOpen(siguiente);
+    if (!siguiente) return;
+    setTitulo(rutina.titulo);
+    setDia(rutina.dia === "Sin día asignado" ? "" : rutina.dia);
+    setObjetivo(
+      rutina.objetivo === "Entrenamiento personalizado" ? "" : rutina.objetivo,
+    );
+    setDuracion(String(rutina.duracion));
+  }
+
+  function guardar() {
+    if (!titulo.trim()) return;
+    onUpdate({
+      ...rutina,
+      titulo: titulo.trim(),
+      dia: dia.trim() || "Sin día asignado",
+      objetivo: objetivo.trim() || "Entrenamiento personalizado",
+      duracion: Math.max(1, Number(duracion) || 60),
+    });
+    setOpen(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={cambiarApertura}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="rounded-full border-white/10 bg-transparent text-white/65 hover:bg-white/[0.06] hover:text-white"
+          />
+        }
+      >
+        Editar detalles
+      </DialogTrigger>
+      <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Detalles de la rutina</DialogTitle>
+          <DialogDescription className="text-white/40">
+            El nombre es obligatorio. Los demás campos son opcionales.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-[1fr_88px] gap-3">
+            <label className="space-y-2">
+              <span className="text-xs text-white/55">Nombre</span>
+              <Input
+                autoFocus
+                value={titulo}
+                onChange={(event) => setTitulo(event.target.value)}
+                className="border-white/10 bg-black/35"
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-xs text-white/55">Día (opcional)</span>
+              <Input
+                value={dia}
+                onChange={(event) => setDia(event.target.value)}
+                placeholder="Día 1"
+                className="border-white/10 bg-black/35"
+              />
+            </label>
+          </div>
+          <label className="block space-y-2">
+            <span className="text-xs text-white/55">Objetivo (opcional)</span>
+            <Input
+              value={objetivo}
+              onChange={(event) => setObjetivo(event.target.value)}
+              placeholder="Ej. Fuerza y estabilidad"
+              className="border-white/10 bg-black/35"
+            />
+          </label>
+          <label className="block space-y-2">
+            <span className="text-xs text-white/55">
+              Duración estimada (minutos, opcional)
+            </span>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={duracion}
+              onChange={(event) => setDuracion(event.target.value)}
+              className="border-white/10 bg-black/35"
+            />
+          </label>
+        </div>
+        <DialogFooter>
+          <DialogClose
+            render={<Button variant="ghost" className="text-white/45" />}
+          >
+            Cancelar
+          </DialogClose>
+          <Button
+            type="button"
+            onClick={guardar}
+            disabled={!titulo.trim()}
+            className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+          >
+            Guardar detalles
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DialogoAsignarPlantilla({
+  plantilla,
+  atletas,
+  onAssign,
+}: {
+  plantilla: PlantillaRutina;
+  atletas: Usuario[];
+  onAssign: (atletaId: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [atletaId, setAtletaId] = useState(String(atletas[0]?.id ?? ""));
+
+  function cambiarApertura(siguiente: boolean) {
+    setOpen(siguiente);
+    if (siguiente) setAtletaId(String(atletas[0]?.id ?? ""));
+  }
+
+  function asignar() {
+    const id = Number(atletaId);
+    if (!id) return;
+    onAssign(id);
+    setOpen(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={cambiarApertura}>
+      <DialogTrigger
+        render={
+          <Button
+            size="sm"
+            className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+          />
+        }
+      >
+        Asignar
+        <ArrowRight />
+      </DialogTrigger>
+      <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Asignar “{plantilla.titulo}”</DialogTitle>
+          <DialogDescription className="text-white/40">
+            Se creará una copia independiente para el atleta, lista para
+            personalizar pesos y detalles.
+          </DialogDescription>
+        </DialogHeader>
+        <label className="block space-y-2">
+          <span className="text-xs text-white/55">Atleta</span>
+          <select
+            value={atletaId}
+            onChange={(event) => setAtletaId(event.target.value)}
+            className="h-10 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
+          >
+            {atletas.map((atleta) => (
+              <option key={atleta.id} value={atleta.id}>
+                {atleta.nombre}
+              </option>
+            ))}
+          </select>
+        </label>
+        <DialogFooter>
+          <DialogClose
+            render={<Button variant="ghost" className="text-white/45" />}
+          >
+            Cancelar
+          </DialogClose>
+          <Button
+            type="button"
+            onClick={asignar}
+            disabled={!atletaId}
+            className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+          >
+            Asignar rutina
+            <ArrowRight />
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -1153,29 +1569,52 @@ function HomeEntrenador({
   atletas,
   atleta,
   rutinas,
-  rutina,
+  rutinasPorAtleta,
+  plantillas,
+  vista,
+  detalleAtleta,
+  rutina: rutinaGuardada,
   onSelectAtleta,
   onSelect,
-  setRutina,
+  onSaveRutina,
   onCreateRutina,
+  onSaveAsTemplate,
+  onAssignTemplate,
+  onDeleteTemplate,
   onCreateAtleta,
   onDeleteRutina,
+  onDirtyChange,
   verComoAtleta,
 }: {
   usuarios: Usuario[];
   atletas: Usuario[];
   atleta: Usuario;
   rutinas: Rutina[];
+  rutinasPorAtleta: Rutina[];
+  plantillas: PlantillaRutina[];
+  vista: VistaEntrenador;
+  detalleAtleta: boolean;
   rutina: Rutina;
   onSelectAtleta: (id: number) => void;
   onSelect: (id: string) => void;
-  setRutina: React.Dispatch<React.SetStateAction<Rutina>>;
+  onSaveRutina: (rutina: Rutina) => void;
   onCreateRutina: (rutina: Rutina) => void;
+  onSaveAsTemplate: (rutina: Rutina) => void;
+  onAssignTemplate: (plantillaId: string, atletaId: number) => void;
+  onDeleteTemplate: (plantillaId: string) => void;
   onCreateAtleta: (nombre: string, email: string) => void;
   onDeleteRutina: (id: string) => void;
+  onDirtyChange: (dirty: boolean) => void;
   verComoAtleta: () => void;
 }) {
+  const [rutina, setRutina] = useState(rutinaGuardada);
   const [bloqueAbierto, setBloqueAbierto] = useState<string | null>(null);
+  const [accionPendiente, setAccionPendiente] = useState<(() => void) | null>(
+    null,
+  );
+  const [guardadoVisible, setGuardadoVisible] = useState(false);
+  const hayCambios =
+    JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -1187,6 +1626,46 @@ function HomeEntrenador({
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
+
+  useEffect(() => {
+    if (!hayCambios) return;
+    const advertirSalida = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", advertirSalida);
+    return () => window.removeEventListener("beforeunload", advertirSalida);
+  }, [hayCambios]);
+
+  useEffect(() => {
+    onDirtyChange(hayCambios);
+    return () => onDirtyChange(false);
+  }, [hayCambios, onDirtyChange]);
+
+  function guardar() {
+    onSaveRutina(rutina);
+    setGuardadoVisible(true);
+    window.setTimeout(() => setGuardadoVisible(false), 1800);
+  }
+
+  function navegar(action: () => void) {
+    if (!hayCambios) {
+      action();
+      return;
+    }
+    setAccionPendiente(() => action);
+  }
+
+  function continuarDespuesDeGuardar() {
+    onSaveRutina(rutina);
+    accionPendiente?.();
+    setAccionPendiente(null);
+  }
+
+  function descartarYContinuar() {
+    setRutina(rutinaGuardada);
+    accionPendiente?.();
+    setAccionPendiente(null);
+  }
 
   function actualizarEjercicio(
     bloqueId: string,
@@ -1344,168 +1823,440 @@ function HomeEntrenador({
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-7 md:px-8 md:py-9">
-      <div className="mb-6 flex gap-2">
-        {atletas.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onSelectAtleta(item.id)}
-            className={cn(
-              "flex items-center gap-2 rounded-full border px-3 py-2 text-xs transition-colors",
-              item.id === atleta.id
-                ? "border-cyan-200/25 bg-cyan-300/10 text-white"
-                : "border-white/[0.08] bg-white/[0.025] text-white/40 hover:text-white/70",
-            )}
-          >
-            <Avatar className="size-6">
-              <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[9px] text-white">
-                {item.nombre.slice(0, 1)}
-              </AvatarFallback>
-            </Avatar>
-            {item.nombre}
-          </button>
-        ))}
-        <DialogoNuevoAtleta usuarios={usuarios} onCreate={onCreateAtleta} />
-      </div>
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <div className="mb-1 text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">
-            Rutinas de {atleta.nombre}
+    <div
+      id="inicio-entrenador"
+      className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12"
+    >
+      {vista === "resumen" && (
+        <section>
+          <div className="mb-8">
+            <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
+              Workspace de entrenamiento
+            </div>
+            <h1 className="max-w-2xl text-3xl font-light tracking-[-0.035em] md:text-4xl xl:max-w-none xl:whitespace-nowrap xl:text-5xl">
+              Planificá el progreso de tus atletas
+            </h1>
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/35 xl:max-w-none xl:whitespace-nowrap xl:text-base">
+              Organizá atletas, reutilizá plantillas y personalizá cada plan desde
+              sus espacios dedicados.
+            </p>
           </div>
-          <h1 className="text-3xl font-light tracking-tight">
-            Plan de entrenamiento
-          </h1>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
+          <div className="grid gap-3 sm:grid-cols-3">
+            {[
+              [atletas.length, "Atletas", "Gestioná sus perfiles"],
+              [plantillas.length, "Plantillas propias", "Reutilizables"],
+              [rutinasPorAtleta.length, "Planes asignados", "En todos tus atletas"],
+            ].map(([cantidad, titulo, detalle]) => (
+              <div
+                key={titulo as string}
+                className="rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-4"
+              >
+                <div className="text-2xl font-light">{cantidad as number}</div>
+                <div className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
+                  {titulo as string}
+                </div>
+                <div className="mt-1 text-[10px] text-white/25">
+                  {detalle as string}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {vista === "atletas" && !detalleAtleta && (
+        <section className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/70 p-4 md:p-5 xl:p-6">
+          <div className="mb-5 flex items-end justify-between gap-4">
+            <div>
+              <div className="text-sm font-medium">Tus atletas</div>
+              <div className="mt-1 text-xs text-white/30">
+                Revisá la carga y accedé a la planificación individual.
+              </div>
+            </div>
+            <DialogoNuevoAtleta usuarios={usuarios} onCreate={onCreateAtleta} />
+          </div>
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {atletas.map((item) => {
+              const planes = rutinasPorAtleta.filter(
+                (rutinaActual) => rutinaActual.atletaId === item.id,
+              );
+              const ejercicios = planes.reduce(
+                (total, rutinaActual) =>
+                  total + cantidadEjercicios(rutinaActual),
+                0,
+              );
+
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="size-10">
+                      <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
+                        {item.nombre.slice(0, 1)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">{item.nombre}</div>
+                      <div className="truncate text-[10px] text-white/30">{item.email}</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-white/[0.035] px-3 py-2">
+                      <div className="text-sm">{planes.length}</div>
+                      <div className="text-[9px] uppercase tracking-wider text-white/30">
+                        Planes
+                      </div>
+                    </div>
+                    <div className="rounded-xl bg-white/[0.035] px-3 py-2">
+                      <div className="text-sm">{ejercicios}</div>
+                      <div className="text-[9px] uppercase tracking-wider text-white/30">
+                        Ejercicios
+                      </div>
+                    </div>
+                  </div>
+                  <Link
+                    href={`/entrenador/atletas/${item.id}`}
+                    onClick={() => onSelectAtleta(item.id)}
+                    className="mt-4 flex h-9 items-center justify-center gap-2 rounded-full bg-cyan-300 text-xs font-medium text-indigo-950 transition-colors hover:bg-cyan-200"
+                  >
+                    Ver planificación
+                    <ArrowRight className="size-3.5" />
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {vista === "rutinas" && (
+        <section className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/70 p-4 md:p-5 xl:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0">
+            <div className="text-sm font-medium">Biblioteca de plantillas</div>
+          <div className="mt-1 text-xs leading-relaxed text-white/30 xl:whitespace-nowrap">
+              Guardá la rutina abierta como plantilla para reutilizar su estructura y pesos base. Cada asignación crea una copia independiente para el atleta.
+            </div>
+          </div>
           <Button
-            onClick={verComoAtleta}
-            className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+            variant="outline"
+            onClick={() => onSaveAsTemplate(rutina)}
+            className="self-start shrink-0 rounded-full border-indigo-200/10 bg-indigo-300/[0.05] text-white hover:bg-indigo-300/10 hover:text-white xl:self-auto"
           >
-            Vista atleta
-            <ArrowRight />
+            <Plus />
+            Guardar como plantilla
           </Button>
         </div>
-      </div>
-
-      <SelectorRutina
-        rutinas={rutinas}
-        rutinaActiva={rutina}
-        onSelect={onSelect}
-      />
-
-      <Card className="mt-4 overflow-hidden border-white/[0.08] bg-[#0f1015] text-white shadow-[0_24px_70px_rgba(37,28,100,.18)]">
-        <CardHeader className="border-b border-indigo-200/[0.07] p-4 md:p-5">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <Input
-                value={rutina.titulo}
-                onChange={(event) =>
-                  setRutina((actual) => ({
-                    ...actual,
-                    titulo: event.target.value,
-                  }))
-                }
-                aria-label="Nombre de la rutina"
-                className="h-auto border-0 bg-transparent p-0 text-lg font-medium shadow-none focus-visible:ring-0"
-              />
-              <p className="mt-1 text-[11px] text-indigo-100/35">
-                {rutina.objetivo} · {rutina.duracion} min ·{" "}
-                {totalSeries(rutina)} series
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <DialogoEjercicio
-                key={rutina.id}
-                bloques={rutina.bloques}
-                onAdd={agregarEjercicio}
-              />
-              <Dialog>
-                <DialogTrigger
-                  disabled={rutinas.length <= 1}
-                  render={
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label="Eliminar rutina"
-                      title={
-                        rutinas.length <= 1
-                          ? "Creá otra rutina antes de eliminar esta"
-                          : "Eliminar rutina"
-                      }
-                      className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200 disabled:opacity-20"
-                    />
-                  }
-                >
-                  <Trash2 />
-                </DialogTrigger>
-                <DialogContent className="border-white/10 bg-[#111217] text-white">
-                  <DialogHeader>
-                    <DialogTitle>¿Eliminar “{rutina.titulo}”?</DialogTitle>
-                    <DialogDescription className="text-white/40">
-                      La rutina dejará de estar disponible para {atleta.nombre}.
-                      Esta acción no se puede deshacer.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <DialogClose
-                      render={
-                        <Button variant="ghost" className="text-white/50" />
-                      }
-                    >
-                      Cancelar
-                    </DialogClose>
-                    <DialogClose
+        {plantillas.length === 0 ? (
+          <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5 text-xs text-white/35">
+            Todavía no tenés plantillas. Personalizá una rutina y guardala acá
+            para asignarla rápidamente.
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {plantillas.map((plantilla) => (
+              <div
+                key={plantilla.id}
+                className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[10px] uppercase tracking-wider text-cyan-200/60">
+                      {plantilla.dia}
+                    </div>
+                    <div className="mt-1 truncate text-sm font-medium">
+                      {plantilla.titulo}
+                    </div>
+                  </div>
+                  <Badge className="shrink-0 border-white/[0.08] bg-white/[0.04] text-[9px] text-white/45">
+                    Plantilla
+                  </Badge>
+                </div>
+                <div className="mt-2 text-[10px] text-white/30">
+                  {cantidadEjercicios(plantilla)} ejercicios ·{" "}
+                  {plantilla.duracion} min
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  <DialogoAsignarPlantilla
+                    plantilla={plantilla}
+                    atletas={atletas}
+                    onAssign={(atletaId) =>
+                      navegar(() => onAssignTemplate(plantilla.id, atletaId))
+                    }
+                  />
+                  <Dialog>
+                    <DialogTrigger
                       render={
                         <Button
-                          variant="destructive"
-                          onClick={() => onDeleteRutina(rutina.id)}
-                          className="bg-red-500 text-white hover:bg-red-400"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Eliminar plantilla ${plantilla.titulo}`}
+                          className="rounded-full text-white/35 hover:bg-red-400/10 hover:text-red-200"
                         />
                       }
                     >
-                      Eliminar rutina
-                    </DialogClose>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={moverEjercicio}
-          >
-            {rutina.bloques.map((bloque, index) => (
-              <BloqueEditor
-                key={bloque.id}
-                bloque={bloque}
-                index={index}
-                abierto={bloqueAbierto === bloque.id}
-                onToggle={() =>
-                  setBloqueAbierto((actual) =>
-                    actual === bloque.id ? null : bloque.id,
-                  )
-                }
-              >
-                {bloque.ejercicios.map((item) => (
-                  <FilaEjercicio
-                    key={item.id}
-                    item={item}
-                    bloqueId={bloque.id}
-                    onUpdate={(siguiente) =>
-                      actualizarEjercicio(bloque.id, item.id, siguiente)
-                    }
-                    onDelete={() => eliminarEjercicio(bloque.id, item.id)}
-                  />
-                ))}
-              </BloqueEditor>
+                      <Trash2 />
+                    </DialogTrigger>
+                    <DialogContent className="border-white/10 bg-[#111217] text-white">
+                      <DialogHeader>
+                        <DialogTitle>
+                          ¿Eliminar “{plantilla.titulo}”?
+                        </DialogTitle>
+                        <DialogDescription className="text-white/40">
+                          La plantilla dejará de estar disponible para nuevas
+                          asignaciones. Las rutinas que ya asignaste no se
+                          modificarán.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <DialogClose
+                          render={
+                            <Button variant="ghost" className="text-white/50" />
+                          }
+                        >
+                          Cancelar
+                        </DialogClose>
+                        <DialogClose
+                          render={
+                            <Button
+                              variant="destructive"
+                              onClick={() => onDeleteTemplate(plantilla.id)}
+                              className="bg-red-500 text-white hover:bg-red-400"
+                            />
+                          }
+                        >
+                          Eliminar plantilla
+                        </DialogClose>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
             ))}
-          </DndContext>
-        </CardContent>
-      </Card>
+          </div>
+        )}
+        </section>
+      )}
+
+      {detalleAtleta && (
+        <section id="rutinas-entrenador" className="scroll-mt-24">
+        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <Link
+              href="/entrenador/atletas"
+              className="mb-3 inline-flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white"
+            >
+              <ArrowLeft className="size-3.5" />
+              Todos los atletas
+            </Link>
+            <div className="mb-1 text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">
+              Planificación de {atleta.nombre}
+            </div>
+            <h2 className="text-2xl font-light tracking-tight md:text-3xl">
+              Plan de entrenamiento
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
+            <Button
+              onClick={() => navegar(verComoAtleta)}
+              className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+            >
+              Vista atleta
+              <ArrowRight />
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
+          <div className="xl:sticky xl:top-24">
+            <div className="mb-3 hidden items-center justify-between xl:flex">
+              <span className="text-xs font-medium text-white/60">
+                Rutinas asignadas
+              </span>
+              <span className="text-[10px] text-white/25">
+                {rutinas.length} planes
+              </span>
+            </div>
+            <SelectorRutina
+              rutinas={rutinas}
+              rutinaActiva={rutina}
+              onSelect={(id) => navegar(() => onSelect(id))}
+              desktopVertical
+            />
+          </div>
+
+          <Card className="overflow-hidden border-white/[0.08] bg-[#0f1015] text-white shadow-[0_24px_70px_rgba(37,28,100,.18)]">
+            <CardHeader className="border-b border-indigo-200/[0.07] p-4 md:p-5 xl:p-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-lg font-medium xl:text-xl">
+                    {rutina.titulo}
+                  </div>
+                  <p className="mt-1 text-[11px] text-indigo-100/35 xl:text-xs">
+                    {rutina.objetivo} · {rutina.duracion} min ·{" "}
+                    {totalSeries(rutina)} series
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={cn(
+                      "hidden text-[10px] sm:block",
+                      hayCambios ? "text-amber-200/70" : "text-cyan-200/55",
+                    )}
+                  >
+                    {hayCambios
+                      ? "Cambios sin guardar"
+                      : guardadoVisible
+                        ? "Cambios guardados"
+                        : "Guardado"}
+                  </div>
+                  <DialogoDetallesRutina
+                        rutina={rutina}
+                        onUpdate={setRutina}
+                  />
+                  <Button
+                    onClick={guardar}
+                    disabled={!hayCambios}
+                    className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110 disabled:bg-white/[0.06] disabled:text-white/25 disabled:shadow-none"
+                  >
+                    <Check />
+                    Guardar
+                  </Button>
+                  <DialogoEjercicio
+                    key={rutina.id}
+                    bloques={rutina.bloques}
+                    onAdd={agregarEjercicio}
+                  />
+                  <Dialog>
+                    <DialogTrigger
+                      disabled={rutinas.length <= 1}
+                      render={
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Eliminar rutina"
+                          title={
+                            rutinas.length <= 1
+                              ? "Creá otra rutina antes de eliminar esta"
+                              : "Eliminar rutina"
+                          }
+                          className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200 disabled:opacity-20"
+                        />
+                      }
+                    >
+                      <Trash2 />
+                    </DialogTrigger>
+                    <DialogContent className="border-white/10 bg-[#111217] text-white">
+                      <DialogHeader>
+                        <DialogTitle>¿Eliminar “{rutina.titulo}”?</DialogTitle>
+                        <DialogDescription className="text-white/40">
+                          La rutina dejará de estar disponible para{" "}
+                          {atleta.nombre}. Esta acción no se puede deshacer.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <DialogClose
+                          render={
+                            <Button variant="ghost" className="text-white/50" />
+                          }
+                        >
+                          Cancelar
+                        </DialogClose>
+                        <DialogClose
+                          render={
+                            <Button
+                              variant="destructive"
+                              onClick={() => onDeleteRutina(rutina.id)}
+                              className="bg-red-500 text-white hover:bg-red-400"
+                            />
+                          }
+                        >
+                          Eliminar rutina
+                        </DialogClose>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={moverEjercicio}
+              >
+                {rutina.bloques.map((bloque, index) => (
+                  <BloqueEditor
+                    key={bloque.id}
+                    bloque={bloque}
+                    index={index}
+                    abierto={bloqueAbierto === bloque.id}
+                    onToggle={() =>
+                      setBloqueAbierto((actual) =>
+                        actual === bloque.id ? null : bloque.id,
+                      )
+                    }
+                  >
+                    {bloque.ejercicios.map((item) => (
+                      <FilaEjercicio
+                        key={item.id}
+                        item={item}
+                        bloqueId={bloque.id}
+                        onUpdate={(siguiente) =>
+                          actualizarEjercicio(bloque.id, item.id, siguiente)
+                        }
+                        onDelete={() => eliminarEjercicio(bloque.id, item.id)}
+                      />
+                    ))}
+                  </BloqueEditor>
+                ))}
+              </DndContext>
+            </CardContent>
+          </Card>
+        </div>
+        </section>
+      )}
+
+      <Dialog
+        open={Boolean(accionPendiente)}
+        onOpenChange={(open) => {
+          if (!open) setAccionPendiente(null);
+        }}
+      >
+        <DialogContent className="border-white/10 bg-[#111217] text-white">
+          <DialogHeader>
+            <DialogTitle>Tenés cambios sin guardar</DialogTitle>
+            <DialogDescription className="text-white/40">
+              Guardalos antes de continuar o descartá esta edición.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-between">
+            <DialogClose
+              render={<Button variant="ghost" className="text-white/50" />}
+            >
+              Seguir editando
+            </DialogClose>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                onClick={descartarYContinuar}
+                className="border-white/10 bg-transparent text-white/65 hover:bg-white/[0.06] hover:text-white"
+              >
+                Descartar
+              </Button>
+              <Button
+                onClick={continuarDespuesDeGuardar}
+                className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+              >
+                Guardar y continuar
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2608,12 +3359,15 @@ function ExperienciaAtleta({
 }
 
 export default function Home() {
+  const pathname = usePathname();
   const [usuarios, setUsuarios] = useState<Usuario[]>(usuariosIniciales);
   const [rutinas, setRutinas] = useState<Rutina[]>(rutinasIniciales);
+  const [plantillas, setPlantillas] = useState<PlantillaRutina[]>([]);
   const [rutinaId, setRutinaId] = useState(rutinasIniciales[0].id);
   const [usuarioId, setUsuarioId] = useState<number | null>(null);
   const [atletaSeleccionadoId, setAtletaSeleccionadoId] = useState(1);
   const [vistaPrevia, setVistaPrevia] = useState(false);
+  const [editorDirty, setEditorDirty] = useState(false);
   const [registros, setRegistros] = useState<
     Record<string, RegistroSerie>
   >({});
@@ -2635,6 +3389,16 @@ export default function Home() {
   const rutina =
     rutinasDelAtleta.find((item) => item.id === rutinaId) ??
     rutinasDelAtleta[0];
+  const atletaRutaId = Number(pathname.split("/").at(-1));
+  const detalleAtleta =
+    pathname.startsWith("/entrenador/atletas/") &&
+    Number.isInteger(atletaRutaId);
+  const vistaEntrenador: VistaEntrenador =
+    pathname.startsWith("/entrenador/atletas")
+      ? "atletas"
+      : pathname === "/entrenador/rutinas"
+        ? "rutinas"
+        : "resumen";
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -2673,6 +3437,14 @@ export default function Home() {
           window.localStorage.removeItem(storageKey);
         }
       }
+      const plantillasGuardadas = window.localStorage.getItem(templatesStorageKey);
+      if (plantillasGuardadas) {
+        try {
+          setPlantillas(JSON.parse(plantillasGuardadas) as PlantillaRutina[]);
+        } catch {
+          window.localStorage.removeItem(templatesStorageKey);
+        }
+      }
       const usuarioGuardado = Number(
         window.localStorage.getItem(sessionStorageKey),
       );
@@ -2681,32 +3453,42 @@ export default function Home() {
         const usuarioInicial = usuariosDisponibles.find(
           (item) => item.id === usuarioGuardado,
         );
+        const atletaGuardado = Number(
+          window.localStorage.getItem(selectedAthleteStorageKey),
+        );
         setAtletaSeleccionadoId(
           usuarioInicial?.rol === "atleta"
             ? usuarioInicial.id
-            : usuarioInicial?.atletaIds?.[0] ?? 1,
+            : usuarioInicial?.atletaIds?.includes(atletaRutaId)
+              ? atletaRutaId
+              : usuarioInicial?.atletaIds?.includes(atletaGuardado)
+                ? atletaGuardado
+                : usuarioInicial?.atletaIds?.[0] ?? 1,
         );
       }
       setHidratado(true);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [atletaRutaId]);
 
   useEffect(() => {
     if (hidratado) {
       window.localStorage.setItem(storageKey, JSON.stringify(rutinas));
       window.localStorage.setItem(usersStorageKey, JSON.stringify(usuarios));
+      window.localStorage.setItem(
+        templatesStorageKey,
+        JSON.stringify(plantillas),
+      );
     }
-  }, [rutinas, usuarios, hidratado]);
+  }, [rutinas, usuarios, plantillas, hidratado]);
 
-  const setRutina: React.Dispatch<React.SetStateAction<Rutina>> = (action) => {
+  function guardarRutina(rutinaGuardada: Rutina) {
     setRutinas((actuales) =>
-      actuales.map((item) => {
-        if (item.id !== rutinaId) return item;
-        return typeof action === "function" ? action(item) : action;
-      }),
+      actuales.map((item) =>
+        item.id === rutinaGuardada.id ? rutinaGuardada : item,
+      ),
     );
-  };
+  }
 
   function acceder(email: string) {
     const usuarioEncontrado = usuarios.find(
@@ -2733,6 +3515,7 @@ export default function Home() {
   function seleccionarAtleta(id: number) {
     const primeraRutina = rutinas.find((item) => item.atletaId === id);
     setAtletaSeleccionadoId(id);
+    window.localStorage.setItem(selectedAthleteStorageKey, String(id));
     if (primeraRutina) setRutinaId(primeraRutina.id);
     setRegistros({});
   }
@@ -2740,6 +3523,40 @@ export default function Home() {
   function crearRutina(rutinaNueva: Rutina) {
     setRutinas((actuales) => [...actuales, rutinaNueva]);
     setRutinaId(rutinaNueva.id);
+  }
+
+  function guardarComoPlantilla(rutina: Rutina) {
+    if (!usuario || usuario.rol !== "entrenador") return;
+    const id = idPlantilla(usuario.id);
+    setPlantillas((actuales) => [
+      ...actuales,
+      {
+        ...rutina,
+        id,
+        entrenadorId: usuario.id,
+      },
+    ]);
+  }
+
+  function asignarPlantilla(plantillaId: string, atletaId: number) {
+    const plantilla = plantillas.find(
+      (item) => item.id === plantillaId && item.entrenadorId === usuario?.id,
+    );
+    if (!plantilla) return;
+    const rutinaNueva = rutinaDesdePlantilla(plantilla, atletaId);
+    setRutinas((actuales) => [...actuales, rutinaNueva]);
+    seleccionarAtleta(atletaId);
+    setRutinaId(rutinaNueva.id);
+    setRegistros({});
+  }
+
+  function eliminarPlantilla(plantillaId: string) {
+    setPlantillas((actuales) =>
+      actuales.filter(
+        (plantilla) =>
+          plantilla.id !== plantillaId || plantilla.entrenadorId !== usuario?.id,
+      ),
+    );
   }
 
   function crearAtleta(nombre: string, email: string) {
@@ -2805,6 +3622,18 @@ export default function Home() {
     setRegistros({});
   }
 
+  function intentarSalir() {
+    if (
+      editorDirty &&
+      !window.confirm(
+        "Tenés cambios sin guardar. ¿Querés descartarlos y cerrar sesión?",
+      )
+    ) {
+      return;
+    }
+    salir();
+  }
+
   if (!hidratado) {
     return <div className="min-h-screen bg-[#07080b]" />;
   }
@@ -2823,22 +3652,36 @@ export default function Home() {
     <AppShell
       usuario={usuario}
       vistaPrevia={vistaPrevia}
+      vistaEntrenador={vistaEntrenador}
       onClosePreview={() => setVistaPrevia(false)}
-      onLogout={salir}
+      onLogout={intentarSalir}
     >
       {!mostrandoAtleta ? (
         <HomeEntrenador
+          key={`${atleta.id}-${rutina.id}`}
           usuarios={usuarios}
           atletas={atletasDelCoach}
           atleta={atleta}
           rutinas={rutinasDelAtleta}
+          rutinasPorAtleta={rutinas.filter((item) =>
+            atletasDelCoach.some((atletaActual) => atletaActual.id === item.atletaId),
+          )}
+          plantillas={plantillas.filter(
+            (plantilla) => plantilla.entrenadorId === usuario.id,
+          )}
+          vista={vistaEntrenador}
+          detalleAtleta={detalleAtleta}
           rutina={rutina}
           onSelectAtleta={seleccionarAtleta}
           onSelect={setRutinaId}
-          setRutina={setRutina}
+          onSaveRutina={guardarRutina}
           onCreateRutina={crearRutina}
+          onSaveAsTemplate={guardarComoPlantilla}
+          onAssignTemplate={asignarPlantilla}
+          onDeleteTemplate={eliminarPlantilla}
           onCreateAtleta={crearAtleta}
           onDeleteRutina={eliminarRutina}
+          onDirtyChange={setEditorDirty}
           verComoAtleta={() => setVistaPrevia(true)}
         />
       ) : (
