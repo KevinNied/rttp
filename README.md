@@ -32,6 +32,17 @@ npm run build
 
 La versión actual usa datos locales y `localStorage`, por lo que no necesita variables de entorno ni una base de datos para ejecutarse. Cada entrenador mantiene su propia biblioteca de plantillas: al asignar una, RTTP crea una copia independiente para el atleta para que los pesos y detalles puedan personalizarse sin afectar la plantilla.
 
+La Agenda deportiva organiza rutinas y actividades externas por fecha. Su modelo
+está separado de las rutinas para preparar el futuro historial de sesiones y la
+migración a Supabase. La evolución funcional está documentada en
+[`docs/agenda-deportiva.md`](docs/agenda-deportiva.md).
+
+### Rutas del atleta
+
+- `/`: rutinas programadas para el día actual.
+- `/agenda`: planificación deportiva semanal.
+- `/rutinas`: todas las rutinas asignadas y ejecución libre.
+
 ### Rutas del entrenador
 
 - `/entrenador`: resumen de atletas, plantillas y planes asignados.

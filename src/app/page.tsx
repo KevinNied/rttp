@@ -30,10 +30,12 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
+  CalendarDays,
   LogOut,
   Dumbbell,
   Flame,
   GripVertical,
+  House,
   LayoutGrid,
   ListChecks,
   Minus,
@@ -82,6 +84,13 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { AgendaDeportiva } from "@/components/agenda-deportiva";
+import {
+  crearIdEntrenamiento,
+  EntrenamientoProgramado,
+  fechaLocal,
+  NuevoEntrenamientoProgramado,
+} from "@/lib/rttp-agenda";
 import {
   Bloque,
   Ejercicio,
@@ -103,12 +112,14 @@ const templatesStorageKey = "rttp-plantillas-v1";
 const sessionStorageKey = "rttp-usuario-v1";
 const usersStorageKey = "rttp-usuarios-v1";
 const selectedAthleteStorageKey = "rttp-atleta-seleccionado-v1";
+const agendaStorageKey = "rttp-agenda-v1";
 
 type PlantillaRutina = Omit<Rutina, "atletaId"> & {
   entrenadorId: number;
 };
 
 type VistaEntrenador = "resumen" | "atletas" | "rutinas";
+type VistaAtleta = "inicio" | "rutinas" | "agenda";
 
 function totalSeries(rutina: Rutina) {
   return rutina.bloques.reduce(
@@ -139,7 +150,7 @@ function rondasDelBloque(bloque: Bloque) {
   return Math.max(0, ...bloque.ejercicios.map((item) => item.series));
 }
 
-function pasosDeRutina(rutina: Rutina) {
+function pasosDeRutina(rutina: Rutina, sesionId = rutina.id) {
   return rutina.bloques.flatMap((bloque, bloqueIndex) => {
     const rondas = rondasDelBloque(bloque);
 
@@ -148,7 +159,7 @@ function pasosDeRutina(rutina: Rutina) {
         .filter((item) => item.series > rondaIndex)
         .map((item, posicion) => ({
           ...item,
-          pasoId: `${rutina.id}-${item.id}-${rondaIndex}`,
+          pasoId: `${sesionId}-${item.id}-${rondaIndex}`,
           bloqueId: bloque.id,
           bloqueIndex,
           bloqueNombre: bloque.nombre,
@@ -161,6 +172,32 @@ function pasosDeRutina(rutina: Rutina) {
         })),
     ).flat();
   });
+}
+
+function normalizarRutina(
+  rutina: Rutina & { dia?: string },
+): Rutina {
+  return {
+    id: rutina.id,
+    atletaId: rutina.atletaId,
+    titulo: rutina.titulo,
+    objetivo: rutina.objetivo,
+    duracion: rutina.duracion,
+    bloques: rutina.bloques,
+  };
+}
+
+function normalizarPlantilla(
+  plantilla: PlantillaRutina & { dia?: string },
+): PlantillaRutina {
+  return {
+    id: plantilla.id,
+    titulo: plantilla.titulo,
+    objetivo: plantilla.objetivo,
+    duracion: plantilla.duracion,
+    bloques: plantilla.bloques,
+    entrenadorId: plantilla.entrenadorId,
+  };
 }
 
 function rutinaDesdePlantilla(
@@ -321,6 +358,7 @@ function AppShell({
   usuario,
   vistaPrevia,
   vistaEntrenador,
+  vistaAtleta,
   onClosePreview,
   onLogout,
   children,
@@ -328,6 +366,7 @@ function AppShell({
   usuario: Usuario;
   vistaPrevia: boolean;
   vistaEntrenador: VistaEntrenador;
+  vistaAtleta: VistaAtleta;
   onClosePreview: () => void;
   onLogout: () => void;
   children: React.ReactNode;
@@ -341,7 +380,11 @@ function AppShell({
         : ["Resumen", "Organización y seguimiento de planes"];
   const encabezado = esEntrenador
     ? encabezadoEntrenador
-    : ["Rutinas", "Tu plan de entrenamiento"];
+    : vistaAtleta === "agenda"
+      ? ["Agenda deportiva", "Tu semana de entrenamiento"]
+      : vistaAtleta === "rutinas"
+        ? ["Rutinas", "Todos tus planes asignados"]
+        : ["Inicio", "Tu entrenamiento de hoy"];
 
   return (
     <div className="min-h-screen bg-[#07080b] text-white selection:bg-cyan-300 selection:text-black">
@@ -371,7 +414,23 @@ function AppShell({
                     "rutinas",
                   ],
                 ]
-              : [[Dumbbell, "Rutinas", "Tu plan de entrenamiento", "/", "rutinas"]]
+              : [
+                  [House, "Inicio", "Tu entrenamiento de hoy", "/", "inicio"],
+                  [
+                    CalendarDays,
+                    "Agenda",
+                    "Organizá tu semana",
+                    "/agenda",
+                    "agenda",
+                  ],
+                  [
+                    Dumbbell,
+                    "Rutinas",
+                    "Todos tus planes",
+                    "/rutinas",
+                    "rutinas",
+                  ],
+                ]
             ).map(([Icon, label, description, href, vista]) => {
               const NavIcon = Icon as typeof LayoutGrid;
               return (
@@ -380,7 +439,9 @@ function AppShell({
                   href={href as string}
                   className={cn(
                     "group flex w-full items-center gap-3 rounded-2xl px-3 py-3.5 transition-colors",
-                    (!esEntrenador || vista === vistaEntrenador)
+                    (esEntrenador
+                      ? vista === vistaEntrenador
+                      : vista === vistaAtleta)
                       ? "bg-indigo-300/10 text-white"
                       : "text-indigo-100/45 hover:bg-indigo-300/[0.07] hover:text-white/80",
                   )}
@@ -432,6 +493,32 @@ function AppShell({
               {encabezado[1]}
             </div>
           </div>
+        )}
+        {!esEntrenador && !vistaPrevia && (
+          <nav className="flex items-center gap-1 lg:hidden">
+            {[
+              [House, "Inicio", "/", "inicio"],
+              [CalendarDays, "Agenda", "/agenda", "agenda"],
+              [Dumbbell, "Rutinas", "/rutinas", "rutinas"],
+            ].map(([Icon, label, href, vista]) => {
+              const NavIcon = Icon as typeof Dumbbell;
+              return (
+                <Link
+                  key={label as string}
+                  href={href as string}
+                  aria-label={label as string}
+                  className={cn(
+                    "grid size-9 place-items-center rounded-full transition-colors",
+                    vista === vistaAtleta
+                      ? "bg-cyan-300/10 text-cyan-100"
+                      : "text-white/30 hover:bg-white/[0.06] hover:text-white/70",
+                  )}
+                >
+                  <NavIcon className="size-4" />
+                </Link>
+              );
+            })}
+          </nav>
         )}
         <div className="flex items-center gap-2">
           {vistaPrevia && (
@@ -514,13 +601,10 @@ function SelectorRutina({
               : "border-white/[0.08] bg-white/[0.025] hover:bg-white/[0.06]",
           )}
         >
-          <div className="text-[10px] uppercase tracking-wider text-cyan-200/65">
-            {rutina.dia}
-          </div>
           <div
             className={cn(
-              "mt-1 truncate text-sm font-medium",
-              desktopVertical && "xl:mt-2 xl:text-base",
+              "truncate text-sm font-medium",
+              desktopVertical && "xl:text-base",
             )}
           >
             {rutina.titulo}
@@ -1144,7 +1228,6 @@ function DialogoNuevaRutina({
   onCreate: (rutina: Rutina) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [dia, setDia] = useState("");
   const [titulo, setTitulo] = useState("");
   const [objetivo, setObjetivo] = useState("");
   const [duracion, setDuracion] = useState("");
@@ -1152,7 +1235,6 @@ function DialogoNuevaRutina({
   function cambiarApertura(siguiente: boolean) {
     setOpen(siguiente);
     if (siguiente) return;
-    setDia("");
     setTitulo("");
     setObjetivo("");
     setDuracion("");
@@ -1165,7 +1247,6 @@ function DialogoNuevaRutina({
     onCreate({
       id: `rutina-${atleta.id}-${timestamp}`,
       atletaId: atleta.id,
-      dia: dia.trim() || "Sin día asignado",
       titulo: titulo.trim(),
       objetivo: objetivo.trim() || "Entrenamiento personalizado",
       duracion: Math.max(1, Number(duracion) || 60),
@@ -1201,27 +1282,16 @@ function DialogoNuevaRutina({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-[1fr_88px] gap-3">
-            <label className="space-y-2">
-              <span className="text-xs text-white/55">Nombre</span>
-              <Input
-                autoFocus
-                value={titulo}
-                onChange={(event) => setTitulo(event.target.value)}
-                placeholder="Ej. Potencia"
-                className="border-white/10 bg-black/35"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-xs text-white/55">Día (opcional)</span>
-              <Input
-                value={dia}
-                onChange={(event) => setDia(event.target.value)}
-                placeholder="Día 1"
-                className="border-white/10 bg-black/35"
-              />
-            </label>
-          </div>
+          <label className="block space-y-2">
+            <span className="text-xs text-white/55">Nombre</span>
+            <Input
+              autoFocus
+              value={titulo}
+              onChange={(event) => setTitulo(event.target.value)}
+              placeholder="Ej. Potencia"
+              className="border-white/10 bg-black/35"
+            />
+          </label>
           <label className="block space-y-2">
             <span className="text-xs text-white/55">Objetivo (opcional)</span>
             <Input
@@ -1294,7 +1364,6 @@ function DialogoDetallesRutina({
 }) {
   const [open, setOpen] = useState(false);
   const [titulo, setTitulo] = useState(rutina.titulo);
-  const [dia, setDia] = useState(rutina.dia);
   const [objetivo, setObjetivo] = useState(rutina.objetivo);
   const [duracion, setDuracion] = useState(String(rutina.duracion));
 
@@ -1302,7 +1371,6 @@ function DialogoDetallesRutina({
     setOpen(siguiente);
     if (!siguiente) return;
     setTitulo(rutina.titulo);
-    setDia(rutina.dia === "Sin día asignado" ? "" : rutina.dia);
     setObjetivo(
       rutina.objetivo === "Entrenamiento personalizado" ? "" : rutina.objetivo,
     );
@@ -1314,7 +1382,6 @@ function DialogoDetallesRutina({
     onUpdate({
       ...rutina,
       titulo: titulo.trim(),
-      dia: dia.trim() || "Sin día asignado",
       objetivo: objetivo.trim() || "Entrenamiento personalizado",
       duracion: Math.max(1, Number(duracion) || 60),
     });
@@ -1342,26 +1409,15 @@ function DialogoDetallesRutina({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-[1fr_88px] gap-3">
-            <label className="space-y-2">
-              <span className="text-xs text-white/55">Nombre</span>
-              <Input
-                autoFocus
-                value={titulo}
-                onChange={(event) => setTitulo(event.target.value)}
-                className="border-white/10 bg-black/35"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-xs text-white/55">Día (opcional)</span>
-              <Input
-                value={dia}
-                onChange={(event) => setDia(event.target.value)}
-                placeholder="Día 1"
-                className="border-white/10 bg-black/35"
-              />
-            </label>
-          </div>
+          <label className="block space-y-2">
+            <span className="text-xs text-white/55">Nombre</span>
+            <Input
+              autoFocus
+              value={titulo}
+              onChange={(event) => setTitulo(event.target.value)}
+              className="border-white/10 bg-black/35"
+            />
+          </label>
           <label className="block space-y-2">
             <span className="text-xs text-white/55">Objetivo (opcional)</span>
             <Input
@@ -1593,11 +1649,13 @@ function DialogoNuevoAtleta({
 }
 
 function HomeEntrenador({
+  entrenador,
   usuarios,
   atletas,
   atleta,
   rutinas,
   rutinasPorAtleta,
+  entrenamientos,
   plantillas,
   vista,
   detalleAtleta,
@@ -1611,14 +1669,19 @@ function HomeEntrenador({
   onDeleteTemplate,
   onCreateAtleta,
   onDeleteRutina,
+  onCreateEntrenamiento,
+  onUpdateEntrenamiento,
+  onDeleteEntrenamiento,
   onDirtyChange,
   verComoAtleta,
 }: {
+  entrenador: Usuario;
   usuarios: Usuario[];
   atletas: Usuario[];
   atleta: Usuario;
   rutinas: Rutina[];
   rutinasPorAtleta: Rutina[];
+  entrenamientos: EntrenamientoProgramado[];
   plantillas: PlantillaRutina[];
   vista: VistaEntrenador;
   detalleAtleta: boolean;
@@ -1632,6 +1695,9 @@ function HomeEntrenador({
   onDeleteTemplate: (plantillaId: string) => void;
   onCreateAtleta: (nombre: string, email: string) => void;
   onDeleteRutina: (id: string) => void;
+  onCreateEntrenamiento: (item: NuevoEntrenamientoProgramado) => void;
+  onUpdateEntrenamiento: (item: EntrenamientoProgramado) => void;
+  onDeleteEntrenamiento: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
   verComoAtleta: () => void;
 }) {
@@ -1991,10 +2057,7 @@ function HomeEntrenador({
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-[10px] uppercase tracking-wider text-cyan-200/60">
-                      {plantilla.dia}
-                    </div>
-                    <div className="mt-1 truncate text-sm font-medium">
+                    <div className="truncate text-sm font-medium">
                       {plantilla.titulo}
                     </div>
                   </div>
@@ -2197,7 +2260,8 @@ function HomeEntrenador({
                         <DialogTitle>¿Eliminar “{rutina.titulo}”?</DialogTitle>
                         <DialogDescription className="text-white/40">
                           La rutina dejará de estar disponible para{" "}
-                          {atleta.nombre}. Esta acción no se puede deshacer.
+                          {atleta.nombre}. También se quitarán sus entrenamientos
+                          programados. Esta acción no se puede deshacer.
                         </DialogDescription>
                       </DialogHeader>
                       <DialogFooter>
@@ -2260,6 +2324,18 @@ function HomeEntrenador({
             </CardContent>
           </Card>
         </div>
+        <AgendaDeportiva
+          embedded
+          modoCoach
+          atleta={atleta}
+          usuarioActual={entrenador}
+          rutinas={rutinas}
+          entrenamientos={entrenamientos}
+          onCreate={onCreateEntrenamiento}
+          onUpdate={onUpdateEntrenamiento}
+          onDelete={onDeleteEntrenamiento}
+          onStart={() => undefined}
+        />
         </section>
       )}
 
@@ -2323,7 +2399,7 @@ function OverviewRutina({ rutina }: { rutina: Rutina }) {
         <DialogHeader className="border-b border-white/[0.07] p-5 pr-12 md:p-6">
           <div className="flex items-center gap-2">
             <Badge className="border-cyan-200/15 bg-cyan-300/10 text-[9px] text-cyan-100">
-              {rutina.dia.toUpperCase()}
+              Rutina RTTP
             </Badge>
             <span className="text-[9px] uppercase tracking-wider text-white/25">
               Próxima rutina
@@ -2441,8 +2517,8 @@ function HomeAtleta({
     <div className="mx-auto max-w-7xl px-4 py-7 md:px-8 md:py-9 xl:px-10 xl:py-12">
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <div className="text-xs text-white/40">Hola, {atleta.nombre}</div>
-          <h1 className="mt-0.5 text-2xl font-light">¿Entrenamos?</h1>
+          <div className="text-xs text-white/40">Planes asignados</div>
+          <h1 className="mt-0.5 text-2xl font-light">Todas tus rutinas</h1>
         </div>
         <Avatar className="size-10 border border-violet-200/15">
           <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
@@ -2474,7 +2550,7 @@ function HomeAtleta({
         <CardContent className="relative p-5 md:p-7">
           <div className="flex items-center justify-between">
             <Badge className="border-cyan-200/15 bg-cyan-300/10 text-[9px] text-cyan-100">
-              {rutina.dia.toUpperCase()}
+              Rutina RTTP
             </Badge>
             <OverviewRutina rutina={rutina} />
           </div>
@@ -2560,6 +2636,148 @@ function HomeAtleta({
   );
 }
 
+function HomeHoy({
+  atleta,
+  rutinas,
+  entrenamientos,
+  onStart,
+}: {
+  atleta: Usuario;
+  rutinas: Rutina[];
+  entrenamientos: EntrenamientoProgramado[];
+  onStart: (item: EntrenamientoProgramado) => void;
+}) {
+  const hoy = fechaLocal();
+  const fechaLegible = new Intl.DateTimeFormat("es-AR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(`${hoy}T12:00:00`));
+  const rutinasDeHoy = entrenamientos
+    .filter(
+      (item) =>
+        item.fecha === hoy &&
+        item.origen === "rutina" &&
+        item.estado !== "omitido",
+    )
+    .sort((a, b) => (a.hora ?? "").localeCompare(b.hora ?? ""));
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12">
+      <div className="mb-7 flex items-center justify-between">
+        <div>
+          <div className="text-xs text-white/40">Hola, {atleta.nombre}</div>
+          <h1 className="mt-1 text-3xl font-light tracking-[-0.035em] md:text-4xl">
+            Tu entrenamiento de hoy
+          </h1>
+          <p className="mt-2 text-xs capitalize text-white/30">
+            {fechaLegible}
+          </p>
+        </div>
+        <Avatar className="size-11 border border-violet-200/15">
+          <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
+            {atleta.nombre.slice(0, 1)}
+          </AvatarFallback>
+        </Avatar>
+      </div>
+
+      {rutinasDeHoy.length > 0 ? (
+        <div className="grid gap-4 lg:grid-cols-2">
+          {rutinasDeHoy.map((entrenamiento) => {
+            const rutina = rutinas.find(
+              (item) =>
+                entrenamiento.origen === "rutina" &&
+                item.id === entrenamiento.rutinaId,
+            );
+            if (!rutina) return null;
+            const completada = entrenamiento.estado === "completado";
+
+            return (
+              <Card
+                key={entrenamiento.id}
+                className="relative overflow-hidden border-white/[0.09] bg-[#101116] text-white shadow-[0_24px_70px_rgba(0,0,0,.35)]"
+              >
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_0%,rgba(34,211,238,.15),transparent_38%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.13),transparent_45%)]" />
+                <CardContent className="relative p-5 md:p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 text-[10px] text-cyan-100/55">
+                        {entrenamiento.hora && (
+                          <>
+                            <Clock3 className="size-3" />
+                            <span>{entrenamiento.hora}</span>
+                          </>
+                        )}
+                      </div>
+                      <h2 className="mt-4 text-2xl font-light tracking-[-0.03em]">
+                        {rutina.titulo}
+                      </h2>
+                      <p className="mt-2 text-xs leading-relaxed text-white/35">
+                        {rutina.objetivo}
+                      </p>
+                    </div>
+                    {completada && (
+                      <Badge className="shrink-0 border-emerald-200/10 bg-emerald-300/10 text-[9px] text-emerald-200">
+                        <CheckCircle2 />
+                        Completada
+                      </Badge>
+                    )}
+                  </div>
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-3 py-2 text-[10px] text-white/55">
+                      <Clock3 className="size-3 text-cyan-200" />
+                      {entrenamiento.duracionMinutos} min
+                    </div>
+                    <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-3 py-2 text-[10px] text-white/55">
+                      <Zap className="size-3 text-violet-200" />
+                      {totalSeries(rutina)} series
+                    </div>
+                  </div>
+
+                  {!completada && (
+                    <Button
+                      onClick={() => onStart(entrenamiento)}
+                      className="mt-6 h-11 w-full rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 sm:w-auto sm:px-7"
+                    >
+                      {entrenamiento.estado === "en-curso"
+                        ? "Continuar rutina"
+                        : "Comenzar rutina"}
+                      <ArrowRight />
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-white/[0.09] bg-white/[0.02] px-6 text-center">
+          <div>
+            <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-cyan-300/[0.08] text-cyan-100/55">
+              <CalendarDays className="size-5" />
+            </div>
+            <h2 className="mt-4 text-lg font-medium">
+              No tenés rutinas para hoy
+            </h2>
+            <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-white/35">
+              Podés descansar, revisar tu semana o programar una rutina desde la
+              agenda.
+            </p>
+            <Link
+              href="/agenda"
+              className="mt-5 inline-flex h-10 items-center gap-2 rounded-full bg-cyan-300 px-5 text-xs font-medium text-indigo-950 transition-colors hover:bg-cyan-200"
+            >
+              Ver agenda
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CampoPrescripcion({
   label,
   hint,
@@ -2624,6 +2842,7 @@ function CampoPrescripcion({
 
 function WorkoutMode({
   rutina,
+  sesionId,
   registros,
   setRegistros,
   indiceActivo,
@@ -2632,6 +2851,7 @@ function WorkoutMode({
   onFinish,
 }: {
   rutina: Rutina;
+  sesionId: string;
   registros: Record<string, RegistroSerie>;
   setRegistros: React.Dispatch<
     React.SetStateAction<Record<string, RegistroSerie>>
@@ -2641,7 +2861,7 @@ function WorkoutMode({
   onExit: () => void;
   onFinish: () => void;
 }) {
-  const pasos = pasosDeRutina(rutina);
+  const pasos = pasosDeRutina(rutina, sesionId);
   const paso = pasos[indiceActivo];
   const bloque = rutina.bloques[paso.bloqueIndex];
   const proximo = pasos[indiceActivo + 1];
@@ -3346,46 +3566,98 @@ function ExperienciaAtleta({
   atleta,
   rutinas,
   rutina,
+  entrenamientoInicial,
   onSelect,
+  onCreateEntrenamiento,
+  onUpdateEntrenamiento,
+  onCloseScheduled,
   registros,
   setRegistros,
 }: {
   atleta: Usuario;
   rutinas: Rutina[];
   rutina: Rutina;
+  entrenamientoInicial?: EntrenamientoProgramado;
   onSelect: (id: string) => void;
+  onCreateEntrenamiento: (
+    item: NuevoEntrenamientoProgramado,
+  ) => EntrenamientoProgramado;
+  onUpdateEntrenamiento: (item: EntrenamientoProgramado) => void;
+  onCloseScheduled: () => void;
   registros: Record<string, RegistroSerie>;
   setRegistros: React.Dispatch<
     React.SetStateAction<Record<string, RegistroSerie>>
   >;
 }) {
-  const [pantalla, setPantalla] = useState<"home" | "workout" | "final">("home");
+  const [pantalla, setPantalla] = useState<"home" | "workout" | "final">(
+    entrenamientoInicial ? "workout" : "home",
+  );
   const [indiceActivo, setIndiceActivo] = useState(0);
   const [feedback, setFeedback] = useState("");
+  const [entrenamiento, setEntrenamiento] = useState<
+    EntrenamientoProgramado | undefined
+  >(entrenamientoInicial);
+  const sesionId = entrenamiento?.id;
   const progreso = Object.entries(registros).filter(
-    ([key, value]) => key.startsWith(`${rutina.id}-`) && value.completada,
+    ([key, value]) => sesionId && key.startsWith(`${sesionId}-`) && value.completada,
   ).length;
 
   function reset() {
+    if (!sesionId) return;
     setRegistros((actuales) =>
       Object.fromEntries(
         Object.entries(actuales).filter(
-          ([key]) => !key.startsWith(`${rutina.id}-`),
+          ([key]) => !key.startsWith(`${sesionId}-`),
         ),
       ),
     );
     setIndiceActivo(0);
   }
 
-  if (pantalla === "workout") {
+  function iniciar() {
+    if (entrenamiento) {
+      const enCurso = { ...entrenamiento, estado: "en-curso" as const };
+      setEntrenamiento(enCurso);
+      onUpdateEntrenamiento(enCurso);
+      setPantalla("workout");
+      return;
+    }
+
+    const creado = onCreateEntrenamiento({
+      atletaId: atleta.id,
+      fecha: fechaLocal(),
+      hora: null,
+      duracionMinutos: rutina.duracion,
+      estado: "en-curso",
+      creadoPorId: atleta.id,
+      notas: "",
+      origen: "rutina",
+      rutinaId: rutina.id,
+      titulo: null,
+      categoria: null,
+    });
+    setEntrenamiento(creado);
+    setPantalla("workout");
+  }
+
+  function cerrarEntrenamiento() {
+    if (entrenamientoInicial) {
+      onCloseScheduled();
+      return;
+    }
+    setPantalla("home");
+  }
+
+  if (pantalla === "workout" && sesionId) {
     return (
       <WorkoutMode
         rutina={rutina}
+        sesionId={sesionId}
         registros={registros}
         setRegistros={setRegistros}
         indiceActivo={indiceActivo}
         setIndiceActivo={setIndiceActivo}
-        onExit={() => setPantalla("home")}
+        onExit={cerrarEntrenamiento}
         onFinish={() => setPantalla("final")}
       />
     );
@@ -3397,7 +3669,17 @@ function ExperienciaAtleta({
         atleta={atleta}
         feedback={feedback}
         setFeedback={setFeedback}
-        onDone={() => setPantalla("home")}
+        onDone={() => {
+          if (entrenamiento) {
+            const completado = {
+              ...entrenamiento,
+              estado: "completado" as const,
+            };
+            setEntrenamiento(completado);
+            onUpdateEntrenamiento(completado);
+          }
+          cerrarEntrenamiento();
+        }}
       />
     );
   }
@@ -3410,8 +3692,9 @@ function ExperienciaAtleta({
       onSelect={(id) => {
         onSelect(id);
         setIndiceActivo(0);
+        setEntrenamiento(undefined);
       }}
-      onStart={() => setPantalla("workout")}
+      onStart={iniciar}
       progreso={progreso}
       onReset={reset}
     />
@@ -3423,6 +3706,12 @@ export default function Home() {
   const [usuarios, setUsuarios] = useState<Usuario[]>(usuariosIniciales);
   const [rutinas, setRutinas] = useState<Rutina[]>(rutinasIniciales);
   const [plantillas, setPlantillas] = useState<PlantillaRutina[]>([]);
+  const [entrenamientos, setEntrenamientos] = useState<
+    EntrenamientoProgramado[]
+  >([]);
+  const [entrenamientoActivoId, setEntrenamientoActivoId] = useState<
+    string | null
+  >(null);
   const [rutinaId, setRutinaId] = useState(rutinasIniciales[0].id);
   const [usuarioId, setUsuarioId] = useState<number | null>(null);
   const [atletaSeleccionadoId, setAtletaSeleccionadoId] = useState(1);
@@ -3449,6 +3738,15 @@ export default function Home() {
   const rutina =
     rutinasDelAtleta.find((item) => item.id === rutinaId) ??
     rutinasDelAtleta[0];
+  const entrenamientoActivo = entrenamientos.find(
+    (item) => item.id === entrenamientoActivoId,
+  );
+  const rutinaDeEntrenamiento =
+    entrenamientoActivo?.origen === "rutina"
+      ? rutinasDelAtleta.find(
+          (item) => item.id === entrenamientoActivo.rutinaId,
+        ) ?? rutina
+      : rutina;
   const atletaRutaId = Number(pathname.split("/").at(-1));
   const detalleAtleta =
     pathname.startsWith("/entrenador/atletas/") &&
@@ -3459,6 +3757,12 @@ export default function Home() {
       : pathname === "/entrenador/rutinas"
         ? "rutinas"
         : "resumen";
+  const vistaAtleta: VistaAtleta =
+    pathname === "/agenda"
+      ? "agenda"
+      : pathname === "/rutinas"
+        ? "rutinas"
+        : "inicio";
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
@@ -3485,9 +3789,11 @@ export default function Home() {
       const guardadas = window.localStorage.getItem(storageKey);
       if (guardadas) {
         try {
-          const persistidas = JSON.parse(guardadas) as Rutina[];
+          const persistidas = JSON.parse(guardadas) as (Rutina & {
+            dia?: string;
+          })[];
           setRutinas([
-            ...persistidas,
+            ...persistidas.map(normalizarRutina),
             ...rutinasIniciales.filter(
               (semilla) =>
                 !persistidas.some((item) => item.id === semilla.id),
@@ -3500,9 +3806,22 @@ export default function Home() {
       const plantillasGuardadas = window.localStorage.getItem(templatesStorageKey);
       if (plantillasGuardadas) {
         try {
-          setPlantillas(JSON.parse(plantillasGuardadas) as PlantillaRutina[]);
+          const persistidas = JSON.parse(plantillasGuardadas) as (PlantillaRutina & {
+            dia?: string;
+          })[];
+          setPlantillas(persistidas.map(normalizarPlantilla));
         } catch {
           window.localStorage.removeItem(templatesStorageKey);
+        }
+      }
+      const agendaGuardada = window.localStorage.getItem(agendaStorageKey);
+      if (agendaGuardada) {
+        try {
+          setEntrenamientos(
+            JSON.parse(agendaGuardada) as EntrenamientoProgramado[],
+          );
+        } catch {
+          window.localStorage.removeItem(agendaStorageKey);
         }
       }
       const usuarioGuardado = Number(
@@ -3539,8 +3858,12 @@ export default function Home() {
         templatesStorageKey,
         JSON.stringify(plantillas),
       );
+      window.localStorage.setItem(
+        agendaStorageKey,
+        JSON.stringify(entrenamientos),
+      );
     }
-  }, [rutinas, usuarios, plantillas, hidratado]);
+  }, [rutinas, usuarios, plantillas, entrenamientos, hidratado]);
 
   function guardarRutina(rutinaGuardada: Rutina) {
     setRutinas((actuales) =>
@@ -3583,6 +3906,51 @@ export default function Home() {
   function crearRutina(rutinaNueva: Rutina) {
     setRutinas((actuales) => [...actuales, rutinaNueva]);
     setRutinaId(rutinaNueva.id);
+  }
+
+  function crearEntrenamiento(
+    item: NuevoEntrenamientoProgramado,
+  ): EntrenamientoProgramado {
+    const ahora = new Date().toISOString();
+    const creado: EntrenamientoProgramado = {
+      ...item,
+      id: crearIdEntrenamiento(),
+      creadoEn: ahora,
+      actualizadoEn: ahora,
+    };
+    setEntrenamientos((actuales) => [...actuales, creado]);
+    return creado;
+  }
+
+  function actualizarEntrenamiento(item: EntrenamientoProgramado) {
+    setEntrenamientos((actuales) =>
+      actuales.map((actual) =>
+        actual.id === item.id
+          ? { ...item, actualizadoEn: new Date().toISOString() }
+          : actual,
+      ),
+    );
+  }
+
+  function eliminarEntrenamiento(id: string) {
+    setEntrenamientos((actuales) =>
+      actuales.filter((item) => item.id !== id),
+    );
+    setRegistros((actuales) =>
+      Object.fromEntries(
+        Object.entries(actuales).filter(
+          ([key]) => !key.startsWith(`${id}-`),
+        ),
+      ),
+    );
+    if (entrenamientoActivoId === id) setEntrenamientoActivoId(null);
+  }
+
+  function comenzarEntrenamiento(item: EntrenamientoProgramado) {
+    if (item.origen !== "rutina") return;
+    setRutinaId(item.rutinaId);
+    actualizarEntrenamiento({ ...item, estado: "en-curso" });
+    setEntrenamientoActivoId(item.id);
   }
 
   function guardarComoPlantilla(rutina: Rutina) {
@@ -3632,7 +4000,6 @@ export default function Home() {
     const rutinaInicial: Rutina = {
       id: `rutina-${id}-${timestamp}`,
       atletaId: id,
-      dia: "Día 1",
       titulo: "Nueva rutina",
       objetivo: "Entrenamiento personalizado",
       duracion: 60,
@@ -3666,11 +4033,24 @@ export default function Home() {
   function eliminarRutina(id: string) {
     const restantes = rutinasDelAtleta.filter((item) => item.id !== id);
     if (restantes.length === 0) return;
+    const idsDeEntrenamientos = entrenamientos
+      .filter((item) => item.origen === "rutina" && item.rutinaId === id)
+      .map((item) => item.id);
     setRutinas((actuales) => actuales.filter((item) => item.id !== id));
+    setEntrenamientos((actuales) =>
+      actuales.filter(
+        (item) => item.origen !== "rutina" || item.rutinaId !== id,
+      ),
+    );
     setRutinaId(restantes[0].id);
     setRegistros((actuales) =>
       Object.fromEntries(
-        Object.entries(actuales).filter(([key]) => !key.startsWith(`${id}-`)),
+        Object.entries(actuales).filter(
+          ([key]) =>
+            !idsDeEntrenamientos.some((entrenamientoId) =>
+              key.startsWith(`${entrenamientoId}-`),
+            ),
+        ),
       ),
     );
   }
@@ -3680,6 +4060,7 @@ export default function Home() {
     setUsuarioId(null);
     setVistaPrevia(false);
     setRegistros({});
+    setEntrenamientoActivoId(null);
   }
 
   function intentarSalir() {
@@ -3713,18 +4094,23 @@ export default function Home() {
       usuario={usuario}
       vistaPrevia={vistaPrevia}
       vistaEntrenador={vistaEntrenador}
+      vistaAtleta={vistaAtleta}
       onClosePreview={() => setVistaPrevia(false)}
       onLogout={intentarSalir}
     >
       {!mostrandoAtleta ? (
         <HomeEntrenador
           key={`${atleta.id}-${rutina.id}`}
+          entrenador={usuario}
           usuarios={usuarios}
           atletas={atletasDelCoach}
           atleta={atleta}
           rutinas={rutinasDelAtleta}
           rutinasPorAtleta={rutinas.filter((item) =>
             atletasDelCoach.some((atletaActual) => atletaActual.id === item.atletaId),
+          )}
+          entrenamientos={entrenamientos.filter(
+            (item) => item.atletaId === atleta.id,
           )}
           plantillas={plantillas.filter(
             (plantilla) => plantilla.entrenadorId === usuario.id,
@@ -3741,16 +4127,46 @@ export default function Home() {
           onDeleteTemplate={eliminarPlantilla}
           onCreateAtleta={crearAtleta}
           onDeleteRutina={eliminarRutina}
+          onCreateEntrenamiento={crearEntrenamiento}
+          onUpdateEntrenamiento={actualizarEntrenamiento}
+          onDeleteEntrenamiento={eliminarEntrenamiento}
           onDirtyChange={setEditorDirty}
           verComoAtleta={() => setVistaPrevia(true)}
         />
-      ) : (
-        <ExperienciaAtleta
-          key={rutina.id}
+      ) : vistaAtleta === "agenda" && !entrenamientoActivo ? (
+        <AgendaDeportiva
+          atleta={atleta}
+          usuarioActual={usuario}
+          rutinas={rutinasDelAtleta}
+          entrenamientos={entrenamientos.filter(
+            (item) => item.atletaId === atleta.id,
+          )}
+          modoCoach={usuario.rol === "entrenador"}
+          onCreate={crearEntrenamiento}
+          onUpdate={actualizarEntrenamiento}
+          onDelete={eliminarEntrenamiento}
+          onStart={comenzarEntrenamiento}
+        />
+      ) : vistaAtleta === "inicio" && !entrenamientoActivo ? (
+        <HomeHoy
           atleta={atleta}
           rutinas={rutinasDelAtleta}
-          rutina={rutina}
+          entrenamientos={entrenamientos.filter(
+            (item) => item.atletaId === atleta.id,
+          )}
+          onStart={comenzarEntrenamiento}
+        />
+      ) : (
+        <ExperienciaAtleta
+          key={`${rutinaDeEntrenamiento.id}-${entrenamientoActivo?.id ?? "rutinas"}`}
+          atleta={atleta}
+          rutinas={rutinasDelAtleta}
+          rutina={rutinaDeEntrenamiento}
+          entrenamientoInicial={entrenamientoActivo}
           onSelect={setRutinaId}
+          onCreateEntrenamiento={crearEntrenamiento}
+          onUpdateEntrenamiento={actualizarEntrenamiento}
+          onCloseScheduled={() => setEntrenamientoActivoId(null)}
           registros={registros}
           setRegistros={setRegistros}
         />

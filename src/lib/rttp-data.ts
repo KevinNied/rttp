@@ -29,7 +29,6 @@ export type Bloque = {
 export type Rutina = {
   id: string;
   atletaId: number;
-  dia: string;
   titulo: string;
   objetivo: string;
   duracion: number;
@@ -118,7 +117,6 @@ const rutinasKevin: Rutina[] = [
   {
     id: "kevin-dia-1",
     atletaId: 1,
-    dia: "Día 1",
     titulo: "Fuerza de tren inferior",
     objetivo: "Glúteos, cuádriceps e isquiotibiales",
     duracion: 65,
@@ -255,7 +253,6 @@ const rutinasKevin: Rutina[] = [
   {
     id: "kevin-dia-2",
     atletaId: 1,
-    dia: "Día 2",
     titulo: "Fuerza unilateral",
     objetivo: "Control, estabilidad y fuerza de piernas",
     duracion: 68,
@@ -433,7 +430,6 @@ const rutinasNacho: Rutina[] = [
   {
     id: "nacho-dia-1",
     atletaId: 3,
-    dia: "Día 1",
     titulo: "Pierna",
     objetivo: "Enfoque en cuádriceps y estabilidad",
     duracion: 60,
@@ -448,7 +444,6 @@ const rutinasNacho: Rutina[] = [
   {
     id: "nacho-dia-2",
     atletaId: 3,
-    dia: "Día 2",
     titulo: "Torso",
     objetivo: "Fuerza y volumen",
     duracion: 65,
@@ -464,7 +459,6 @@ const rutinasNacho: Rutina[] = [
   {
     id: "nacho-dia-3",
     atletaId: 3,
-    dia: "Día 3",
     titulo: "Pierna",
     objetivo: "Enfoque en cadena posterior",
     duracion: 65,
@@ -480,7 +474,6 @@ const rutinasNacho: Rutina[] = [
   {
     id: "nacho-dia-4",
     atletaId: 3,
-    dia: "Día 4",
     titulo: "Torso",
     objetivo: "Fuerza de tren superior",
     duracion: 60,
@@ -496,7 +489,6 @@ const rutinasNacho: Rutina[] = [
   {
     id: "nacho-dia-5",
     atletaId: 3,
-    dia: "Día 5",
     titulo: "Full body",
     objetivo: "Trabajo completo de fuerza y estabilidad",
     duracion: 60,
@@ -515,7 +507,6 @@ const rutinasTest: Rutina[] = [
   {
     id: "test-dia-1",
     atletaId: 5,
-    dia: "Día 1",
     titulo: "Rutina de prueba",
     objetivo: "Espacio aislado para probar RTTP",
     duracion: 30,
