@@ -72,25 +72,26 @@ etapa.
   día por zona horaria.
 - Los datos siguen en `localStorage` durante esta iteración.
 
-## Próxima etapa: actividad e historial
+## Actividad e historial
 
-La siguiente evolución debe convertir una sesión completada en una actividad
-persistente y consultable:
+Una sesión completada se convierte en una actividad persistente y consultable:
 
-- inicio y final reales;
-- duración real;
+- fecha de finalización;
+- duración planificada;
 - detalle de cada serie;
 - peso y repeticiones ejecutadas;
 - series completadas y omitidas;
 - esfuerzo percibido;
 - feedback del atleta;
-- comentarios del coach;
 - snapshot de la rutina al momento de comenzar;
 - vínculo opcional con el entrenamiento programado que le dio origen.
 
 La agenda debe mostrar el estado y un resumen, mientras que el detalle completo
 de la actividad debe vivir en una pantalla específica. Una actividad no debe
 depender de que la rutina original siga existiendo.
+
+El registro de inicio, duración real y comentarios del coach quedan como
+evoluciones posteriores.
 
 ## Segunda etapa funcional
 

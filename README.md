@@ -37,11 +37,17 @@ está separado de las rutinas para preparar el futuro historial de sesiones y la
 migración a Supabase. La evolución funcional está documentada en
 [`docs/agenda-deportiva.md`](docs/agenda-deportiva.md).
 
+Las rutinas completadas y las actividades externas realizadas se guardan como
+registros históricos independientes. El modelo y su futura persistencia están
+documentados en
+[`docs/registro-actividades.md`](docs/registro-actividades.md).
+
 ### Rutas del atleta
 
 - `/`: rutinas programadas para el día actual.
 - `/agenda`: planificación deportiva semanal.
 - `/rutinas`: todas las rutinas asignadas y ejecución libre.
+- `/actividades`: historial y detalle de actividades realizadas.
 
 ### Rutas del entrenador
 

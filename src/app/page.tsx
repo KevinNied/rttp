@@ -24,6 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
+  Activity,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -85,6 +86,12 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { AgendaDeportiva } from "@/components/agenda-deportiva";
+import { HistorialActividades } from "@/components/historial-actividades";
+import {
+  ActividadRealizada,
+  idActividad,
+  SerieActividad,
+} from "@/lib/rttp-activity";
 import {
   crearIdEntrenamiento,
   EntrenamientoProgramado,
@@ -113,13 +120,14 @@ const sessionStorageKey = "rttp-usuario-v1";
 const usersStorageKey = "rttp-usuarios-v1";
 const selectedAthleteStorageKey = "rttp-atleta-seleccionado-v1";
 const agendaStorageKey = "rttp-agenda-v1";
+const activitiesStorageKey = "rttp-actividades-v1";
 
 type PlantillaRutina = Omit<Rutina, "atletaId"> & {
   entrenadorId: number;
 };
 
 type VistaEntrenador = "resumen" | "atletas" | "rutinas";
-type VistaAtleta = "inicio" | "rutinas" | "agenda";
+type VistaAtleta = "inicio" | "agenda" | "rutinas" | "actividades";
 
 function totalSeries(rutina: Rutina) {
   return rutina.bloques.reduce(
@@ -197,6 +205,16 @@ function normalizarPlantilla(
     duracion: plantilla.duracion,
     bloques: plantilla.bloques,
     entrenadorId: plantilla.entrenadorId,
+  };
+}
+
+function snapshotRutina(rutina: Rutina): Rutina {
+  return {
+    ...rutina,
+    bloques: rutina.bloques.map((bloque) => ({
+      ...bloque,
+      ejercicios: bloque.ejercicios.map((ejercicio) => ({ ...ejercicio })),
+    })),
   };
 }
 
@@ -382,6 +400,8 @@ function AppShell({
     ? encabezadoEntrenador
     : vistaAtleta === "agenda"
       ? ["Agenda deportiva", "Tu semana de entrenamiento"]
+      : vistaAtleta === "actividades"
+        ? ["Actividades", "Tu historial deportivo"]
       : vistaAtleta === "rutinas"
         ? ["Rutinas", "Todos tus planes asignados"]
         : ["Inicio", "Tu entrenamiento de hoy"];
@@ -429,6 +449,13 @@ function AppShell({
                     "Todos tus planes",
                     "/rutinas",
                     "rutinas",
+                  ],
+                  [
+                    Activity,
+                    "Actividades",
+                    "Tu historial deportivo",
+                    "/actividades",
+                    "actividades",
                   ],
                 ]
             ).map(([Icon, label, description, href, vista]) => {
@@ -500,6 +527,7 @@ function AppShell({
               [House, "Inicio", "/", "inicio"],
               [CalendarDays, "Agenda", "/agenda", "agenda"],
               [Dumbbell, "Rutinas", "/rutinas", "rutinas"],
+              [Activity, "Actividades", "/actividades", "actividades"],
             ].map(([Icon, label, href, vista]) => {
               const NavIcon = Icon as typeof Dumbbell;
               return (
@@ -1656,6 +1684,7 @@ function HomeEntrenador({
   rutinas,
   rutinasPorAtleta,
   entrenamientos,
+  actividades,
   plantillas,
   vista,
   detalleAtleta,
@@ -1682,6 +1711,7 @@ function HomeEntrenador({
   rutinas: Rutina[];
   rutinasPorAtleta: Rutina[];
   entrenamientos: EntrenamientoProgramado[];
+  actividades: ActividadRealizada[];
   plantillas: PlantillaRutina[];
   vista: VistaEntrenador;
   detalleAtleta: boolean;
@@ -1702,6 +1732,9 @@ function HomeEntrenador({
   verComoAtleta: () => void;
 }) {
   const [rutina, setRutina] = useState(rutinaGuardada);
+  const [seccionDetalle, setSeccionDetalle] = useState<
+    "rutinas" | "agenda" | "actividades"
+  >("rutinas");
   const [bloqueAbierto, setBloqueAbierto] = useState<string | null>(null);
   const [accionPendiente, setAccionPendiente] = useState<(() => void) | null>(
     null,
@@ -2146,7 +2179,11 @@ function HomeEntrenador({
               Planificación de {atleta.nombre}
             </div>
             <h2 className="text-2xl font-light tracking-tight md:text-3xl">
-              Plan de entrenamiento
+              {seccionDetalle === "rutinas"
+                ? "Plan de entrenamiento"
+                : seccionDetalle === "agenda"
+                  ? "Agenda deportiva"
+                  : "Actividades realizadas"}
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -2165,7 +2202,9 @@ function HomeEntrenador({
                 </div>
               </div>
             </div>
-            <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
+            {seccionDetalle === "rutinas" && (
+              <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
+            )}
             <Button
               onClick={() => navegar(verComoAtleta)}
               className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
@@ -2176,6 +2215,38 @@ function HomeEntrenador({
           </div>
         </div>
 
+        <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1 sm:w-fit">
+          {[
+            ["rutinas", "Rutinas", Dumbbell],
+            ["agenda", "Agenda", CalendarDays],
+            ["actividades", "Actividades", Activity],
+          ].map(([value, label, Icon]) => {
+            const TabIcon = Icon as typeof Dumbbell;
+            return (
+              <button
+                key={value as string}
+                onClick={() =>
+                  navegar(() =>
+                    setSeccionDetalle(
+                      value as "rutinas" | "agenda" | "actividades",
+                    ),
+                  )
+                }
+                className={cn(
+                  "flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-xs transition-colors",
+                  seccionDetalle === value
+                    ? "bg-white/[0.09] text-white"
+                    : "text-white/35 hover:text-white/65",
+                )}
+              >
+                <TabIcon className="size-3.5" />
+                {label as string}
+              </button>
+            );
+          })}
+        </div>
+
+        {seccionDetalle === "rutinas" && (
         <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
           <div className="xl:sticky xl:top-24">
             <div className="mb-3 hidden items-center justify-between xl:flex">
@@ -2324,6 +2395,8 @@ function HomeEntrenador({
             </CardContent>
           </Card>
         </div>
+        )}
+        {seccionDetalle === "agenda" && (
         <AgendaDeportiva
           embedded
           modoCoach
@@ -2336,6 +2409,14 @@ function HomeEntrenador({
           onDelete={onDeleteEntrenamiento}
           onStart={() => undefined}
         />
+        )}
+        {seccionDetalle === "actividades" && (
+        <HistorialActividades
+          embedded
+          atleta={atleta}
+          actividades={actividades}
+        />
+        )}
         </section>
       )}
 
@@ -3506,7 +3587,7 @@ function RutinaCompletada({
   atleta: Usuario;
   feedback: string;
   setFeedback: (value: string) => void;
-  onDone: () => void;
+  onDone: (esfuerzo: number) => void;
 }) {
   const [esfuerzo, setEsfuerzo] = useState(4);
   return (
@@ -3549,7 +3630,7 @@ function RutinaCompletada({
             className="min-h-24 border-white/10 bg-black/30 text-white placeholder:text-white/25"
           />
           <Button
-            onClick={onDone}
+            onClick={() => onDone(esfuerzo)}
             className="mt-4 h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100"
           >
             Enviar y cerrar
@@ -3570,6 +3651,7 @@ function ExperienciaAtleta({
   onSelect,
   onCreateEntrenamiento,
   onUpdateEntrenamiento,
+  onCompleteRoutine,
   onCloseScheduled,
   registros,
   setRegistros,
@@ -3583,6 +3665,13 @@ function ExperienciaAtleta({
     item: NuevoEntrenamientoProgramado,
   ) => EntrenamientoProgramado;
   onUpdateEntrenamiento: (item: EntrenamientoProgramado) => void;
+  onCompleteRoutine: (datos: {
+    entrenamiento: EntrenamientoProgramado;
+    rutina: Rutina;
+    series: SerieActividad[];
+    esfuerzo: number;
+    feedback: string;
+  }) => void;
   onCloseScheduled: () => void;
   registros: Record<string, RegistroSerie>;
   setRegistros: React.Dispatch<
@@ -3669,14 +3758,42 @@ function ExperienciaAtleta({
         atleta={atleta}
         feedback={feedback}
         setFeedback={setFeedback}
-        onDone={() => {
+        onDone={(esfuerzo) => {
           if (entrenamiento) {
             const completado = {
               ...entrenamiento,
               estado: "completado" as const,
             };
+            const series = pasosDeRutina(rutina, entrenamiento.id).flatMap(
+              (paso): SerieActividad[] => {
+                const registro = registros[paso.pasoId];
+                if (!registro || (!registro.completada && !registro.omitida)) {
+                  return [];
+                }
+                return [
+                  {
+                    pasoId: paso.pasoId,
+                    ejercicioId: paso.id,
+                    ejercicioNombre: paso.nombre,
+                    bloqueId: paso.bloqueId,
+                    bloqueNombre: paso.bloqueNombre,
+                    ronda: paso.ronda,
+                    peso: registro.peso,
+                    repeticiones: registro.repeticiones,
+                    omitida: registro.omitida,
+                  },
+                ];
+              },
+            );
             setEntrenamiento(completado);
             onUpdateEntrenamiento(completado);
+            onCompleteRoutine({
+              entrenamiento: completado,
+              rutina,
+              series,
+              esfuerzo,
+              feedback: feedback.trim(),
+            });
           }
           cerrarEntrenamiento();
         }}
@@ -3709,6 +3826,7 @@ export default function Home() {
   const [entrenamientos, setEntrenamientos] = useState<
     EntrenamientoProgramado[]
   >([]);
+  const [actividades, setActividades] = useState<ActividadRealizada[]>([]);
   const [entrenamientoActivoId, setEntrenamientoActivoId] = useState<
     string | null
   >(null);
@@ -3760,6 +3878,8 @@ export default function Home() {
   const vistaAtleta: VistaAtleta =
     pathname === "/agenda"
       ? "agenda"
+      : pathname === "/actividades"
+        ? "actividades"
       : pathname === "/rutinas"
         ? "rutinas"
         : "inicio";
@@ -3824,6 +3944,18 @@ export default function Home() {
           window.localStorage.removeItem(agendaStorageKey);
         }
       }
+      const actividadesGuardadas = window.localStorage.getItem(
+        activitiesStorageKey,
+      );
+      if (actividadesGuardadas) {
+        try {
+          setActividades(
+            JSON.parse(actividadesGuardadas) as ActividadRealizada[],
+          );
+        } catch {
+          window.localStorage.removeItem(activitiesStorageKey);
+        }
+      }
       const usuarioGuardado = Number(
         window.localStorage.getItem(sessionStorageKey),
       );
@@ -3862,8 +3994,19 @@ export default function Home() {
         agendaStorageKey,
         JSON.stringify(entrenamientos),
       );
+      window.localStorage.setItem(
+        activitiesStorageKey,
+        JSON.stringify(actividades),
+      );
     }
-  }, [rutinas, usuarios, plantillas, entrenamientos, hidratado]);
+  }, [
+    rutinas,
+    usuarios,
+    plantillas,
+    entrenamientos,
+    actividades,
+    hidratado,
+  ]);
 
   function guardarRutina(rutinaGuardada: Rutina) {
     setRutinas((actuales) =>
@@ -3929,6 +4072,75 @@ export default function Home() {
           ? { ...item, actualizadoEn: new Date().toISOString() }
           : actual,
       ),
+    );
+    if (item.origen === "externo" && item.estado === "completado") {
+      const actividad: ActividadRealizada = {
+        id: idActividad(item.id),
+        atletaId: item.atletaId,
+        entrenamientoProgramadoId: item.id,
+        tipo: "externa",
+        titulo: item.titulo,
+        categoria: item.categoria,
+        rutinaId: null,
+        rutinaSnapshot: null,
+        fecha: item.fecha,
+        completadaEn: new Date().toISOString(),
+        duracionMinutos: item.duracionMinutos,
+        esfuerzo: null,
+        feedback: "",
+        notas: item.notas,
+        series: [],
+        registradaPorId: usuario?.id ?? item.atletaId,
+      };
+      setActividades((actuales) =>
+        actuales.some(
+          (actual) =>
+            actual.entrenamientoProgramadoId === item.id,
+        )
+          ? actuales
+          : [...actuales, actividad],
+      );
+    }
+  }
+
+  function registrarActividadRutina({
+    entrenamiento,
+    rutina: rutinaCompletada,
+    series,
+    esfuerzo,
+    feedback,
+  }: {
+    entrenamiento: EntrenamientoProgramado;
+    rutina: Rutina;
+    series: SerieActividad[];
+    esfuerzo: number;
+    feedback: string;
+  }) {
+    const actividad: ActividadRealizada = {
+      id: idActividad(entrenamiento.id),
+      atletaId: entrenamiento.atletaId,
+      entrenamientoProgramadoId: entrenamiento.id,
+      tipo: "rutina",
+      titulo: rutinaCompletada.titulo,
+      categoria: null,
+      rutinaId: rutinaCompletada.id,
+      rutinaSnapshot: snapshotRutina(rutinaCompletada),
+      fecha: entrenamiento.fecha,
+      completadaEn: new Date().toISOString(),
+      duracionMinutos: entrenamiento.duracionMinutos,
+      esfuerzo,
+      feedback,
+      notas: entrenamiento.notas,
+      series,
+      registradaPorId: usuario?.id ?? entrenamiento.atletaId,
+    };
+    setActividades((actuales) =>
+      actuales.some(
+        (actual) =>
+          actual.entrenamientoProgramadoId === entrenamiento.id,
+      )
+        ? actuales
+        : [...actuales, actividad],
     );
   }
 
@@ -4112,6 +4324,9 @@ export default function Home() {
           entrenamientos={entrenamientos.filter(
             (item) => item.atletaId === atleta.id,
           )}
+          actividades={actividades.filter(
+            (item) => item.atletaId === atleta.id,
+          )}
           plantillas={plantillas.filter(
             (plantilla) => plantilla.entrenadorId === usuario.id,
           )}
@@ -4147,6 +4362,13 @@ export default function Home() {
           onDelete={eliminarEntrenamiento}
           onStart={comenzarEntrenamiento}
         />
+      ) : vistaAtleta === "actividades" && !entrenamientoActivo ? (
+        <HistorialActividades
+          atleta={atleta}
+          actividades={actividades.filter(
+            (item) => item.atletaId === atleta.id,
+          )}
+        />
       ) : vistaAtleta === "inicio" && !entrenamientoActivo ? (
         <HomeHoy
           atleta={atleta}
@@ -4166,6 +4388,7 @@ export default function Home() {
           onSelect={setRutinaId}
           onCreateEntrenamiento={crearEntrenamiento}
           onUpdateEntrenamiento={actualizarEntrenamiento}
+          onCompleteRoutine={registrarActividadRutina}
           onCloseScheduled={() => setEntrenamientoActivoId(null)}
           registros={registros}
           setRegistros={setRegistros}

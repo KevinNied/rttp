@@ -549,7 +549,7 @@ export function AgendaDeportiva({
     <div
       className={cn(
         embedded
-          ? "mt-10 border-t border-white/[0.07] pt-10"
+          ? ""
           : "mx-auto max-w-[1600px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12",
       )}
     >
