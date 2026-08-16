@@ -333,22 +333,46 @@ function AppShell({
   children: React.ReactNode;
 }) {
   const esEntrenador = usuario.rol === "entrenador";
+  const encabezadoEntrenador =
+    vistaEntrenador === "atletas"
+      ? ["Atletas", "Perfiles y planificación individual"]
+      : vistaEntrenador === "rutinas"
+        ? ["Biblioteca de rutinas", "Plantillas reutilizables para tus atletas"]
+        : ["Resumen", "Organización y seguimiento de planes"];
+  const encabezado = esEntrenador
+    ? encabezadoEntrenador
+    : ["Rutinas", "Tu plan de entrenamiento"];
 
   return (
     <div className="min-h-screen bg-[#07080b] text-white selection:bg-cyan-300 selection:text-black">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(34,211,238,.14),transparent_32%),radial-gradient(circle_at_10%_70%,rgba(124,58,237,.15),transparent_35%)]" />
-      {esEntrenador && !vistaPrevia && (
+      {!vistaPrevia && (
         <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/[0.07] bg-[#0a0b0f]/92 px-5 py-7 backdrop-blur-xl lg:flex">
           <Logo />
           <div className="mt-10 px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/25">
-            Workspace
+            {esEntrenador ? "Workspace" : "Entrenamiento"}
           </div>
           <nav className="mt-3 space-y-1.5">
-            {[
-              [LayoutGrid, "Resumen", "Vista general", "/entrenador", "resumen"],
-              [Users, "Atletas", "Gestioná tus alumnos", "/entrenador/atletas", "atletas"],
-              [ListChecks, "Rutinas", "Plantillas y planes", "/entrenador/rutinas", "rutinas"],
-            ].map(([Icon, label, description, href, vista]) => {
+            {(esEntrenador
+              ? [
+                  [LayoutGrid, "Resumen", "Vista general", "/entrenador", "resumen"],
+                  [
+                    Users,
+                    "Atletas",
+                    "Gestioná tus alumnos",
+                    "/entrenador/atletas",
+                    "atletas",
+                  ],
+                  [
+                    ListChecks,
+                    "Rutinas",
+                    "Plantillas y planes",
+                    "/entrenador/rutinas",
+                    "rutinas",
+                  ],
+                ]
+              : [[Dumbbell, "Rutinas", "Tu plan de entrenamiento", "/", "rutinas"]]
+            ).map(([Icon, label, description, href, vista]) => {
               const NavIcon = Icon as typeof LayoutGrid;
               return (
                 <Link
@@ -356,7 +380,7 @@ function AppShell({
                   href={href as string}
                   className={cn(
                     "group flex w-full items-center gap-3 rounded-2xl px-3 py-3.5 transition-colors",
-                    vista === vistaEntrenador
+                    (!esEntrenador || vista === vistaEntrenador)
                       ? "bg-indigo-300/10 text-white"
                       : "text-indigo-100/45 hover:bg-indigo-300/[0.07] hover:text-white/80",
                   )}
@@ -382,7 +406,9 @@ function AppShell({
             </Avatar>
             <div className="min-w-0">
               <div className="truncate text-sm">{usuario.nombre}</div>
-              <div className="text-[10px] text-indigo-100/35">Entrenador</div>
+              <div className="text-[10px] text-indigo-100/35">
+                {esEntrenador ? "Entrenador" : "Atleta"}
+              </div>
             </div>
           </div>
         </aside>
@@ -391,17 +417,19 @@ function AppShell({
       <header
         className={cn(
           "fixed inset-x-0 top-0 z-40 flex h-18 items-center justify-between border-b border-white/[0.07] bg-[#07080b]/88 px-4 backdrop-blur-xl lg:px-8",
-          esEntrenador && !vistaPrevia && "lg:left-64",
+          !vistaPrevia && "lg:left-64",
         )}
       >
-        <div className={cn(esEntrenador && !vistaPrevia && "lg:hidden")}>
+        <div className={cn(!vistaPrevia && "lg:hidden")}>
           <Logo />
         </div>
-        {esEntrenador && !vistaPrevia && (
+        {!vistaPrevia && (
           <div className="hidden lg:block">
-            <div className="text-sm font-medium text-white/85">Panel de entrenador</div>
+            <div className="text-sm font-medium text-white/85">
+              {encabezado[0]}
+            </div>
             <div className="mt-0.5 text-[10px] text-white/30">
-              Organización y seguimiento de planes
+              {encabezado[1]}
             </div>
           </div>
         )}
@@ -445,7 +473,7 @@ function AppShell({
       <main
         className={cn(
           "relative min-h-screen pt-18",
-          esEntrenador && !vistaPrevia && "lg:pl-64",
+          !vistaPrevia && "lg:pl-64",
         )}
       >
         {children}
@@ -2058,7 +2086,22 @@ function HomeEntrenador({
               Plan de entrenamiento
             </h2>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="hidden items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 py-2 xl:flex">
+              <Avatar className="size-8">
+                <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[10px] text-white">
+                  {atleta.nombre.slice(0, 1)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="max-w-32 truncate text-xs font-medium">
+                  {atleta.nombre}
+                </div>
+                <div className="text-[9px] text-white/30">
+                  {rutinas.length} planes · {cantidadEjercicios(rutina)} ejercicios
+                </div>
+              </div>
+            </div>
             <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
             <Button
               onClick={() => navegar(verComoAtleta)}
@@ -2395,7 +2438,7 @@ function HomeAtleta({
   onReset: () => void;
 }) {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-7 md:px-8 md:py-9">
+    <div className="mx-auto max-w-7xl px-4 py-7 md:px-8 md:py-9 xl:px-10 xl:py-12">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <div className="text-xs text-white/40">Hola, {atleta.nombre}</div>
@@ -2408,13 +2451,25 @@ function HomeAtleta({
         </Avatar>
       </div>
 
-      <SelectorRutina
-        rutinas={rutinas}
-        rutinaActiva={rutina}
-        onSelect={onSelect}
-      />
+      <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
+        <aside className="xl:sticky xl:top-24">
+          <div className="mb-3 hidden items-center justify-between xl:flex">
+            <span className="text-xs font-medium text-white/60">
+              Tus rutinas
+            </span>
+            <span className="text-[10px] text-white/25">
+              {rutinas.length} planes
+            </span>
+          </div>
+          <SelectorRutina
+            rutinas={rutinas}
+            rutinaActiva={rutina}
+            onSelect={onSelect}
+            desktopVertical
+          />
+        </aside>
 
-      <Card className="relative mt-4 overflow-hidden border-white/[0.09] bg-[#101116] text-white shadow-[0_30px_80px_rgba(0,0,0,.45)]">
+      <Card className="relative overflow-hidden border-white/[0.09] bg-[#101116] text-white shadow-[0_30px_80px_rgba(0,0,0,.45)]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(34,211,238,.18),transparent_35%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.18),transparent_42%)]" />
         <CardContent className="relative p-5 md:p-7">
           <div className="flex items-center justify-between">
@@ -2500,6 +2555,7 @@ function HomeAtleta({
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
@@ -2766,7 +2822,7 @@ function WorkoutMode({
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-4.5rem)] max-w-5xl flex-col overflow-hidden px-4 py-3 md:px-8 md:py-5">
+    <div className="mx-auto flex h-[calc(100dvh-4.5rem)] max-w-7xl flex-col overflow-hidden px-4 py-3 md:px-8 md:py-5 xl:px-10">
       <div>
         <div className="mb-4 flex items-center justify-between">
           <Button
@@ -2793,7 +2849,7 @@ function WorkoutMode({
         />
       </div>
 
-      <div className="mx-auto mt-3 w-full max-w-lg">
+      <div className="mx-auto mt-3 w-full max-w-lg xl:max-w-4xl">
         {esBloqueBreve && (
           <div className="mb-3 flex items-center justify-between rounded-full border border-white/[0.08] bg-white/[0.025] p-1 pl-3">
             <span className="text-[8px] uppercase tracking-[0.16em] text-white/30">
@@ -3234,9 +3290,10 @@ function RutinaCompletada({
 }) {
   const [esfuerzo, setEsfuerzo] = useState(4);
   return (
-    <div className="mx-auto grid min-h-[calc(100vh-4.5rem)] max-w-xl place-items-center px-4 py-8">
+    <div className="mx-auto grid min-h-[calc(100vh-4.5rem)] max-w-5xl place-items-center px-4 py-8 md:px-8 xl:px-10">
       <Card className="w-full border-violet-200/[0.12] bg-[#101116] text-center text-white shadow-[0_30px_90px_rgba(0,0,0,.5)]">
-        <CardContent className="p-6 md:p-9">
+        <CardContent className="p-6 md:p-9 xl:grid xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:items-center xl:gap-10 xl:p-12">
+          <div>
           <div className="mx-auto grid size-16 place-items-center rounded-full bg-gradient-to-br from-cyan-300 to-violet-400 text-indigo-950">
             <Trophy className="size-6" />
           </div>
@@ -3263,6 +3320,8 @@ function RutinaCompletada({
               </button>
             ))}
           </div>
+          </div>
+          <div className="xl:text-left">
           <Textarea
             value={feedback}
             onChange={(event) => setFeedback(event.target.value)}
@@ -3276,6 +3335,7 @@ function RutinaCompletada({
             Enviar y cerrar
             <CheckCircle2 />
           </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
