@@ -1,136 +1,233 @@
-create table public.profiles (
-  id bigint primary key,
-  auth_user_id uuid unique,
-  name text not null,
-  email text not null unique,
-  role text not null check (role in ('coach', 'athlete')),
-  athlete_ids bigint[] not null default '{}',
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+create or replace function public.to_english_blocks(input_blocks jsonb)
+returns jsonb
+language sql
+immutable
+set search_path = public
+as $$
+  select coalesce(
+    jsonb_agg(
+      (
+        block_data
+        - 'nombre'
+        - 'tipo'
+        - 'ejercicios'
+      ) || jsonb_build_object(
+        'name', coalesce(block_data->'name', block_data->'nombre'),
+        'type', case coalesce(block_data->>'type', block_data->>'tipo')
+          when 'Series consecutivas' then 'consecutive-sets'
+          when 'Preparación' then 'preparation'
+          when 'Preparación específica' then 'specific-preparation'
+          when 'Alternado' then 'alternating'
+          when 'Cierre' then 'cooldown'
+          when 'Circuito · 2 vueltas' then 'circuit-2-rounds'
+          when 'Personalizado' then 'custom'
+          when 'consecutive-sets' then 'consecutive-sets'
+          when 'preparation' then 'preparation'
+          when 'specific-preparation' then 'specific-preparation'
+          when 'alternating' then 'alternating'
+          when 'cooldown' then 'cooldown'
+          when 'circuit-2-rounds' then 'circuit-2-rounds'
+          else 'custom'
+        end,
+        'exercises', (
+          select coalesce(
+            jsonb_agg(
+              (
+                exercise_data
+                - 'nombre'
+                - 'aclaraciones'
+                - 'series'
+                - 'repeticionesMin'
+                - 'repeticionesMax'
+                - 'peso'
+                - 'descanso'
+              ) || jsonb_build_object(
+                'name', coalesce(
+                  exercise_data->'name',
+                  exercise_data->'nombre'
+                ),
+                'instructions', coalesce(
+                  exercise_data->'instructions',
+                  exercise_data->'aclaraciones',
+                  '""'::jsonb
+                ),
+                'sets', coalesce(
+                  exercise_data->'sets',
+                  exercise_data->'series',
+                  '0'::jsonb
+                ),
+                'minReps', coalesce(
+                  exercise_data->'minReps',
+                  exercise_data->'repeticionesMin',
+                  '0'::jsonb
+                ),
+                'maxReps', coalesce(
+                  exercise_data->'maxReps',
+                  exercise_data->'repeticionesMax',
+                  '0'::jsonb
+                ),
+                'weight', coalesce(
+                  exercise_data->'weight',
+                  exercise_data->'peso',
+                  '0'::jsonb
+                ),
+                'restSeconds', coalesce(
+                  exercise_data->'restSeconds',
+                  exercise_data->'descanso',
+                  'null'::jsonb
+                )
+              )
+            ),
+            '[]'::jsonb
+          )
+          from jsonb_array_elements(
+            coalesce(
+              block_data->'exercises',
+              block_data->'ejercicios',
+              '[]'::jsonb
+            )
+          ) as exercise_data
+        )
+      )
+    ),
+    '[]'::jsonb
+  )
+  from jsonb_array_elements(coalesce(input_blocks, '[]'::jsonb)) as block_data;
+$$;
 
-create table public.routines (
-  id text primary key,
-  athlete_id bigint not null references public.profiles(id) on delete cascade,
-  title text not null,
-  objective text not null,
-  duration_minutes integer not null check (duration_minutes > 0),
-  blocks jsonb not null default '[]'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+alter table public.profiles
+  drop constraint if exists profiles_role_check;
 
-create index routines_athlete_id_idx on public.routines(athlete_id);
+alter table public.scheduled_workouts
+  drop constraint if exists scheduled_workouts_status_check,
+  drop constraint if exists scheduled_workouts_origin_check,
+  drop constraint if exists scheduled_workouts_category_check,
+  drop constraint if exists scheduled_workouts_check;
 
-create table public.routine_templates (
-  id text primary key,
-  coach_id bigint not null references public.profiles(id) on delete cascade,
-  title text not null,
-  objective text not null,
-  duration_minutes integer not null check (duration_minutes > 0),
-  blocks jsonb not null default '[]'::jsonb,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+alter table public.workout_activities
+  drop constraint if exists workout_activities_activity_type_check,
+  drop constraint if exists workout_activities_category_check;
 
-create index routine_templates_coach_id_idx
-  on public.routine_templates(coach_id);
+update public.profiles
+set role = case role
+  when 'entrenador' then 'coach'
+  when 'atleta' then 'athlete'
+  else role
+end;
 
-create table public.scheduled_workouts (
-  id text primary key,
-  athlete_id bigint not null references public.profiles(id) on delete cascade,
-  workout_date date not null,
-  workout_time time,
-  duration_minutes integer not null check (duration_minutes > 0),
-  status text not null check (
-    status in ('scheduled', 'in-progress', 'completed', 'skipped')
+update public.scheduled_workouts
+set
+  status = case status
+    when 'programado' then 'scheduled'
+    when 'en-curso' then 'in-progress'
+    when 'completado' then 'completed'
+    when 'omitido' then 'skipped'
+    else status
+  end,
+  origin = case origin
+    when 'rutina' then 'routine'
+    when 'externo' then 'external'
+    else origin
+  end,
+  category = case category
+    when 'natacion' then 'swimming'
+    when 'ciclismo' then 'cycling'
+    when 'deporte' then 'sport'
+    when 'movilidad' then 'mobility'
+    when 'otra' then 'other'
+    else category
+  end;
+
+update public.workout_activities
+set
+  activity_type = case activity_type
+    when 'rutina' then 'routine'
+    when 'externa' then 'external'
+    else activity_type
+  end,
+  category = case category
+    when 'natacion' then 'swimming'
+    when 'ciclismo' then 'cycling'
+    when 'deporte' then 'sport'
+    when 'movilidad' then 'mobility'
+    when 'otra' then 'other'
+    else category
+  end;
+
+update public.routines
+set blocks = public.to_english_blocks(blocks);
+
+update public.routine_templates
+set blocks = public.to_english_blocks(blocks);
+
+update public.workout_activities
+set routine_snapshot = null
+where routine_snapshot = 'null'::jsonb;
+
+update public.workout_activities
+set routine_snapshot = (
+  routine_snapshot
+  - 'atletaId'
+  - 'titulo'
+  - 'objetivo'
+  - 'duracion'
+  - 'bloques'
+) || jsonb_build_object(
+  'athleteId', coalesce(
+    routine_snapshot->'athleteId',
+    routine_snapshot->'atletaId'
   ),
-  created_by_id bigint not null references public.profiles(id),
-  notes text not null default '',
-  origin text not null check (origin in ('routine', 'external')),
-  routine_id text references public.routines(id) on delete cascade,
-  title text,
-  category text check (
+  'title', coalesce(
+    routine_snapshot->'title',
+    routine_snapshot->'titulo'
+  ),
+  'objective', coalesce(
+    routine_snapshot->'objective',
+    routine_snapshot->'objetivo'
+  ),
+  'durationMinutes', coalesce(
+    routine_snapshot->'durationMinutes',
+    routine_snapshot->'duracion'
+  ),
+  'blocks', public.to_english_blocks(
+    coalesce(
+      routine_snapshot->'blocks',
+      routine_snapshot->'bloques',
+      '[]'::jsonb
+    )
+  )
+)
+where jsonb_typeof(routine_snapshot) = 'object';
+
+alter table public.profiles
+  add constraint profiles_role_check
+  check (role in ('coach', 'athlete'));
+
+alter table public.scheduled_workouts
+  add constraint scheduled_workouts_status_check
+  check (status in ('scheduled', 'in-progress', 'completed', 'skipped')),
+  add constraint scheduled_workouts_origin_check
+  check (origin in ('routine', 'external')),
+  add constraint scheduled_workouts_category_check
+  check (
     category is null or
     category in ('running', 'swimming', 'cycling', 'sport', 'mobility', 'other')
   ),
-  created_at timestamptz not null,
-  updated_at timestamptz not null,
+  add constraint scheduled_workouts_check
   check (
     (origin = 'routine' and routine_id is not null and title is null and category is null)
     or
     (origin = 'external' and routine_id is null and title is not null and category is not null)
-  )
-);
+  );
 
-create index scheduled_workouts_athlete_date_idx
-  on public.scheduled_workouts(athlete_id, workout_date);
-
-create table public.workout_activities (
-  id text primary key,
-  athlete_id bigint not null references public.profiles(id) on delete cascade,
-  scheduled_workout_id text not null unique,
-  activity_type text not null check (activity_type in ('routine', 'external')),
-  title text not null,
-  category text check (
+alter table public.workout_activities
+  add constraint workout_activities_activity_type_check
+  check (activity_type in ('routine', 'external')),
+  add constraint workout_activities_category_check
+  check (
     category is null or
     category in ('running', 'swimming', 'cycling', 'sport', 'mobility', 'other')
-  ),
-  routine_id text,
-  routine_snapshot jsonb,
-  activity_date date not null,
-  completed_at timestamptz not null,
-  duration_minutes integer not null check (duration_minutes > 0),
-  effort integer check (effort is null or effort between 1 and 5),
-  feedback text not null default '',
-  notes text not null default '',
-  registered_by_id bigint not null references public.profiles(id),
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create index workout_activities_athlete_date_idx
-  on public.workout_activities(athlete_id, activity_date desc);
-
-create table public.workout_activity_sets (
-  activity_id text not null references public.workout_activities(id) on delete cascade,
-  step_id text not null,
-  exercise_id text not null,
-  exercise_name text not null,
-  block_id text not null,
-  block_name text not null,
-  round_number integer not null check (round_number > 0),
-  weight numeric not null check (weight >= 0),
-  repetitions integer not null check (repetitions >= 0),
-  skipped boolean not null default false,
-  primary key (activity_id, step_id)
-);
-
-create or replace function public.set_updated_at()
-returns trigger
-language plpgsql
-as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-create trigger profiles_set_updated_at
-before update on public.profiles
-for each row execute function public.set_updated_at();
-
-create trigger routines_set_updated_at
-before update on public.routines
-for each row execute function public.set_updated_at();
-
-create trigger routine_templates_set_updated_at
-before update on public.routine_templates
-for each row execute function public.set_updated_at();
-
-create trigger workout_activities_set_updated_at
-before update on public.workout_activities
-for each row execute function public.set_updated_at();
+  );
 
 create or replace function public.save_workout_activity(
   activity jsonb,
@@ -452,60 +549,4 @@ begin
 end;
 $$;
 
-alter table public.profiles enable row level security;
-alter table public.routines enable row level security;
-alter table public.routine_templates enable row level security;
-alter table public.scheduled_workouts enable row level security;
-alter table public.workout_activities enable row level security;
-alter table public.workout_activity_sets enable row level security;
-
--- Temporary policies while RTTP intentionally operates without Supabase Auth.
--- Replace these policies with ownership-based rules before introducing auth.
-create policy "temporary public profiles access"
-on public.profiles for all to anon, authenticated
-using (true) with check (true);
-
-create policy "temporary public routines access"
-on public.routines for all to anon, authenticated
-using (true) with check (true);
-
-create policy "temporary public templates access"
-on public.routine_templates for all to anon, authenticated
-using (true) with check (true);
-
-create policy "temporary public scheduled workouts access"
-on public.scheduled_workouts for all to anon, authenticated
-using (true) with check (true);
-
-create policy "temporary public activities access"
-on public.workout_activities for all to anon, authenticated
-using (true) with check (true);
-
-create policy "temporary public activity sets access"
-on public.workout_activity_sets for all to anon, authenticated
-using (true) with check (true);
-
-grant select, insert, update, delete
-on public.profiles,
-   public.routines,
-   public.routine_templates,
-   public.scheduled_workouts,
-   public.workout_activities,
-   public.workout_activity_sets
-to anon, authenticated;
-
-grant execute on function public.save_workout_activity(jsonb, jsonb)
-to anon, authenticated;
-
-grant execute on function public.migrate_workout_activity(jsonb, jsonb)
-to anon, authenticated;
-
-grant execute on function public.migrate_profiles(jsonb)
-to anon, authenticated;
-
-grant execute on function public.create_athlete_with_routine(
-  bigint,
-  text,
-  text,
-  jsonb
-) to anon, authenticated;
+drop function public.to_english_blocks(jsonb);

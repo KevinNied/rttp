@@ -1,81 +1,81 @@
-export type CategoriaActividad =
+export type ActivityCategory =
   | "running"
-  | "natacion"
-  | "ciclismo"
-  | "deporte"
-  | "movilidad"
-  | "otra";
+  | "swimming"
+  | "cycling"
+  | "sport"
+  | "mobility"
+  | "other";
 
-export type EstadoEntrenamiento =
-  | "programado"
-  | "en-curso"
-  | "completado"
-  | "omitido";
+export type WorkoutStatus =
+  | "scheduled"
+  | "in-progress"
+  | "completed"
+  | "skipped";
 
-type EntrenamientoBase = {
+type WorkoutBase = {
   id: string;
-  atletaId: number;
-  fecha: string;
-  hora: string | null;
-  duracionMinutos: number;
-  estado: EstadoEntrenamiento;
-  creadoPorId: number;
-  notas: string;
-  creadoEn: string;
-  actualizadoEn: string;
+  athleteId: number;
+  date: string;
+  time: string | null;
+  durationMinutes: number;
+  status: WorkoutStatus;
+  createdById: number;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
-export type EntrenamientoProgramado =
-  | (EntrenamientoBase & {
-      origen: "rutina";
-      rutinaId: string;
-      titulo: null;
-      categoria: null;
+export type ScheduledWorkout =
+  | (WorkoutBase & {
+      origin: "routine";
+      routineId: string;
+      title: null;
+      category: null;
     })
-  | (EntrenamientoBase & {
-      origen: "externo";
-      rutinaId: null;
-      titulo: string;
-      categoria: CategoriaActividad;
+  | (WorkoutBase & {
+      origin: "external";
+      routineId: null;
+      title: string;
+      category: ActivityCategory;
     });
 
-type SinMetadata<T> = T extends EntrenamientoProgramado
-  ? Omit<T, "id" | "creadoEn" | "actualizadoEn">
+type WithoutMetadata<T> = T extends ScheduledWorkout
+  ? Omit<T, "id" | "createdAt" | "updatedAt">
   : never;
 
-export type NuevoEntrenamientoProgramado =
-  SinMetadata<EntrenamientoProgramado>;
+export type NewScheduledWorkout =
+  WithoutMetadata<ScheduledWorkout>;
 
-export const categoriasActividad: {
-  value: CategoriaActividad;
+export const activityCategories: {
+  value: ActivityCategory;
   label: string;
 }[] = [
   { value: "running", label: "Running" },
-  { value: "natacion", label: "Natación" },
-  { value: "ciclismo", label: "Ciclismo" },
-  { value: "deporte", label: "Deporte" },
-  { value: "movilidad", label: "Movilidad" },
-  { value: "otra", label: "Otra actividad" },
+  { value: "swimming", label: "Natación" },
+  { value: "cycling", label: "Ciclismo" },
+  { value: "sport", label: "Deporte" },
+  { value: "mobility", label: "Movilidad" },
+  { value: "other", label: "Otra actividad" },
 ];
 
-export function fechaLocal(fecha = new Date()) {
-  const offset = fecha.getTimezoneOffset() * 60_000;
-  return new Date(fecha.getTime() - offset).toISOString().slice(0, 10);
+export function localDate(date = new Date()) {
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 }
 
-export function inicioDeSemana(fecha: string) {
-  const base = new Date(`${fecha}T12:00:00`);
-  const diasDesdeLunes = (base.getDay() + 6) % 7;
-  base.setDate(base.getDate() - diasDesdeLunes);
-  return fechaLocal(base);
+export function startOfWeek(date: string) {
+  const base = new Date(`${date}T12:00:00`);
+  const daysSinceMonday = (base.getDay() + 6) % 7;
+  base.setDate(base.getDate() - daysSinceMonday);
+  return localDate(base);
 }
 
-export function sumarDias(fecha: string, cantidad: number) {
-  const siguiente = new Date(`${fecha}T12:00:00`);
-  siguiente.setDate(siguiente.getDate() + cantidad);
-  return fechaLocal(siguiente);
+export function addDays(date: string, amount: number) {
+  const nextDate = new Date(`${date}T12:00:00`);
+  nextDate.setDate(nextDate.getDate() + amount);
+  return localDate(nextDate);
 }
 
-export function crearIdEntrenamiento() {
-  return `entrenamiento-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+export function createWorkoutId() {
+  return `workout-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }

@@ -57,6 +57,11 @@ El contrato se separa en:
 - relación opcional con `scheduled_workouts`;
 - relación obligatoria con el perfil del atleta.
 
+Las claves del snapshot y del detalle de series usan el mismo contrato inglés
+del dominio (`athleteId`, `blocks`, `exercises`, `stepId`, `reps`, `skipped`,
+entre otras), aunque los nombres y comentarios escritos por el usuario se
+conservan en su idioma original.
+
 La función RPC `save_workout_activity` crea la actividad y sus series de forma
 atómica. La restricción única sobre `scheduled_workout_id` mantiene la
 idempotencia.

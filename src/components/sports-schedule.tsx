@@ -32,40 +32,40 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  categoriasActividad,
-  CategoriaActividad,
-  EntrenamientoProgramado,
-  fechaLocal,
-  inicioDeSemana,
-  NuevoEntrenamientoProgramado,
-  sumarDias,
+  activityCategories,
+  ActivityCategory,
+  ScheduledWorkout,
+  localDate,
+  startOfWeek,
+  NewScheduledWorkout,
+  addDays,
 } from "@/lib/rttp-agenda";
-import { Rutina, Usuario } from "@/lib/rttp-data";
+import { Routine, User } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
 const nombresDias = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
-function etiquetaFecha(fecha: string, formato: "corta" | "larga" = "corta") {
+function etiquetaFecha(date: string, formato: "corta" | "larga" = "corta") {
   return new Intl.DateTimeFormat("es-AR", {
     day: "numeric",
     month: formato === "larga" ? "long" : "short",
-  }).format(new Date(`${fecha}T12:00:00`));
+  }).format(new Date(`${date}T12:00:00`));
 }
 
 function tituloEntrenamiento(
-  item: EntrenamientoProgramado,
-  rutinas: Rutina[],
+  item: ScheduledWorkout,
+  routines: Routine[],
 ) {
-  if (item.origen === "externo") return item.titulo;
+  if (item.origin === "external") return item.title;
   return (
-    rutinas.find((rutina) => rutina.id === item.rutinaId)?.titulo ??
+    routines.find((rutina) => rutina.id === item.routineId)?.title ??
     "Rutina no disponible"
   );
 }
 
 function DialogoEntrenamiento({
   trigger,
-  rutinas,
+  routines,
   atleta,
   usuarioActual,
   fechaInicial,
@@ -75,99 +75,99 @@ function DialogoEntrenamiento({
   onUpdate,
 }: {
   trigger: React.ReactElement;
-  rutinas: Rutina[];
-  atleta: Usuario;
-  usuarioActual: Usuario;
+  routines: Routine[];
+  atleta: User;
+  usuarioActual: User;
   fechaInicial: string;
   rutinaInicialId?: string;
-  item?: EntrenamientoProgramado;
-  onCreate: (item: NuevoEntrenamientoProgramado) => void;
-  onUpdate: (item: EntrenamientoProgramado) => void;
+  item?: ScheduledWorkout;
+  onCreate: (item: NewScheduledWorkout) => void;
+  onUpdate: (item: ScheduledWorkout) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [origen, setOrigen] = useState<"rutina" | "externo">(
-    item?.origen ?? "rutina",
+  const [origin, setOrigen] = useState<"routine" | "external">(
+    item?.origin ?? "routine",
   );
-  const [rutinaId, setRutinaId] = useState(
-    item?.origen === "rutina"
-      ? item.rutinaId
-      : rutinaInicialId ?? rutinas[0]?.id ?? "",
+  const [routineId, setRutinaId] = useState(
+    item?.origin === "routine"
+      ? item.routineId
+      : rutinaInicialId ?? routines[0]?.id ?? "",
   );
-  const [titulo, setTitulo] = useState(
-    item?.origen === "externo" ? item.titulo : "",
+  const [title, setTitulo] = useState(
+    item?.origin === "external" ? item.title : "",
   );
-  const [categoria, setCategoria] = useState<CategoriaActividad>(
-    item?.origen === "externo" ? item.categoria : "running",
+  const [category, setCategoria] = useState<ActivityCategory>(
+    item?.origin === "external" ? item.category : "running",
   );
-  const [fecha, setFecha] = useState(item?.fecha ?? fechaInicial);
-  const [hora, setHora] = useState(item?.hora ?? "");
-  const [duracion, setDuracion] = useState(
+  const [date, setFecha] = useState(item?.date ?? fechaInicial);
+  const [time, setHora] = useState(item?.time ?? "");
+  const [durationMinutes, setDuracion] = useState(
     String(
-      item?.duracionMinutos ??
-        rutinas.find((rutina) => rutina.id === rutinaInicialId)?.duracion ??
-        rutinas[0]?.duracion ??
+      item?.durationMinutes ??
+        routines.find((rutina) => rutina.id === rutinaInicialId)?.durationMinutes ??
+        routines[0]?.durationMinutes ??
         60,
     ),
   );
-  const [notas, setNotas] = useState(item?.notas ?? "");
+  const [notes, setNotas] = useState(item?.notes ?? "");
 
   function cambiarApertura(siguiente: boolean) {
     setOpen(siguiente);
     if (!siguiente) return;
-    setOrigen(item?.origen ?? "rutina");
+    setOrigen(item?.origin ?? "routine");
     setRutinaId(
-      item?.origen === "rutina"
-        ? item.rutinaId
-        : rutinaInicialId ?? rutinas[0]?.id ?? "",
+      item?.origin === "routine"
+        ? item.routineId
+        : rutinaInicialId ?? routines[0]?.id ?? "",
     );
-    setTitulo(item?.origen === "externo" ? item.titulo : "");
-    setCategoria(item?.origen === "externo" ? item.categoria : "running");
-    setFecha(item?.fecha ?? fechaInicial);
-    setHora(item?.hora ?? "");
+    setTitulo(item?.origin === "external" ? item.title : "");
+    setCategoria(item?.origin === "external" ? item.category : "running");
+    setFecha(item?.date ?? fechaInicial);
+    setHora(item?.time ?? "");
     setDuracion(
       String(
-        item?.duracionMinutos ??
-          rutinas.find((rutina) => rutina.id === rutinaInicialId)?.duracion ??
-          rutinas[0]?.duracion ??
+        item?.durationMinutes ??
+          routines.find((rutina) => rutina.id === rutinaInicialId)?.durationMinutes ??
+          routines[0]?.durationMinutes ??
           60,
       ),
     );
-    setNotas(item?.notas ?? "");
+    setNotas(item?.notes ?? "");
   }
 
   function guardar() {
     const base = {
-      atletaId: atleta.id,
-      fecha,
-      hora: hora || null,
-      duracionMinutos: Math.max(1, Number(duracion) || 60),
-      estado: item?.estado ?? ("programado" as const),
-      creadoPorId: item?.creadoPorId ?? usuarioActual.id,
-      notas: notas.trim(),
+      athleteId: atleta.id,
+      date,
+      time: time || null,
+      durationMinutes: Math.max(1, Number(durationMinutes) || 60),
+      status: item?.status ?? ("scheduled" as const),
+      createdById: item?.createdById ?? usuarioActual.id,
+      notes: notes.trim(),
     };
-    const siguiente: NuevoEntrenamientoProgramado =
-      origen === "rutina"
+    const siguiente: NewScheduledWorkout =
+      origin === "routine"
         ? {
             ...base,
-            origen: "rutina",
-            rutinaId,
-            titulo: null,
-            categoria: null,
+            origin: "routine",
+            routineId,
+            title: null,
+            category: null,
           }
         : {
             ...base,
-            origen: "externo",
-            rutinaId: null,
-            titulo: titulo.trim(),
-            categoria,
+            origin: "external",
+            routineId: null,
+            title: title.trim(),
+            category,
           };
 
     if (item) {
       onUpdate({
         ...siguiente,
         id: item.id,
-        creadoEn: item.creadoEn,
-        actualizadoEn: item.actualizadoEn,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
       });
     } else {
       onCreate(siguiente);
@@ -176,8 +176,8 @@ function DialogoEntrenamiento({
   }
 
   const valido =
-    Boolean(fecha) &&
-    (origen === "rutina" ? Boolean(rutinaId) : Boolean(titulo.trim()));
+    Boolean(date) &&
+    (origin === "routine" ? Boolean(routineId) : Boolean(title.trim()));
 
   return (
     <Dialog open={open} onOpenChange={cambiarApertura}>
@@ -194,16 +194,16 @@ function DialogoEntrenamiento({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2 rounded-2xl bg-black/25 p-1">
             {[
-              ["rutina", "Rutina RTTP"],
-              ["externo", "Actividad externa"],
+              ["routine", "Rutina RTTP"],
+              ["external", "Actividad externa"],
             ].map(([value, label]) => (
               <button
                 key={value}
                 type="button"
-                onClick={() => setOrigen(value as "rutina" | "externo")}
+                onClick={() => setOrigen(value as "routine" | "external")}
                 className={cn(
                   "rounded-xl px-3 py-2.5 text-xs transition-colors",
-                  origen === value
+                  origin === value
                     ? "bg-cyan-300 text-indigo-950"
                     : "text-white/40 hover:text-white/70",
                 )}
@@ -213,22 +213,22 @@ function DialogoEntrenamiento({
             ))}
           </div>
 
-          {origen === "rutina" ? (
+          {origin === "routine" ? (
             <label className="block space-y-2">
               <span className="text-xs text-white/55">Rutina</span>
               <select
-                value={rutinaId}
+                value={routineId}
                 onChange={(event) => {
                   const id = event.target.value;
                   setRutinaId(id);
-                  const rutina = rutinas.find((actual) => actual.id === id);
-                  if (rutina) setDuracion(String(rutina.duracion));
+                  const rutina = routines.find((actual) => actual.id === id);
+                  if (rutina) setDuracion(String(rutina.durationMinutes));
                 }}
                 className="h-10 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
               >
-                {rutinas.map((rutina) => (
+                {routines.map((rutina) => (
                   <option key={rutina.id} value={rutina.id}>
-                    {rutina.titulo}
+                    {rutina.title}
                   </option>
                 ))}
               </select>
@@ -238,7 +238,7 @@ function DialogoEntrenamiento({
               <label className="space-y-2">
                 <span className="text-xs text-white/55">Actividad</span>
                 <Input
-                  value={titulo}
+                  value={title}
                   onChange={(event) => setTitulo(event.target.value)}
                   placeholder="Ej. Fondo suave"
                   className="border-white/10 bg-black/35"
@@ -247,13 +247,13 @@ function DialogoEntrenamiento({
               <label className="space-y-2">
                 <span className="text-xs text-white/55">Categoría</span>
                 <select
-                  value={categoria}
+                  value={category}
                   onChange={(event) =>
-                    setCategoria(event.target.value as CategoriaActividad)
+                    setCategoria(event.target.value as ActivityCategory)
                   }
                   className="h-10 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
                 >
-                  {categoriasActividad.map((opcion) => (
+                  {activityCategories.map((opcion) => (
                     <option key={opcion.value} value={opcion.value}>
                       {opcion.label}
                     </option>
@@ -268,7 +268,7 @@ function DialogoEntrenamiento({
               <span className="text-xs text-white/55">Fecha</span>
               <Input
                 type="date"
-                value={fecha}
+                value={date}
                 onChange={(event) => setFecha(event.target.value)}
                 className="border-white/10 bg-black/35"
               />
@@ -277,7 +277,7 @@ function DialogoEntrenamiento({
               <span className="text-xs text-white/55">Hora (opcional)</span>
               <Input
                 type="time"
-                value={hora}
+                value={time}
                 onChange={(event) => setHora(event.target.value)}
                 className="border-white/10 bg-black/35"
               />
@@ -290,7 +290,7 @@ function DialogoEntrenamiento({
             <Input
               type="number"
               min={1}
-              value={duracion}
+              value={durationMinutes}
               onChange={(event) => setDuracion(event.target.value)}
               className="border-white/10 bg-black/35"
             />
@@ -298,7 +298,7 @@ function DialogoEntrenamiento({
           <label className="block space-y-2">
             <span className="text-xs text-white/55">Notas (opcional)</span>
             <Textarea
-              value={notas}
+              value={notes}
               onChange={(event) => setNotas(event.target.value)}
               placeholder="Objetivo, lugar o cualquier detalle útil"
               className="min-h-20 border-white/10 bg-black/35"
@@ -327,7 +327,7 @@ function DialogoEntrenamiento({
 
 function TarjetaEntrenamiento({
   item,
-  rutinas,
+  routines,
   atleta,
   usuarioActual,
   modoCoach,
@@ -335,17 +335,17 @@ function TarjetaEntrenamiento({
   onDelete,
   onStart,
 }: {
-  item: EntrenamientoProgramado;
-  rutinas: Rutina[];
-  atleta: Usuario;
-  usuarioActual: Usuario;
+  item: ScheduledWorkout;
+  routines: Routine[];
+  atleta: User;
+  usuarioActual: User;
   modoCoach: boolean;
-  onUpdate: (item: EntrenamientoProgramado) => void;
+  onUpdate: (item: ScheduledWorkout) => void;
   onDelete: (id: string) => void;
-  onStart: (item: EntrenamientoProgramado) => void;
+  onStart: (item: ScheduledWorkout) => void;
 }) {
-  const completado = item.estado === "completado";
-  const omitido = item.estado === "omitido";
+  const completado = item.status === "completed";
+  const omitido = item.status === "skipped";
   const editable = !completado && !omitido;
 
   return (
@@ -356,7 +356,7 @@ function TarjetaEntrenamiento({
       }
       className={cn(
         "group rounded-2xl border p-3 transition-colors",
-        item.origen === "rutina"
+        item.origin === "routine"
           ? "border-cyan-200/15 bg-cyan-300/[0.06]"
           : "border-violet-200/15 bg-violet-300/[0.06]",
         editable && "cursor-grab active:cursor-grabbing",
@@ -365,13 +365,13 @@ function TarjetaEntrenamiento({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="line-clamp-2 text-xs font-medium leading-snug text-white/90">
-            {tituloEntrenamiento(item, rutinas)}
+            {tituloEntrenamiento(item, routines)}
           </div>
           <div className="mt-1.5 flex items-center gap-1.5 text-[9px] text-white/35">
-            {item.hora && <span>{item.hora}</span>}
-            {item.hora && <span>·</span>}
+            {item.time && <span>{item.time}</span>}
+            {item.time && <span>·</span>}
             <Clock3 className="size-2.5 shrink-0" />
-            <span>{item.duracionMinutos} min</span>
+            <span>{item.durationMinutes} min</span>
           </div>
         </div>
         {completado ? (
@@ -388,35 +388,35 @@ function TarjetaEntrenamiento({
           >
             <SkipForward className="size-3.5" />
           </span>
-        ) : item.estado === "en-curso" ? (
+        ) : item.status === "in-progress" ? (
           <Badge className="shrink-0 border-cyan-200/10 bg-cyan-300/10 px-2 text-[8px] text-cyan-100">
             En curso
           </Badge>
         ) : null}
       </div>
-      {item.notas && (
+      {item.notes && (
         <p className="mt-2 line-clamp-2 text-[9px] leading-relaxed text-white/30">
-          {item.notas}
+          {item.notes}
         </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-1">
         {editable && (
           <>
-            {!modoCoach && item.origen === "rutina" && (
+            {!modoCoach && item.origin === "routine" && (
               <Button
                 size="sm"
                 onClick={() => onStart(item)}
                 className="h-8 min-w-0 flex-1 rounded-full bg-cyan-300 px-2 text-[10px] text-indigo-950 hover:bg-cyan-200 sm:flex-none sm:px-3 lg:w-full lg:flex-none"
               >
-                {item.estado === "en-curso" ? "Continuar" : "Comenzar"}
+                {item.status === "in-progress" ? "Continuar" : "Comenzar"}
                 <ArrowRight />
               </Button>
             )}
-            {item.origen === "externo" && (
+            {item.origin === "external" && (
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => onUpdate({ ...item, estado: "completado" })}
+                onClick={() => onUpdate({ ...item, status: "completed" })}
                 className="h-8 min-w-0 flex-1 rounded-full px-2 text-[10px] text-emerald-200 hover:bg-emerald-300/10 hover:text-emerald-100 lg:w-full lg:flex-none"
               >
                 Realizada
@@ -434,10 +434,10 @@ function TarjetaEntrenamiento({
                 </Button>
               }
               item={item}
-              rutinas={rutinas}
+              routines={routines}
               atleta={atleta}
               usuarioActual={usuarioActual}
-              fechaInicial={item.fecha}
+              fechaInicial={item.date}
               onCreate={() => undefined}
               onUpdate={onUpdate}
             />
@@ -445,7 +445,7 @@ function TarjetaEntrenamiento({
               size="icon-sm"
               variant="ghost"
               aria-label="Omitir entrenamiento"
-              onClick={() => onUpdate({ ...item, estado: "omitido" })}
+              onClick={() => onUpdate({ ...item, status: "skipped" })}
               className="rounded-full text-white/30 hover:bg-orange-300/10 hover:text-orange-200"
             >
               <SkipForward />
@@ -469,7 +469,7 @@ function TarjetaEntrenamiento({
             <DialogHeader>
               <DialogTitle>¿Eliminar este entrenamiento?</DialogTitle>
               <DialogDescription className="text-white/40">
-                Se quitará de la agenda de {atleta.nombre}. Esta acción no
+                Se quitará de la agenda de {atleta.name}. Esta acción no
                 elimina la rutina asociada.
               </DialogDescription>
             </DialogHeader>
@@ -498,11 +498,11 @@ function TarjetaEntrenamiento({
   );
 }
 
-export function AgendaDeportiva({
+export function SportsSchedule({
   atleta,
   usuarioActual,
-  rutinas,
-  entrenamientos,
+  routines,
+  workouts,
   modoCoach = false,
   embedded = false,
   onCreate,
@@ -510,33 +510,33 @@ export function AgendaDeportiva({
   onDelete,
   onStart,
 }: {
-  atleta: Usuario;
-  usuarioActual: Usuario;
-  rutinas: Rutina[];
-  entrenamientos: EntrenamientoProgramado[];
+  atleta: User;
+  usuarioActual: User;
+  routines: Routine[];
+  workouts: ScheduledWorkout[];
   modoCoach?: boolean;
   embedded?: boolean;
-  onCreate: (item: NuevoEntrenamientoProgramado) => void;
-  onUpdate: (item: EntrenamientoProgramado) => void;
+  onCreate: (item: NewScheduledWorkout) => void;
+  onUpdate: (item: ScheduledWorkout) => void;
   onDelete: (id: string) => void;
-  onStart: (item: EntrenamientoProgramado) => void;
+  onStart: (item: ScheduledWorkout) => void;
 }) {
-  const hoy = fechaLocal();
-  const [semana, setSemana] = useState(inicioDeSemana(hoy));
+  const hoy = localDate();
+  const [semana, setSemana] = useState(startOfWeek(hoy));
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoy);
-  const dias = Array.from({ length: 7 }, (_, index) => sumarDias(semana, index));
-  const entrenamientosDeSemana = entrenamientos
-    .filter((item) => dias.includes(item.fecha))
-    .sort((a, b) => `${a.fecha}${a.hora ?? ""}`.localeCompare(`${b.fecha}${b.hora ?? ""}`));
+  const dias = Array.from({ length: 7 }, (_, index) => addDays(semana, index));
+  const entrenamientosDeSemana = workouts
+    .filter((item) => dias.includes(item.date))
+    .sort((a, b) => `${a.date}${a.time ?? ""}`.localeCompare(`${b.date}${b.time ?? ""}`));
 
-  function moverEntrenamiento(id: string, fecha: string) {
-    const item = entrenamientos.find((actual) => actual.id === id);
-    if (!item || item.estado === "completado" || item.estado === "omitido") return;
-    onUpdate({ ...item, fecha });
+  function moverEntrenamiento(id: string, date: string) {
+    const item = workouts.find((actual) => actual.id === id);
+    if (!item || item.status === "completed" || item.status === "skipped") return;
+    onUpdate({ ...item, date });
   }
 
   const propsTarjeta = {
-    rutinas,
+    routines,
     atleta,
     usuarioActual,
     modoCoach,
@@ -556,7 +556,7 @@ export function AgendaDeportiva({
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
-            {modoCoach ? `Planificación de ${atleta.nombre}` : "Tu semana deportiva"}
+            {modoCoach ? `Planificación de ${atleta.name}` : "Tu semana deportiva"}
           </div>
           <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
             Agenda deportiva
@@ -572,7 +572,7 @@ export function AgendaDeportiva({
               Programar entrenamiento
             </Button>
           }
-          rutinas={rutinas}
+          routines={routines}
           atleta={atleta}
           usuarioActual={usuarioActual}
           fechaInicial={fechaSeleccionada}
@@ -602,7 +602,7 @@ export function AgendaDeportiva({
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  const actual = inicioDeSemana(hoy);
+                  const actual = startOfWeek(hoy);
                   setSemana(actual);
                   setFechaSeleccionada(hoy);
                 }}
@@ -615,7 +615,7 @@ export function AgendaDeportiva({
                 size="icon-sm"
                 aria-label="Semana anterior"
                 onClick={() => {
-                  const anterior = sumarDias(semana, -7);
+                  const anterior = addDays(semana, -7);
                   setSemana(anterior);
                   setFechaSeleccionada(anterior);
                 }}
@@ -628,7 +628,7 @@ export function AgendaDeportiva({
                 size="icon-sm"
                 aria-label="Semana siguiente"
                 onClick={() => {
-                  const siguiente = sumarDias(semana, 7);
+                  const siguiente = addDays(semana, 7);
                   setSemana(siguiente);
                   setFechaSeleccionada(siguiente);
                 }}
@@ -655,7 +655,7 @@ export function AgendaDeportiva({
                 <span className="mt-1 block text-sm">
                   {new Date(`${dia}T12:00:00`).getDate()}
                 </span>
-                {entrenamientos.some((item) => item.fecha === dia) && (
+                {workouts.some((item) => item.date === dia) && (
                   <span
                     className={cn(
                       "mx-auto mt-1 block size-1 rounded-full",
@@ -673,7 +673,7 @@ export function AgendaDeportiva({
             </div>
             <div className="space-y-2">
               {entrenamientosDeSemana
-                .filter((item) => item.fecha === fechaSeleccionada)
+                .filter((item) => item.date === fechaSeleccionada)
                 .map((item) => (
                   <TarjetaEntrenamiento
                     key={item.id}
@@ -682,7 +682,7 @@ export function AgendaDeportiva({
                   />
                 ))}
               {!entrenamientosDeSemana.some(
-                (item) => item.fecha === fechaSeleccionada,
+                (item) => item.date === fechaSeleccionada,
               ) && (
                 <div className="grid min-h-48 place-items-center rounded-2xl border border-dashed border-white/[0.08] text-center">
                   <div>
@@ -700,7 +700,7 @@ export function AgendaDeportiva({
           <div className="hidden min-h-[440px] grid-cols-7 divide-x divide-white/[0.05] lg:grid">
             {dias.map((dia, index) => {
               const items = entrenamientosDeSemana.filter(
-                (item) => item.fecha === dia,
+                (item) => item.date === dia,
               );
               return (
                 <div
@@ -756,18 +756,18 @@ export function AgendaDeportiva({
             <Dumbbell className="size-4 text-cyan-200/50" />
           </div>
           <div className="mt-4 space-y-2">
-            {rutinas.map((rutina) => (
+            {routines.map((rutina) => (
               <Card
                 key={rutina.id}
                 className="border-white/[0.07] bg-white/[0.025] text-white shadow-none"
               >
                 <CardContent className="p-3">
                   <div className="truncate text-xs font-medium">
-                    {rutina.titulo}
+                    {rutina.title}
                   </div>
                   <div className="mt-1 flex items-center gap-1 text-[9px] text-white/25">
                     <Clock3 className="size-3" />
-                    {rutina.duracion} min
+                    {rutina.durationMinutes} min
                   </div>
                   <DialogoEntrenamiento
                     trigger={
@@ -780,7 +780,7 @@ export function AgendaDeportiva({
                         Programar
                       </Button>
                     }
-                    rutinas={rutinas}
+                    routines={routines}
                     atleta={atleta}
                     usuarioActual={usuarioActual}
                     fechaInicial={fechaSeleccionada}

@@ -58,16 +58,16 @@ documentados en
 ### Rutas del atleta
 
 - `/`: rutinas programadas para el día actual.
-- `/agenda`: planificación deportiva semanal.
-- `/rutinas`: todas las rutinas asignadas y ejecución libre.
-- `/actividades`: historial y detalle de actividades realizadas.
+- `/schedule`: planificación deportiva semanal.
+- `/routines`: todas las rutinas asignadas y ejecución libre.
+- `/activities`: historial y detalle de actividades realizadas.
 
 ### Rutas del entrenador
 
-- `/entrenador`: resumen de atletas, plantillas y planes asignados.
-- `/entrenador/atletas`: listado y métricas de cada atleta.
-- `/entrenador/atletas/{id}`: planificación individual del atleta.
-- `/entrenador/rutinas`: biblioteca de plantillas.
+- `/coach`: resumen de atletas, plantillas y planes asignados.
+- `/coach/athletes`: listado y métricas de cada atleta.
+- `/coach/athletes/{id}`: planificación individual del atleta.
+- `/coach/routines`: biblioteca de plantillas.
 
 ## Deploy
 
@@ -84,3 +84,9 @@ La versión publicada está disponible en:
 - Supabase (PostgreSQL)
 - `localStorage` como caché, sesión actual y migración inicial
 - Vercel
+
+## Convenciones de dominio
+
+El código, las rutas públicas, las columnas, las claves JSON y los valores de
+negocio persistidos usan inglés. La interfaz y el contenido visible para las
+personas se mantienen en español.

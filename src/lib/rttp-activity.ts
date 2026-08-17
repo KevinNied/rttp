@@ -1,37 +1,37 @@
-import { CategoriaActividad } from "@/lib/rttp-agenda";
-import { Rutina } from "@/lib/rttp-data";
+import { ActivityCategory } from "@/lib/rttp-agenda";
+import { Routine } from "@/lib/rttp-data";
 
-export type SerieActividad = {
-  pasoId: string;
-  ejercicioId: string;
-  ejercicioNombre: string;
-  bloqueId: string;
-  bloqueNombre: string;
-  ronda: number;
-  peso: number;
-  repeticiones: number;
-  omitida: boolean;
+export type ActivitySet = {
+  stepId: string;
+  exerciseId: string;
+  exerciseName: string;
+  blockId: string;
+  blockName: string;
+  round: number;
+  weight: number;
+  reps: number;
+  skipped: boolean;
 };
 
-export type ActividadRealizada = {
+export type CompletedActivity = {
   id: string;
-  atletaId: number;
-  entrenamientoProgramadoId: string;
-  tipo: "rutina" | "externa";
-  titulo: string;
-  categoria: CategoriaActividad | null;
-  rutinaId: string | null;
-  rutinaSnapshot: Rutina | null;
-  fecha: string;
-  completadaEn: string;
-  duracionMinutos: number;
-  esfuerzo: number | null;
+  athleteId: number;
+  scheduledWorkoutId: string;
+  type: "routine" | "external";
+  title: string;
+  category: ActivityCategory | null;
+  routineId: string | null;
+  routineSnapshot: Routine | null;
+  date: string;
+  completedAt: string;
+  durationMinutes: number;
+  effort: number | null;
   feedback: string;
-  notas: string;
-  series: SerieActividad[];
-  registradaPorId: number;
+  notes: string;
+  sets: ActivitySet[];
+  recordedById: number;
 };
 
-export function idActividad(entrenamientoProgramadoId: string) {
-  return `actividad-${entrenamientoProgramadoId}`;
+export function activityId(scheduledWorkoutId: string) {
+  return `actividad-${scheduledWorkoutId}`;
 }

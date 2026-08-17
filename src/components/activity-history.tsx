@@ -12,48 +12,48 @@ import {
 } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { ActividadRealizada } from "@/lib/rttp-activity";
-import { categoriasActividad } from "@/lib/rttp-agenda";
-import { Usuario } from "@/lib/rttp-data";
+import { CompletedActivity } from "@/lib/rttp-activity";
+import { activityCategories } from "@/lib/rttp-agenda";
+import { User } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
-type FiltroActividad = "todas" | "rutinas" | "externas";
+type FiltroActividad = "todas" | "routines" | "externas";
 
-function fechaActividad(fecha: string) {
+function fechaActividad(date: string) {
   return new Intl.DateTimeFormat("es-AR", {
     weekday: "short",
     day: "numeric",
     month: "short",
     year: "numeric",
-  }).format(new Date(`${fecha}T12:00:00`));
+  }).format(new Date(`${date}T12:00:00`));
 }
 
 function DetalleActividad({
   actividad,
 }: {
-  actividad: ActividadRealizada;
+  actividad: CompletedActivity;
 }) {
-  const seriesCompletadas = actividad.series.filter(
-    (serie) => !serie.omitida,
+  const seriesCompletadas = actividad.sets.filter(
+    (serie) => !serie.skipped,
   ).length;
-  const bloques = actividad.series.reduce<
+  const blocks = actividad.sets.reduce<
     {
       id: string;
-      nombre: string;
-      series: ActividadRealizada["series"];
+      name: string;
+      sets: CompletedActivity["sets"];
     }[]
   >((actuales, serie) => {
-    const existente = actuales.find((bloque) => bloque.id === serie.bloqueId);
+    const existente = actuales.find((bloque) => bloque.id === serie.blockId);
     if (existente) {
-      existente.series.push(serie);
+      existente.sets.push(serie);
       return actuales;
     }
     return [
       ...actuales,
       {
-        id: serie.bloqueId,
-        nombre: serie.bloqueNombre,
-        series: [serie],
+        id: serie.blockId,
+        name: serie.blockName,
+        sets: [serie],
       },
     ];
   }, []);
@@ -67,16 +67,16 @@ function DetalleActividad({
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <div className="text-[10px] capitalize text-cyan-100/50">
-              {fechaActividad(actividad.fecha)}
+              {fechaActividad(actividad.date)}
             </div>
             <h2 className="mt-2 text-2xl font-light tracking-[-0.03em]">
-              {actividad.titulo}
+              {actividad.title}
             </h2>
-            {actividad.categoria && (
+            {actividad.category && (
               <div className="mt-2 text-[9px] uppercase tracking-[0.14em] text-violet-200/40">
                 {
-                  categoriasActividad.find(
-                    (categoria) => categoria.value === actividad.categoria,
+                  activityCategories.find(
+                    (category) => category.value === actividad.category,
                   )?.label
                 }
               </div>
@@ -91,13 +91,13 @@ function DetalleActividad({
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
             <Clock3 className="size-3.5 text-cyan-200/65" />
             <div className="mt-2 text-lg font-light">
-              {actividad.duracionMinutos}
+              {actividad.durationMinutes}
             </div>
             <div className="text-[9px] uppercase tracking-wider text-white/25">
               Minutos
             </div>
           </div>
-          {actividad.tipo === "rutina" && (
+          {actividad.type === "routine" && (
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
               <ListChecks className="size-3.5 text-violet-200/65" />
               <div className="mt-2 text-lg font-light">{seriesCompletadas}</div>
@@ -106,11 +106,11 @@ function DetalleActividad({
               </div>
             </div>
           )}
-          {actividad.esfuerzo && (
+          {actividad.effort && (
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
               <Flame className="size-3.5 text-orange-200/65" />
               <div className="mt-2 text-lg font-light">
-                {actividad.esfuerzo}/5
+                {actividad.effort}/5
               </div>
               <div className="text-[9px] uppercase tracking-wider text-white/25">
                 Esfuerzo
@@ -119,13 +119,13 @@ function DetalleActividad({
           )}
         </div>
 
-        {actividad.notas && (
+        {actividad.notes && (
           <div className="mt-5 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
             <div className="text-[9px] uppercase tracking-wider text-white/25">
               Notas
             </div>
             <p className="mt-2 text-xs leading-relaxed text-white/55">
-              {actividad.notas}
+              {actividad.notes}
             </p>
           </div>
         )}
@@ -141,46 +141,46 @@ function DetalleActividad({
           </div>
         )}
 
-        {bloques.length > 0 && (
+        {blocks.length > 0 && (
           <div className="mt-6">
             <div className="mb-3 text-xs font-medium text-white/65">
               Detalle de la sesión
             </div>
             <div className="space-y-3">
-              {bloques.map((bloque) => (
+              {blocks.map((bloque) => (
                 <div
                   key={bloque.id}
                   className="overflow-hidden rounded-2xl border border-white/[0.07]"
                 >
                   <div className="border-b border-white/[0.06] bg-white/[0.025] px-3 py-2.5 text-[10px] font-medium text-white/55">
-                    {bloque.nombre}
+                    {bloque.name}
                   </div>
                   <div className="divide-y divide-white/[0.05]">
-                    {bloque.series.map((serie) => (
+                    {bloque.sets.map((serie) => (
                       <div
-                        key={serie.pasoId}
+                        key={serie.stepId}
                         className="flex items-center justify-between gap-3 px-3 py-2.5"
                       >
                         <div className="min-w-0">
                           <div className="truncate text-[11px] text-white/70">
-                            {serie.ejercicioNombre}
+                            {serie.exerciseName}
                           </div>
                           <div className="mt-0.5 text-[9px] text-white/25">
-                            Serie {serie.ronda}
+                            Serie {serie.round}
                           </div>
                         </div>
                         <div
                           className={cn(
                             "shrink-0 text-right text-[10px]",
-                            serie.omitida
+                            serie.skipped
                               ? "text-orange-200/45"
                               : "text-cyan-100/55",
                           )}
                         >
-                          {serie.omitida
+                          {serie.skipped
                             ? "Omitida"
-                            : `${serie.repeticiones} reps${
-                                serie.peso > 0 ? ` · ${serie.peso} kg` : ""
+                            : `${serie.reps} reps${
+                                serie.weight > 0 ? ` · ${serie.weight} kg` : ""
                               }`}
                         </div>
                       </div>
@@ -196,28 +196,28 @@ function DetalleActividad({
   );
 }
 
-export function HistorialActividades({
+export function ActivityHistory({
   atleta,
-  actividades,
+  activities,
   embedded = false,
 }: {
-  atleta: Usuario;
-  actividades: ActividadRealizada[];
+  atleta: User;
+  activities: CompletedActivity[];
   embedded?: boolean;
 }) {
   const [filtro, setFiltro] = useState<FiltroActividad>("todas");
   const ordenadas = useMemo(
     () =>
-      [...actividades].sort((a, b) =>
-        `${b.fecha}${b.completadaEn}`.localeCompare(
-          `${a.fecha}${a.completadaEn}`,
+      [...activities].sort((a, b) =>
+        `${b.date}${b.completedAt}`.localeCompare(
+          `${a.date}${a.completedAt}`,
         ),
       ),
-    [actividades],
+    [activities],
   );
   const visibles = ordenadas.filter((actividad) => {
-    if (filtro === "rutinas") return actividad.tipo === "rutina";
-    if (filtro === "externas") return actividad.tipo === "externa";
+    if (filtro === "routines") return actividad.type === "routine";
+    if (filtro === "externas") return actividad.type === "external";
     return true;
   });
   const [seleccionadaId, setSeleccionadaId] = useState(
@@ -226,8 +226,8 @@ export function HistorialActividades({
   const seleccionada =
     visibles.find((actividad) => actividad.id === seleccionadaId) ??
     visibles[0];
-  const minutos = actividades.reduce(
-    (total, actividad) => total + actividad.duracionMinutos,
+  const minutos = activities.reduce(
+    (total, actividad) => total + actividad.durationMinutes,
     0,
   );
 
@@ -252,7 +252,7 @@ export function HistorialActividades({
     >
       <div className="mb-6">
         <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
-          {embedded ? `Actividad de ${atleta.nombre}` : "Tu recorrido"}
+          {embedded ? `Actividad de ${atleta.name}` : "Tu recorrido"}
         </div>
         <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
           Actividades realizadas
@@ -262,7 +262,7 @@ export function HistorialActividades({
         </p>
       </div>
 
-      {actividades.length === 0 ? (
+      {activities.length === 0 ? (
         <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-white/[0.09] bg-white/[0.02] px-6 text-center">
           <div>
             <Activity className="mx-auto size-6 text-white/20" />
@@ -278,10 +278,10 @@ export function HistorialActividades({
         <>
           <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {[
-              [actividades.length, "Actividades"],
+              [activities.length, "Actividades"],
               [minutos, "Minutos"],
               [
-                actividades.filter((actividad) => actividad.tipo === "rutina")
+                activities.filter((actividad) => actividad.type === "routine")
                   .length,
                 "Rutinas RTTP",
               ],
@@ -304,7 +304,7 @@ export function HistorialActividades({
           <div className="mb-4 flex gap-1 rounded-2xl bg-white/[0.025] p-1 sm:w-fit">
             {[
               ["todas", "Todas"],
-              ["rutinas", "Rutinas"],
+              ["routines", "Rutinas"],
               ["externas", "Externas"],
             ].map(([value, label]) => (
               <button
@@ -343,12 +343,12 @@ export function HistorialActividades({
                     <span
                       className={cn(
                         "grid size-9 shrink-0 place-items-center rounded-xl",
-                        actividad.tipo === "rutina"
+                        actividad.type === "routine"
                           ? "bg-cyan-300/10 text-cyan-200"
                           : "bg-violet-300/10 text-violet-200",
                       )}
                     >
-                      {actividad.tipo === "rutina" ? (
+                      {actividad.type === "routine" ? (
                         <Dumbbell className="size-4" />
                       ) : (
                         <Activity className="size-4" />
@@ -356,15 +356,15 @@ export function HistorialActividades({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-xs font-medium text-white/75">
-                        {actividad.titulo}
+                        {actividad.title}
                       </span>
                       <span className="mt-1 flex items-center gap-1.5 text-[9px] capitalize text-white/25">
                         <CalendarDays className="size-3" />
-                        {fechaActividad(actividad.fecha)}
+                        {fechaActividad(actividad.date)}
                       </span>
                     </span>
                     <span className="text-[9px] text-white/25">
-                      {actividad.duracionMinutos} min
+                      {actividad.durationMinutes} min
                     </span>
                   </button>
                 ))}

@@ -1,47 +1,47 @@
-import { ActividadRealizada, SerieActividad } from "@/lib/rttp-activity";
+import { CompletedActivity, ActivitySet } from "@/lib/rttp-activity";
 import {
-  CategoriaActividad,
-  EntrenamientoProgramado,
-  EstadoEntrenamiento,
+  ActivityCategory,
+  ScheduledWorkout,
+  WorkoutStatus,
 } from "@/lib/rttp-agenda";
-import { Bloque, Rutina, Rol, Usuario } from "@/lib/rttp-data";
+import { Block, Routine, Role, User } from "@/lib/rttp-data";
 import { getSupabaseClient } from "@/lib/supabase";
 
-export type PlantillaPersistida = Omit<Rutina, "atletaId"> & {
-  entrenadorId: number;
+export type PersistedTemplate = Omit<Routine, "athleteId"> & {
+  coachId: number;
 };
 
-export type DatosPersistidos = {
-  usuarios: Usuario[];
-  rutinas: Rutina[];
-  plantillas: PlantillaPersistida[];
-  entrenamientos: EntrenamientoProgramado[];
-  actividades: ActividadRealizada[];
+export type PersistedData = {
+  users: User[];
+  routines: Routine[];
+  templates: PersistedTemplate[];
+  workouts: ScheduledWorkout[];
+  activities: CompletedActivity[];
 };
 
-export type NuevaMutacionSupabase =
-  | { tipo: "guardar-rutinas"; datos: Rutina[] }
-  | { tipo: "eliminar-rutina"; entidadId: string }
+export type NewSupabaseMutation =
+  | { type: "save-routines"; data: Routine[] }
+  | { type: "delete-routine"; entityId: string }
   | {
-      tipo: "guardar-plantillas";
-      datos: PlantillaPersistida[];
+      type: "save-templates";
+      data: PersistedTemplate[];
     }
-  | { tipo: "eliminar-plantilla"; entidadId: string }
+  | { type: "delete-template"; entityId: string }
   | {
-      tipo: "guardar-entrenamientos";
-      datos: EntrenamientoProgramado[];
+      type: "save-workouts";
+      data: ScheduledWorkout[];
     }
-  | { tipo: "eliminar-entrenamiento"; entidadId: string }
-  | { tipo: "guardar-actividad"; datos: ActividadRealizada };
+  | { type: "delete-workout"; entityId: string }
+  | { type: "save-activity"; data: CompletedActivity };
 
-export type MutacionSupabase = NuevaMutacionSupabase & { id: string };
-export type MapeoUsuarios = Record<string, number>;
+export type SupabaseMutation = NewSupabaseMutation & { id: string };
+export type UserIdMapping = Record<string, number>;
 
 type ProfileRow = {
   id: number;
   name: string;
   email: string;
-  role: Rol;
+  role: Role;
   athlete_ids: number[];
 };
 
@@ -51,7 +51,7 @@ type RoutineRow = {
   title: string;
   objective: string;
   duration_minutes: number;
-  blocks: Bloque[];
+  blocks: Block[];
 };
 
 type TemplateRow = {
@@ -60,7 +60,7 @@ type TemplateRow = {
   title: string;
   objective: string;
   duration_minutes: number;
-  blocks: Bloque[];
+  blocks: Block[];
 };
 
 type ScheduledWorkoutRow = {
@@ -69,13 +69,13 @@ type ScheduledWorkoutRow = {
   workout_date: string;
   workout_time: string | null;
   duration_minutes: number;
-  status: EstadoEntrenamiento;
+  status: WorkoutStatus;
   created_by_id: number;
   notes: string;
-  origin: "rutina" | "externo";
+  origin: "routine" | "external";
   routine_id: string | null;
   title: string | null;
-  category: CategoriaActividad | null;
+  category: ActivityCategory | null;
   created_at: string;
   updated_at: string;
 };
@@ -84,11 +84,11 @@ type ActivityRow = {
   id: string;
   athlete_id: number;
   scheduled_workout_id: string;
-  activity_type: "rutina" | "externa";
+  activity_type: "routine" | "external";
   title: string;
-  category: CategoriaActividad | null;
+  category: ActivityCategory | null;
   routine_id: string | null;
-  routine_snapshot: Rutina | null;
+  routine_snapshot: Routine | null;
   activity_date: string;
   completed_at: string;
   duration_minutes: number;
@@ -120,37 +120,37 @@ function assertQuery(
   }
 }
 
-async function cargarTabla<T>(tabla: string, columnasOrden: string[]) {
-  const limite = 1000;
-  const filas: T[] = [];
+async function loadTable<T>(table: string, orderColumns: string[]) {
+  const limit = 1000;
+  const rows: T[] = [];
 
-  for (let desde = 0; ; desde += limite) {
-    let consulta = getSupabaseClient()
-      .from(tabla)
+  for (let from = 0; ; from += limit) {
+    let query = getSupabaseClient()
+      .from(table)
       .select("*");
-    for (const columna of columnasOrden) {
-      consulta = consulta.order(columna);
+    for (const column of orderColumns) {
+      query = query.order(column);
     }
-    const { data, error } = await consulta.range(
-      desde,
-      desde + limite - 1,
+    const { data, error } = await query.range(
+      from,
+      from + limit - 1,
     );
-    assertQuery(`No se pudo cargar ${tabla}`, error);
-    const pagina = (data ?? []) as T[];
-    filas.push(...pagina);
-    if (pagina.length < limite) return filas;
+    assertQuery(`No se pudo cargar ${table}`, error);
+    const page = (data ?? []) as T[];
+    rows.push(...page);
+    if (page.length < limit) return rows;
   }
 }
 
-export async function cargarDatosSupabase(): Promise<DatosPersistidos> {
+export async function loadSupabaseData(): Promise<PersistedData> {
   const [profiles, routines, templates, workouts, activities, activitySets] =
     await Promise.all([
-      cargarTabla<ProfileRow>("profiles", ["id"]),
-      cargarTabla<RoutineRow>("routines", ["id"]),
-      cargarTabla<TemplateRow>("routine_templates", ["id"]),
-      cargarTabla<ScheduledWorkoutRow>("scheduled_workouts", ["id"]),
-      cargarTabla<ActivityRow>("workout_activities", ["id"]),
-      cargarTabla<ActivitySetRow>("workout_activity_sets", [
+      loadTable<ProfileRow>("profiles", ["id"]),
+      loadTable<RoutineRow>("routines", ["id"]),
+      loadTable<TemplateRow>("routine_templates", ["id"]),
+      loadTable<ScheduledWorkoutRow>("scheduled_workouts", ["id"]),
+      loadTable<ActivityRow>("workout_activities", ["id"]),
+      loadTable<ActivitySetRow>("workout_activity_sets", [
         "activity_id",
         "step_id",
       ]),
@@ -159,136 +159,136 @@ export async function cargarDatosSupabase(): Promise<DatosPersistidos> {
   const sets = activitySets;
 
   return {
-    usuarios: profiles.map((row) => ({
+    users: profiles.map((row) => ({
       id: row.id,
-      nombre: row.name,
+      name: row.name,
       email: row.email,
-      rol: row.role,
-      ...(row.role === "entrenador"
-        ? { atletaIds: row.athlete_ids }
+      role: row.role,
+      ...(row.role === "coach"
+        ? { athleteIds: row.athlete_ids }
         : {}),
     })),
-    rutinas: routines.map((row) => ({
+    routines: routines.map((row) => ({
       id: row.id,
-      atletaId: row.athlete_id,
-      titulo: row.title,
-      objetivo: row.objective,
-      duracion: row.duration_minutes,
-      bloques: row.blocks,
+      athleteId: row.athlete_id,
+      title: row.title,
+      objective: row.objective,
+      durationMinutes: row.duration_minutes,
+      blocks: row.blocks,
     })),
-    plantillas: templates.map((row) => ({
+    templates: templates.map((row) => ({
       id: row.id,
-      entrenadorId: row.coach_id,
-      titulo: row.title,
-      objetivo: row.objective,
-      duracion: row.duration_minutes,
-      bloques: row.blocks,
+      coachId: row.coach_id,
+      title: row.title,
+      objective: row.objective,
+      durationMinutes: row.duration_minutes,
+      blocks: row.blocks,
     })),
-    entrenamientos: workouts.map(
-      (row): EntrenamientoProgramado =>
-        row.origin === "rutina"
+    workouts: workouts.map(
+      (row): ScheduledWorkout =>
+        row.origin === "routine"
           ? {
               id: row.id,
-              atletaId: row.athlete_id,
-              fecha: row.workout_date,
-              hora: row.workout_time?.slice(0, 5) ?? null,
-              duracionMinutos: row.duration_minutes,
-              estado: row.status,
-              creadoPorId: row.created_by_id,
-              notas: row.notes,
-              creadoEn: row.created_at,
-              actualizadoEn: row.updated_at,
-              origen: "rutina",
-              rutinaId: row.routine_id ?? "",
-              titulo: null,
-              categoria: null,
+              athleteId: row.athlete_id,
+              date: row.workout_date,
+              time: row.workout_time?.slice(0, 5) ?? null,
+              durationMinutes: row.duration_minutes,
+              status: row.status,
+              createdById: row.created_by_id,
+              notes: row.notes,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+              origin: "routine",
+              routineId: row.routine_id ?? "",
+              title: null,
+              category: null,
             }
           : {
               id: row.id,
-              atletaId: row.athlete_id,
-              fecha: row.workout_date,
-              hora: row.workout_time?.slice(0, 5) ?? null,
-              duracionMinutos: row.duration_minutes,
-              estado: row.status,
-              creadoPorId: row.created_by_id,
-              notas: row.notes,
-              creadoEn: row.created_at,
-              actualizadoEn: row.updated_at,
-              origen: "externo",
-              rutinaId: null,
-              titulo: row.title ?? "Actividad",
-              categoria: row.category ?? "otra",
+              athleteId: row.athlete_id,
+              date: row.workout_date,
+              time: row.workout_time?.slice(0, 5) ?? null,
+              durationMinutes: row.duration_minutes,
+              status: row.status,
+              createdById: row.created_by_id,
+              notes: row.notes,
+              createdAt: row.created_at,
+              updatedAt: row.updated_at,
+              origin: "external",
+              routineId: null,
+              title: row.title ?? "Actividad",
+              category: row.category ?? "other",
             },
     ),
-    actividades: activities.map((row) => ({
+    activities: activities.map((row) => ({
       id: row.id,
-      atletaId: row.athlete_id,
-      entrenamientoProgramadoId: row.scheduled_workout_id,
-      tipo: row.activity_type,
-      titulo: row.title,
-      categoria: row.category,
-      rutinaId: row.routine_id,
-      rutinaSnapshot: row.routine_snapshot,
-      fecha: row.activity_date,
-      completadaEn: row.completed_at,
-      duracionMinutos: row.duration_minutes,
-      esfuerzo: row.effort,
+      athleteId: row.athlete_id,
+      scheduledWorkoutId: row.scheduled_workout_id,
+      type: row.activity_type,
+      title: row.title,
+      category: row.category,
+      routineId: row.routine_id,
+      routineSnapshot: row.routine_snapshot,
+      date: row.activity_date,
+      completedAt: row.completed_at,
+      durationMinutes: row.duration_minutes,
+      effort: row.effort,
       feedback: row.feedback,
-      notas: row.notes,
-      registradaPorId: row.registered_by_id,
-      series: sets
+      notes: row.notes,
+      recordedById: row.registered_by_id,
+      sets: sets
         .filter((set) => set.activity_id === row.id)
         .map(
-          (set): SerieActividad => ({
-            pasoId: set.step_id,
-            ejercicioId: set.exercise_id,
-            ejercicioNombre: set.exercise_name,
-            bloqueId: set.block_id,
-            bloqueNombre: set.block_name,
-            ronda: set.round_number,
-            peso: Number(set.weight),
-            repeticiones: set.repetitions,
-            omitida: set.skipped,
+          (set): ActivitySet => ({
+            stepId: set.step_id,
+            exerciseId: set.exercise_id,
+            exerciseName: set.exercise_name,
+            blockId: set.block_id,
+            blockName: set.block_name,
+            round: set.round_number,
+            weight: Number(set.weight),
+            reps: set.repetitions,
+            skipped: set.skipped,
           }),
         ),
     })),
   };
 }
 
-export async function guardarUsuarios(usuarios: Usuario[]) {
-  if (usuarios.length === 0) return;
+export async function saveUsers(users: User[]) {
+  if (users.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("profiles")
     .upsert(
-      usuarios.map((usuario) => ({
-        id: usuario.id,
-        name: usuario.nombre,
-        email: usuario.email,
-        role: usuario.rol,
-        athlete_ids: usuario.atletaIds ?? [],
+      users.map((user) => ({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        athlete_ids: user.athleteIds ?? [],
       })),
     );
   assertQuery("No se pudieron guardar los perfiles", error);
 }
 
-export async function crearAtletaConRutina({
-  entrenadorId,
-  nombre,
+export async function createAthleteWithRoutine({
+  coachId,
+  name,
   email,
-  rutina,
+  routine,
 }: {
-  entrenadorId: number;
-  nombre: string;
+  coachId: number;
+  name: string;
   email: string;
-  rutina: Omit<Rutina, "atletaId">;
+  routine: Omit<Routine, "athleteId">;
 }) {
   const { data, error } = await getSupabaseClient().rpc(
     "create_athlete_with_routine",
     {
-      p_coach_id: entrenadorId,
-      p_athlete_name: nombre,
+      p_coach_id: coachId,
+      p_athlete_name: name,
       p_athlete_email: email,
-      p_initial_routine: rutina,
+      p_initial_routine: routine,
     },
   );
   assertQuery("No se pudo crear el atleta", error);
@@ -298,24 +298,24 @@ export async function crearAtletaConRutina({
   return data;
 }
 
-export async function guardarRutinas(rutinas: Rutina[]) {
-  if (rutinas.length === 0) return;
+export async function saveRoutines(routines: Routine[]) {
+  if (routines.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("routines")
     .upsert(
-      rutinas.map((rutina) => ({
-        id: rutina.id,
-        athlete_id: rutina.atletaId,
-        title: rutina.titulo,
-        objective: rutina.objetivo,
-        duration_minutes: rutina.duracion,
-        blocks: rutina.bloques,
+      routines.map((routine) => ({
+        id: routine.id,
+        athlete_id: routine.athleteId,
+        title: routine.title,
+        objective: routine.objective,
+        duration_minutes: routine.durationMinutes,
+        blocks: routine.blocks,
       })),
     );
   assertQuery("No se pudieron guardar las rutinas", error);
 }
 
-export async function eliminarRutinaSupabase(id: string) {
+export async function deleteRoutineFromSupabase(id: string) {
   const { error } = await getSupabaseClient()
     .from("routines")
     .delete()
@@ -323,24 +323,24 @@ export async function eliminarRutinaSupabase(id: string) {
   assertQuery("No se pudo eliminar la rutina", error);
 }
 
-export async function guardarPlantillas(plantillas: PlantillaPersistida[]) {
-  if (plantillas.length === 0) return;
+export async function saveTemplates(templates: PersistedTemplate[]) {
+  if (templates.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("routine_templates")
     .upsert(
-      plantillas.map((plantilla) => ({
-        id: plantilla.id,
-        coach_id: plantilla.entrenadorId,
-        title: plantilla.titulo,
-        objective: plantilla.objetivo,
-        duration_minutes: plantilla.duracion,
-        blocks: plantilla.bloques,
+      templates.map((template) => ({
+        id: template.id,
+        coach_id: template.coachId,
+        title: template.title,
+        objective: template.objective,
+        duration_minutes: template.durationMinutes,
+        blocks: template.blocks,
       })),
     );
   assertQuery("No se pudieron guardar las plantillas", error);
 }
 
-export async function eliminarPlantillaSupabase(id: string) {
+export async function deleteTemplateFromSupabase(id: string) {
   const { error } = await getSupabaseClient()
     .from("routine_templates")
     .delete()
@@ -348,34 +348,34 @@ export async function eliminarPlantillaSupabase(id: string) {
   assertQuery("No se pudo eliminar la plantilla", error);
 }
 
-export async function guardarEntrenamientos(
-  entrenamientos: EntrenamientoProgramado[],
+export async function saveScheduledWorkouts(
+  workouts: ScheduledWorkout[],
 ) {
-  if (entrenamientos.length === 0) return;
+  if (workouts.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("scheduled_workouts")
     .upsert(
-      entrenamientos.map((item) => ({
+      workouts.map((item) => ({
         id: item.id,
-        athlete_id: item.atletaId,
-        workout_date: item.fecha,
-        workout_time: item.hora,
-        duration_minutes: item.duracionMinutos,
-        status: item.estado,
-        created_by_id: item.creadoPorId,
-        notes: item.notas,
-        origin: item.origen,
-        routine_id: item.rutinaId,
-        title: item.titulo,
-        category: item.categoria,
-        created_at: item.creadoEn,
-        updated_at: item.actualizadoEn,
+        athlete_id: item.athleteId,
+        workout_date: item.date,
+        workout_time: item.time,
+        duration_minutes: item.durationMinutes,
+        status: item.status,
+        created_by_id: item.createdById,
+        notes: item.notes,
+        origin: item.origin,
+        routine_id: item.routineId,
+        title: item.title,
+        category: item.category,
+        created_at: item.createdAt,
+        updated_at: item.updatedAt,
       })),
     );
   assertQuery("No se pudo guardar la agenda", error);
 }
 
-export async function eliminarEntrenamientoSupabase(id: string) {
+export async function deleteScheduledWorkoutFromSupabase(id: string) {
   const { error } = await getSupabaseClient()
     .from("scheduled_workouts")
     .delete()
@@ -383,217 +383,217 @@ export async function eliminarEntrenamientoSupabase(id: string) {
   assertQuery("No se pudo eliminar el entrenamiento", error);
 }
 
-export async function guardarActividad(actividad: ActividadRealizada) {
+export async function saveActivity(activityData: CompletedActivity) {
   const { error } = await getSupabaseClient().rpc("save_workout_activity", {
-    activity: actividad,
-    activity_sets: actividad.series,
+    activity: activityData,
+    activity_sets: activityData.sets,
   });
   assertQuery("No se pudo guardar la actividad", error);
 }
 
-function remapearId(id: number, mapeo: MapeoUsuarios) {
-  return mapeo[String(id)] ?? id;
+function remapId(id: number, mapping: UserIdMapping) {
+  return mapping[String(id)] ?? id;
 }
 
-function remapearRutina(rutina: Rutina, mapeo: MapeoUsuarios): Rutina {
+function remapRoutine(routine: Routine, mapping: UserIdMapping): Routine {
   return {
-    ...rutina,
-    atletaId: remapearId(rutina.atletaId, mapeo),
+    ...routine,
+    athleteId: remapId(routine.athleteId, mapping),
   };
 }
 
-function remapearEntrenamiento(
-  entrenamiento: EntrenamientoProgramado,
-  mapeo: MapeoUsuarios,
-): EntrenamientoProgramado {
+function remapScheduledWorkout(
+  workout: ScheduledWorkout,
+  mapping: UserIdMapping,
+): ScheduledWorkout {
   return {
-    ...entrenamiento,
-    atletaId: remapearId(entrenamiento.atletaId, mapeo),
-    creadoPorId: remapearId(entrenamiento.creadoPorId, mapeo),
+    ...workout,
+    athleteId: remapId(workout.athleteId, mapping),
+    createdById: remapId(workout.createdById, mapping),
   };
 }
 
-function remapearActividad(
-  actividad: ActividadRealizada,
-  mapeo: MapeoUsuarios,
-): ActividadRealizada {
+function remapActivity(
+  activityData: CompletedActivity,
+  mapping: UserIdMapping,
+): CompletedActivity {
   return {
-    ...actividad,
-    atletaId: remapearId(actividad.atletaId, mapeo),
-    registradaPorId: remapearId(actividad.registradaPorId, mapeo),
-    rutinaSnapshot: actividad.rutinaSnapshot
-      ? remapearRutina(actividad.rutinaSnapshot, mapeo)
+    ...activityData,
+    athleteId: remapId(activityData.athleteId, mapping),
+    recordedById: remapId(activityData.recordedById, mapping),
+    routineSnapshot: activityData.routineSnapshot
+      ? remapRoutine(activityData.routineSnapshot, mapping)
       : null,
   };
 }
 
-export function remapearMutacionSupabase(
-  mutacion: MutacionSupabase,
-  mapeo: MapeoUsuarios,
-): MutacionSupabase {
-  switch (mutacion.tipo) {
-    case "guardar-rutinas":
+export function remapSupabaseMutation(
+  mutation: SupabaseMutation,
+  mapping: UserIdMapping,
+): SupabaseMutation {
+  switch (mutation.type) {
+    case "save-routines":
       return {
-        ...mutacion,
-        datos: mutacion.datos.map((rutina) =>
-          remapearRutina(rutina, mapeo),
+        ...mutation,
+        data: mutation.data.map((routine) =>
+          remapRoutine(routine, mapping),
         ),
       };
-    case "guardar-plantillas":
+    case "save-templates":
       return {
-        ...mutacion,
-        datos: mutacion.datos.map((plantilla) => ({
-          ...plantilla,
-          entrenadorId: remapearId(plantilla.entrenadorId, mapeo),
+        ...mutation,
+        data: mutation.data.map((template) => ({
+          ...template,
+          coachId: remapId(template.coachId, mapping),
         })),
       };
-    case "guardar-entrenamientos":
+    case "save-workouts":
       return {
-        ...mutacion,
-        datos: mutacion.datos.map((entrenamiento) =>
-          remapearEntrenamiento(entrenamiento, mapeo),
+        ...mutation,
+        data: mutation.data.map((workout) =>
+          remapScheduledWorkout(workout, mapping),
         ),
       };
-    case "guardar-actividad":
+    case "save-activity":
       return {
-        ...mutacion,
-        datos: remapearActividad(mutacion.datos, mapeo),
+        ...mutation,
+        data: remapActivity(mutation.data, mapping),
       };
     default:
-      return mutacion;
+      return mutation;
   }
 }
 
-export async function ejecutarMutacionSupabase(mutacion: MutacionSupabase) {
-  switch (mutacion.tipo) {
-    case "guardar-rutinas":
-      return guardarRutinas(mutacion.datos);
-    case "eliminar-rutina":
-      return eliminarRutinaSupabase(mutacion.entidadId);
-    case "guardar-plantillas":
-      return guardarPlantillas(mutacion.datos);
-    case "eliminar-plantilla":
-      return eliminarPlantillaSupabase(mutacion.entidadId);
-    case "guardar-entrenamientos":
-      return guardarEntrenamientos(mutacion.datos);
-    case "eliminar-entrenamiento":
-      return eliminarEntrenamientoSupabase(mutacion.entidadId);
-    case "guardar-actividad":
-      return guardarActividad(mutacion.datos);
+export async function executeSupabaseMutation(mutation: SupabaseMutation) {
+  switch (mutation.type) {
+    case "save-routines":
+      return saveRoutines(mutation.data);
+    case "delete-routine":
+      return deleteRoutineFromSupabase(mutation.entityId);
+    case "save-templates":
+      return saveTemplates(mutation.data);
+    case "delete-template":
+      return deleteTemplateFromSupabase(mutation.entityId);
+    case "save-workouts":
+      return saveScheduledWorkouts(mutation.data);
+    case "delete-workout":
+      return deleteScheduledWorkoutFromSupabase(mutation.entityId);
+    case "save-activity":
+      return saveActivity(mutation.data);
   }
 }
 
-async function migrarPerfiles(usuarios: Usuario[]) {
+async function migrateProfiles(users: User[]) {
   const { data, error } = await getSupabaseClient().rpc("migrate_profiles", {
-    local_profiles: usuarios,
+    local_profiles: users,
   });
   assertQuery("No se pudieron migrar los perfiles", error);
   if (!data || typeof data !== "object" || Array.isArray(data)) {
     throw new Error("Supabase no devolvió el mapeo de perfiles migrados.");
   }
   return Object.fromEntries(
-    Object.entries(data).map(([id, destino]) => [id, Number(destino)]),
-  ) as MapeoUsuarios;
+    Object.entries(data).map(([id, destination]) => [id, Number(destination)]),
+  ) as UserIdMapping;
 }
 
-async function insertarRutinasSiFaltan(rutinas: Rutina[]) {
-  if (rutinas.length === 0) return;
+async function insertMissingRoutines(routines: Routine[]) {
+  if (routines.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("routines")
     .upsert(
-      rutinas.map((rutina) => ({
-        id: rutina.id,
-        athlete_id: rutina.atletaId,
-        title: rutina.titulo,
-        objective: rutina.objetivo,
-        duration_minutes: rutina.duracion,
-        blocks: rutina.bloques,
+      routines.map((routine) => ({
+        id: routine.id,
+        athlete_id: routine.athleteId,
+        title: routine.title,
+        objective: routine.objective,
+        duration_minutes: routine.durationMinutes,
+        blocks: routine.blocks,
       })),
       { onConflict: "id", ignoreDuplicates: true },
     );
   assertQuery("No se pudieron migrar las rutinas", error);
 }
 
-async function insertarPlantillasSiFaltan(
-  plantillas: PlantillaPersistida[],
+async function insertMissingTemplates(
+  templates: PersistedTemplate[],
 ) {
-  if (plantillas.length === 0) return;
+  if (templates.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("routine_templates")
     .upsert(
-      plantillas.map((plantilla) => ({
-        id: plantilla.id,
-        coach_id: plantilla.entrenadorId,
-        title: plantilla.titulo,
-        objective: plantilla.objetivo,
-        duration_minutes: plantilla.duracion,
-        blocks: plantilla.bloques,
+      templates.map((template) => ({
+        id: template.id,
+        coach_id: template.coachId,
+        title: template.title,
+        objective: template.objective,
+        duration_minutes: template.durationMinutes,
+        blocks: template.blocks,
       })),
       { onConflict: "id", ignoreDuplicates: true },
     );
   assertQuery("No se pudieron migrar las plantillas", error);
 }
 
-async function insertarEntrenamientosSiFaltan(
-  entrenamientos: EntrenamientoProgramado[],
+async function insertMissingWorkouts(
+  workouts: ScheduledWorkout[],
 ) {
-  if (entrenamientos.length === 0) return;
+  if (workouts.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("scheduled_workouts")
     .upsert(
-      entrenamientos.map((item) => ({
+      workouts.map((item) => ({
         id: item.id,
-        athlete_id: item.atletaId,
-        workout_date: item.fecha,
-        workout_time: item.hora,
-        duration_minutes: item.duracionMinutos,
-        status: item.estado,
-        created_by_id: item.creadoPorId,
-        notes: item.notas,
-        origin: item.origen,
-        routine_id: item.rutinaId,
-        title: item.titulo,
-        category: item.categoria,
-        created_at: item.creadoEn,
-        updated_at: item.actualizadoEn,
+        athlete_id: item.athleteId,
+        workout_date: item.date,
+        workout_time: item.time,
+        duration_minutes: item.durationMinutes,
+        status: item.status,
+        created_by_id: item.createdById,
+        notes: item.notes,
+        origin: item.origin,
+        routine_id: item.routineId,
+        title: item.title,
+        category: item.category,
+        created_at: item.createdAt,
+        updated_at: item.updatedAt,
       })),
       { onConflict: "id", ignoreDuplicates: true },
     );
   assertQuery("No se pudo migrar la agenda", error);
 }
 
-async function insertarActividadSiFalta(actividad: ActividadRealizada) {
+async function insertMissingActivity(activityData: CompletedActivity) {
   const { error } = await getSupabaseClient().rpc(
     "migrate_workout_activity",
     {
-      activity: actividad,
-      activity_sets: actividad.series,
+      activity: activityData,
+      activity_sets: activityData.sets,
     },
   );
   assertQuery("No se pudo migrar la actividad", error);
 }
 
-export async function migrarDatosFaltantes(locales: DatosPersistidos) {
-  const mapeo = await migrarPerfiles(locales.usuarios);
-  const rutinas = locales.rutinas.map((rutina) =>
-    remapearRutina(rutina, mapeo),
+export async function migrateMissingData(localData: PersistedData) {
+  const mapping = await migrateProfiles(localData.users);
+  const routines = localData.routines.map((routine) =>
+    remapRoutine(routine, mapping),
   );
-  const plantillas = locales.plantillas.map((plantilla) => ({
-    ...plantilla,
-    entrenadorId: remapearId(plantilla.entrenadorId, mapeo),
+  const templates = localData.templates.map((template) => ({
+    ...template,
+    coachId: remapId(template.coachId, mapping),
   }));
-  const entrenamientos = locales.entrenamientos.map((entrenamiento) =>
-    remapearEntrenamiento(entrenamiento, mapeo),
+  const workouts = localData.workouts.map((workout) =>
+    remapScheduledWorkout(workout, mapping),
   );
-  const actividades = locales.actividades.map((actividad) =>
-    remapearActividad(actividad, mapeo),
+  const activities = localData.activities.map((activityData) =>
+    remapActivity(activityData, mapping),
   );
 
-  await insertarRutinasSiFaltan(rutinas);
-  await insertarPlantillasSiFaltan(plantillas);
-  await insertarEntrenamientosSiFaltan(entrenamientos);
+  await insertMissingRoutines(routines);
+  await insertMissingTemplates(templates);
+  await insertMissingWorkouts(workouts);
   await Promise.all(
-    actividades.map(insertarActividadSiFalta),
+    activities.map(insertMissingActivity),
   );
-  return mapeo;
+  return mapping;
 }

@@ -85,179 +85,354 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { AgendaDeportiva } from "@/components/agenda-deportiva";
-import { HistorialActividades } from "@/components/historial-actividades";
+import { ActivityHistory } from "@/components/activity-history";
+import { SportsSchedule } from "@/components/sports-schedule";
 import {
-  ActividadRealizada,
-  idActividad,
-  SerieActividad,
+  CompletedActivity,
+  activityId,
+  ActivitySet,
 } from "@/lib/rttp-activity";
 import {
-  crearIdEntrenamiento,
-  EntrenamientoProgramado,
-  fechaLocal,
-  NuevoEntrenamientoProgramado,
+  createWorkoutId,
+  ScheduledWorkout,
+  localDate,
+  NewScheduledWorkout,
 } from "@/lib/rttp-agenda";
 import {
-  Bloque,
-  Ejercicio,
-  Rutina,
-  Usuario,
-  rutinasIniciales,
-  usuariosIniciales,
+  Block,
+  Exercise,
+  Routine,
+  User,
+  initialRoutines,
+  initialUsers,
 } from "@/lib/rttp-data";
 import {
-  cargarDatosSupabase,
-  crearAtletaConRutina,
-  DatosPersistidos,
-  ejecutarMutacionSupabase,
-  MapeoUsuarios,
-  migrarDatosFaltantes,
-  MutacionSupabase,
-  NuevaMutacionSupabase,
-  remapearMutacionSupabase,
+  loadSupabaseData,
+  createAthleteWithRoutine,
+  PersistedData,
+  executeSupabaseMutation,
+  UserIdMapping,
+  migrateMissingData,
+  SupabaseMutation,
+  NewSupabaseMutation,
+  remapSupabaseMutation,
 } from "@/lib/rttp-supabase";
 import { supabaseConfigured } from "@/lib/supabase";
 
-type RegistroSerie = {
-  peso: number;
-  repeticiones: number;
-  completada: boolean;
-  omitida: boolean;
+type TrainingSetRecord = {
+  weight: number;
+  reps: number;
+  completed: boolean;
+  skipped: boolean;
 };
 
-const storageKey = "rttp-rutinas-v4";
-const templatesStorageKey = "rttp-plantillas-v1";
-const sessionStorageKey = "rttp-usuario-v1";
-const usersStorageKey = "rttp-usuarios-v1";
-const selectedAthleteStorageKey = "rttp-atleta-seleccionado-v1";
-const agendaStorageKey = "rttp-agenda-v1";
-const activitiesStorageKey = "rttp-actividades-v1";
-const supabaseMigrationStorageKey = "rttp-supabase-migrado-v1";
+const storageKey = "rttp-routines-v5";
+const templatesStorageKey = "rttp-templates-v2";
+const sessionStorageKey = "rttp-user-session-v2";
+const usersStorageKey = "rttp-users-v2";
+const selectedAthleteStorageKey = "rttp-selected-athlete-v2";
+const agendaStorageKey = "rttp-schedule-v2";
+const activitiesStorageKey = "rttp-activities-v2";
+const supabaseMigrationStorageKey = "rttp-supabase-migrated-v2";
 const supabaseMigrationSourceStorageKey =
-  "rttp-supabase-origen-migracion-v1";
-const supabaseUserMappingStorageKey = "rttp-supabase-mapeo-usuarios-v1";
-const supabaseOutboxStorageKey = "rttp-supabase-pendientes-v1";
+  "rttp-supabase-migration-source-v2";
+const supabaseUserMappingStorageKey = "rttp-supabase-user-mapping-v2";
+const supabaseOutboxStorageKey = "rttp-supabase-outbox-v2";
 const supabaseMigrationLock = "rttp-supabase-migration";
 const supabaseOutboxLock = "rttp-supabase-outbox";
 
-type PlantillaRutina = Omit<Rutina, "atletaId"> & {
-  entrenadorId: number;
+type RoutineTemplate = Omit<Routine, "athleteId"> & {
+  coachId: number;
 };
 
-type OrigenMigracion = {
-  datosPersistidos: DatosPersistidos;
-  datosConSemillas: DatosPersistidos;
-  usarSemillas: boolean | null;
-  mutaciones: MutacionSupabase[];
-  usuarioId: string | null;
-  atletaId: string | null;
-  remapeoIniciado: boolean;
+type MigrationSource = {
+  persistedData: PersistedData;
+  dataWithSeeds: PersistedData;
+  useSeeds: boolean | null;
+  mutations: SupabaseMutation[];
+  userId: string | null;
+  athleteId: string | null;
+  remappingStarted: boolean;
 };
 
-type VistaEntrenador = "resumen" | "atletas" | "rutinas";
-type VistaAtleta = "inicio" | "agenda" | "rutinas" | "actividades";
+type CoachView = "resumen" | "atletas" | "routines";
+type AthleteView = "inicio" | "agenda" | "routines" | "activities";
 
-function totalSeries(rutina: Rutina) {
-  return rutina.bloques.reduce(
+const legacyPropertyNames: Record<string, string> = {
+  usuarios: "users",
+  rutinas: "routines",
+  plantillas: "templates",
+  entrenamientos: "workouts",
+  actividades: "activities",
+  nombre: "name",
+  rol: "role",
+  atletaIds: "athleteIds",
+  atletaId: "athleteId",
+  entrenadorId: "coachId",
+  aclaraciones: "instructions",
+  series: "sets",
+  repeticionesMin: "minReps",
+  repeticionesMax: "maxReps",
+  peso: "weight",
+  descanso: "restSeconds",
+  tipo: "type",
+  ejercicios: "exercises",
+  titulo: "title",
+  objetivo: "objective",
+  duracion: "durationMinutes",
+  bloques: "blocks",
+  fecha: "date",
+  hora: "time",
+  duracionMinutos: "durationMinutes",
+  estado: "status",
+  creadoPorId: "createdById",
+  notas: "notes",
+  creadoEn: "createdAt",
+  actualizadoEn: "updatedAt",
+  origen: "origin",
+  rutinaId: "routineId",
+  categoria: "category",
+  entrenamientoProgramadoId: "scheduledWorkoutId",
+  rutinaSnapshot: "routineSnapshot",
+  completadaEn: "completedAt",
+  esfuerzo: "effort",
+  registradaPorId: "recordedById",
+  pasoId: "stepId",
+  ejercicioId: "exerciseId",
+  ejercicioNombre: "exerciseName",
+  bloqueId: "blockId",
+  bloqueNombre: "blockName",
+  ronda: "round",
+  repeticiones: "reps",
+  omitida: "skipped",
+  datos: "data",
+  entidad: "entity",
+  entidadId: "entityId",
+  datosPersistidos: "persistedData",
+  datosConSemillas: "dataWithSeeds",
+  usarSemillas: "useSeeds",
+  mutaciones: "mutations",
+  usuarioId: "userId",
+  remapeoIniciado: "remappingStarted",
+};
+
+const legacyBusinessValues: Record<string, string> = {
+  entrenador: "coach",
+  atleta: "athlete",
+  programado: "scheduled",
+  "en-curso": "in-progress",
+  completado: "completed",
+  omitido: "skipped",
+  rutina: "routine",
+  externo: "external",
+  externa: "external",
+  natacion: "swimming",
+  ciclismo: "cycling",
+  deporte: "sport",
+  movilidad: "mobility",
+  otra: "other",
+  "Series consecutivas": "consecutive-sets",
+  Preparación: "preparation",
+  "Preparación específica": "specific-preparation",
+  Alternado: "alternating",
+  Cierre: "cooldown",
+  "Circuito · 2 vueltas": "circuit-2-rounds",
+  Personalizado: "custom",
+  "guardar-rutinas": "save-routines",
+  "eliminar-rutina": "delete-routine",
+  "guardar-plantillas": "save-templates",
+  "eliminar-plantilla": "delete-template",
+  "guardar-entrenamientos": "save-workouts",
+  "eliminar-entrenamiento": "delete-workout",
+  "guardar-actividad": "save-activity",
+};
+
+function translateLegacyStorageValue(
+  value: unknown,
+  propertyName?: string,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) =>
+      translateLegacyStorageValue(item, propertyName),
+    );
+  }
+  if (!value || typeof value !== "object") {
+    const isBusinessValue = ["role", "status", "origin", "category", "type"].includes(
+      propertyName ?? "",
+    );
+    return isBusinessValue && typeof value === "string"
+      ? (legacyBusinessValues[value] ?? value)
+      : value;
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, nestedValue]) => {
+      const translatedKey = legacyPropertyNames[key] ?? key;
+      return [
+        translatedKey,
+        translateLegacyStorageValue(nestedValue, translatedKey),
+      ];
+    }),
+  );
+}
+
+function migrateLegacyStorage() {
+  const migrations = [
+    [storageKey, ["rttp-routines-v4", "rttp-rutinas-v4"]],
+    [templatesStorageKey, ["rttp-templates-v1", "rttp-plantillas-v1"]],
+    [sessionStorageKey, ["rttp-usuario-v1"]],
+    [usersStorageKey, ["rttp-users-v1", "rttp-usuarios-v1"]],
+    [selectedAthleteStorageKey, ["rttp-atleta-seleccionado-v1"]],
+    [agendaStorageKey, ["rttp-agenda-v1"]],
+    [activitiesStorageKey, ["rttp-activities-v1", "rttp-actividades-v1"]],
+    [supabaseMigrationStorageKey, ["rttp-supabase-migrado-v1"]],
+    [
+      supabaseMigrationSourceStorageKey,
+      [
+        "rttp-supabase-origin-migracion-v1",
+        "rttp-supabase-origen-migracion-v1",
+      ],
+    ],
+    [
+      supabaseUserMappingStorageKey,
+      [
+        "rttp-supabase-mapeo-users-v1",
+        "rttp-supabase-mapeo-usuarios-v1",
+      ],
+    ],
+    [supabaseOutboxStorageKey, ["rttp-supabase-pendientes-v1"]],
+  ] as const;
+
+  for (const [currentKey, legacyKeys] of migrations) {
+    if (window.localStorage.getItem(currentKey) !== null) continue;
+    const legacyValue = legacyKeys
+      .map((key) => window.localStorage.getItem(key))
+      .find((value) => value !== null);
+    if (legacyValue === undefined) continue;
+    try {
+      window.localStorage.setItem(
+        currentKey,
+        JSON.stringify(
+          translateLegacyStorageValue(JSON.parse(legacyValue)),
+        ),
+      );
+    } catch {
+      window.localStorage.setItem(currentKey, legacyValue);
+    }
+  }
+}
+
+function totalSeries(rutina: Routine) {
+  return rutina.blocks.reduce(
     (total, bloque) =>
       total +
-      bloque.ejercicios.reduce(
-        (subtotal, item) => subtotal + item.series,
+      bloque.exercises.reduce(
+        (subtotal, item) => subtotal + item.sets,
         0,
       ),
     0,
   );
 }
 
-function cantidadEjercicios({ bloques }: Pick<Rutina, "bloques">) {
-  return bloques.reduce(
-    (total, bloque) => total + bloque.ejercicios.length,
+function blockTypeLabel(type: Block["type"]) {
+  return {
+    "consecutive-sets": "Series consecutivas",
+    preparation: "Preparación",
+    "specific-preparation": "Preparación específica",
+    alternating: "Alternado",
+    cooldown: "Cierre",
+    "circuit-2-rounds": "Circuito · 2 vueltas",
+    custom: "Personalizado",
+  }[type];
+}
+
+function cantidadEjercicios({ blocks }: Pick<Routine, "blocks">) {
+  return blocks.reduce(
+    (total, bloque) => total + bloque.exercises.length,
     0,
   );
 }
 
-function repeticionesObjetivo(item: Ejercicio) {
-  return item.repeticionesMin === item.repeticionesMax
-    ? `${item.repeticionesMin}`
-    : `${item.repeticionesMin}–${item.repeticionesMax}`;
+function repeticionesObjetivo(item: Exercise) {
+  return item.minReps === item.maxReps
+    ? `${item.minReps}`
+    : `${item.minReps}–${item.maxReps}`;
 }
 
-function rondasDelBloque(bloque: Bloque) {
-  return Math.max(0, ...bloque.ejercicios.map((item) => item.series));
+function rondasDelBloque(bloque: Block) {
+  return Math.max(0, ...bloque.exercises.map((item) => item.sets));
 }
 
-function pasosDeRutina(rutina: Rutina, sesionId = rutina.id) {
-  return rutina.bloques.flatMap((bloque, bloqueIndex) => {
+function pasosDeRutina(rutina: Routine, sesionId = rutina.id) {
+  return rutina.blocks.flatMap((bloque, bloqueIndex) => {
     const rondas = rondasDelBloque(bloque);
 
     return Array.from({ length: rondas }, (_, rondaIndex) =>
-      bloque.ejercicios
-        .filter((item) => item.series > rondaIndex)
+      bloque.exercises
+        .filter((item) => item.sets > rondaIndex)
         .map((item, posicion) => ({
           ...item,
-          pasoId: `${sesionId}-${item.id}-${rondaIndex}`,
-          bloqueId: bloque.id,
+          stepId: `${sesionId}-${item.id}-${rondaIndex}`,
+          blockId: bloque.id,
           bloqueIndex,
-          bloqueNombre: bloque.nombre,
-          ronda: rondaIndex + 1,
+          blockName: bloque.name,
+          round: rondaIndex + 1,
           rondas,
           posicion,
-          ejerciciosEnRonda: bloque.ejercicios.filter(
-            (ejercicioActual) => ejercicioActual.series > rondaIndex,
+          ejerciciosEnRonda: bloque.exercises.filter(
+            (ejercicioActual) => ejercicioActual.sets > rondaIndex,
           ).length,
         })),
     ).flat();
   });
 }
 
-function normalizarRutina(
-  rutina: Rutina & { dia?: string },
-): Rutina {
+function normalizeRoutine(
+  rutina: Routine & { dia?: string },
+): Routine {
   return {
     id: rutina.id,
-    atletaId: rutina.atletaId,
-    titulo: rutina.titulo,
-    objetivo: rutina.objetivo,
-    duracion: rutina.duracion,
-    bloques: rutina.bloques,
+    athleteId: rutina.athleteId,
+    title: rutina.title,
+    objective: rutina.objective,
+    durationMinutes: rutina.durationMinutes,
+    blocks: rutina.blocks,
   };
 }
 
-function normalizarPlantilla(
-  plantilla: PlantillaRutina & { dia?: string },
-): PlantillaRutina {
+function normalizeTemplate(
+  plantilla: RoutineTemplate & { dia?: string },
+): RoutineTemplate {
   return {
     id: plantilla.id,
-    titulo: plantilla.titulo,
-    objetivo: plantilla.objetivo,
-    duracion: plantilla.duracion,
-    bloques: plantilla.bloques,
-    entrenadorId: plantilla.entrenadorId,
+    title: plantilla.title,
+    objective: plantilla.objective,
+    durationMinutes: plantilla.durationMinutes,
+    blocks: plantilla.blocks,
+    coachId: plantilla.coachId,
   };
 }
 
-function snapshotRutina(rutina: Rutina): Rutina {
+function snapshotRoutine(rutina: Routine): Routine {
   return {
     ...rutina,
-    bloques: rutina.bloques.map((bloque) => ({
+    blocks: rutina.blocks.map((bloque) => ({
       ...bloque,
-      ejercicios: bloque.ejercicios.map((ejercicio) => ({ ...ejercicio })),
+      exercises: bloque.exercises.map((ejercicio) => ({ ...ejercicio })),
     })),
   };
 }
 
-function mensajeDeError(error: unknown) {
+function errorMessage(error: unknown) {
   return error instanceof Error
     ? error.message
     : "Ocurrió un error inesperado al sincronizar los datos.";
 }
 
-function leerMutacionesPendientes() {
+function readPendingMutations() {
   const guardadas = window.localStorage.getItem(supabaseOutboxStorageKey);
   if (!guardadas) return [];
   try {
-    return JSON.parse(guardadas) as MutacionSupabase[];
+    return JSON.parse(guardadas) as SupabaseMutation[];
   } catch {
     window.localStorage.removeItem(supabaseOutboxStorageKey);
     throw new Error(
@@ -266,24 +441,24 @@ function leerMutacionesPendientes() {
   }
 }
 
-function guardarMutacionesPendientes(mutaciones: MutacionSupabase[]) {
-  if (mutaciones.length === 0) {
+function savePendingMutations(mutations: SupabaseMutation[]) {
+  if (mutations.length === 0) {
     window.localStorage.removeItem(supabaseOutboxStorageKey);
     return;
   }
   window.localStorage.setItem(
     supabaseOutboxStorageKey,
-    JSON.stringify(mutaciones),
+    JSON.stringify(mutations),
   );
 }
 
-function leerOrigenMigracion() {
+function readMigrationSource() {
   const guardado = window.localStorage.getItem(
     supabaseMigrationSourceStorageKey,
   );
   if (!guardado) return null;
   try {
-    return JSON.parse(guardado) as OrigenMigracion;
+    return JSON.parse(guardado) as MigrationSource;
   } catch {
     throw new Error(
       "El respaldo local para migrar a Supabase está dañado.",
@@ -291,45 +466,45 @@ function leerOrigenMigracion() {
   }
 }
 
-function guardarOrigenMigracion(origen: OrigenMigracion) {
+function saveMigrationSource(origin: MigrationSource) {
   window.localStorage.setItem(
     supabaseMigrationSourceStorageKey,
-    JSON.stringify(origen),
+    JSON.stringify(origin),
   );
 }
 
-function leerMapeoUsuarios() {
+function readUserMapping() {
   const guardado = window.localStorage.getItem(
     supabaseUserMappingStorageKey,
   );
   if (!guardado) return {};
   try {
-    return JSON.parse(guardado) as MapeoUsuarios;
+    return JSON.parse(guardado) as UserIdMapping;
   } catch {
     throw new Error("El mapeo local de perfiles está dañado.");
   }
 }
 
-async function encolarMutacion(
-  mutacion: MutacionSupabase,
-  requiereRemapeo: boolean,
+async function enqueueMutation(
+  mutation: SupabaseMutation,
+  requiresRemapping: boolean,
 ) {
   await navigator.locks.request(supabaseMigrationLock, async () => {
     await navigator.locks.request(supabaseOutboxLock, () => {
-      const mutacionFinal =
-        requiereRemapeo &&
+      const finalMutation =
+        requiresRemapping &&
         window.localStorage.getItem(supabaseMigrationStorageKey) === "true"
-          ? remapearMutacionSupabase(mutacion, leerMapeoUsuarios())
-          : mutacion;
-      guardarMutacionesPendientes([
-        ...leerMutacionesPendientes(),
-        mutacionFinal,
+          ? remapSupabaseMutation(mutation, readUserMapping())
+          : mutation;
+      savePendingMutations([
+        ...readPendingMutations(),
+        finalMutation,
       ]);
     });
   });
 }
 
-async function ejecutarMutacionesPendientes() {
+async function executePendingMutations() {
   await navigator.locks.request(supabaseMigrationLock, async () => {
     await navigator.locks.request(supabaseOutboxLock, async () => {
       if (!supabaseConfigured) {
@@ -345,12 +520,12 @@ async function ejecutarMutacionesPendientes() {
         );
       }
       while (true) {
-        const mutacion = leerMutacionesPendientes()[0];
-        if (!mutacion) return;
-        await ejecutarMutacionSupabase(mutacion);
-        guardarMutacionesPendientes(
-          leerMutacionesPendientes().filter(
-            (pendiente) => pendiente.id !== mutacion.id,
+        const mutation = readPendingMutations()[0];
+        if (!mutation) return;
+        await executeSupabaseMutation(mutation);
+        savePendingMutations(
+          readPendingMutations().filter(
+            (pending) => pending.id !== mutation.id,
           ),
         );
       }
@@ -359,19 +534,19 @@ async function ejecutarMutacionesPendientes() {
 }
 
 function rutinaDesdePlantilla(
-  plantilla: PlantillaRutina,
-  atletaId: number,
-): Rutina {
+  plantilla: RoutineTemplate,
+  athleteId: number,
+): Routine {
   const idBase = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   return {
     ...plantilla,
-    id: `rutina-${atletaId}-${idBase}`,
-    atletaId,
-    bloques: plantilla.bloques.map((bloque, bloqueIndex) => ({
+    id: `rutina-${athleteId}-${idBase}`,
+    athleteId,
+    blocks: plantilla.blocks.map((bloque, bloqueIndex) => ({
       ...bloque,
       id: `bloque-${idBase}-${bloqueIndex}`,
-      ejercicios: bloque.ejercicios.map((ejercicio, ejercicioIndex) => ({
+      exercises: bloque.exercises.map((ejercicio, ejercicioIndex) => ({
         ...ejercicio,
         id: `ejercicio-${idBase}-${bloqueIndex}-${ejercicioIndex}`,
       })),
@@ -379,8 +554,8 @@ function rutinaDesdePlantilla(
   };
 }
 
-function idPlantilla(entrenadorId: number) {
-  return `plantilla-${entrenadorId}-${Date.now()}`;
+function idPlantilla(coachId: number) {
+  return `plantilla-${coachId}-${Date.now()}`;
 }
 
 function Logo() {
@@ -522,29 +697,29 @@ function AppShell({
   onLogout,
   children,
 }: {
-  usuario: Usuario;
+  usuario: User;
   vistaPrevia: boolean;
-  vistaEntrenador: VistaEntrenador;
-  vistaAtleta: VistaAtleta;
+  vistaEntrenador: CoachView;
+  vistaAtleta: AthleteView;
   syncError: string | null;
   onClosePreview: () => void;
   onLogout: () => void;
   children: React.ReactNode;
 }) {
-  const esEntrenador = usuario.rol === "entrenador";
+  const esEntrenador = usuario.role === "coach";
   const encabezadoEntrenador =
     vistaEntrenador === "atletas"
       ? ["Atletas", "Perfiles y planificación individual"]
-      : vistaEntrenador === "rutinas"
+      : vistaEntrenador === "routines"
         ? ["Biblioteca de rutinas", "Plantillas reutilizables para tus atletas"]
         : ["Resumen", "Organización y seguimiento de planes"];
   const encabezado = esEntrenador
     ? encabezadoEntrenador
     : vistaAtleta === "agenda"
       ? ["Agenda deportiva", "Tu semana de entrenamiento"]
-      : vistaAtleta === "actividades"
+      : vistaAtleta === "activities"
         ? ["Actividades", "Tu historial deportivo"]
-      : vistaAtleta === "rutinas"
+      : vistaAtleta === "routines"
         ? ["Rutinas", "Todos tus planes asignados"]
         : ["Inicio", "Tu entrenamiento de hoy"];
 
@@ -560,20 +735,20 @@ function AppShell({
           <nav className="mt-3 space-y-1.5">
             {(esEntrenador
               ? [
-                  [LayoutGrid, "Resumen", "Vista general", "/entrenador", "resumen"],
+                  [LayoutGrid, "Resumen", "Vista general", "/coach", "resumen"],
                   [
                     Users,
                     "Atletas",
                     "Gestioná tus alumnos",
-                    "/entrenador/atletas",
+                    "/coach/athletes",
                     "atletas",
                   ],
                   [
                     ListChecks,
                     "Rutinas",
                     "Plantillas y planes",
-                    "/entrenador/rutinas",
-                    "rutinas",
+                    "/coach/routines",
+                    "routines",
                   ],
                 ]
               : [
@@ -582,22 +757,22 @@ function AppShell({
                     CalendarDays,
                     "Agenda",
                     "Organizá tu semana",
-                    "/agenda",
+                    "/schedule",
                     "agenda",
                   ],
                   [
                     Dumbbell,
                     "Rutinas",
                     "Todos tus planes",
-                    "/rutinas",
-                    "rutinas",
+                    "/routines",
+                    "routines",
                   ],
                   [
                     Activity,
                     "Actividades",
                     "Tu historial deportivo",
-                    "/actividades",
-                    "actividades",
+                    "/activities",
+                    "activities",
                   ],
                 ]
             ).map(([Icon, label, description, href, vista]) => {
@@ -631,11 +806,11 @@ function AppShell({
           <div className="mt-auto flex items-center gap-3 rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.06] p-3.5">
             <Avatar className="size-9 border border-violet-200/15">
               <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[10px] text-white">
-                {usuario.nombre.slice(0, 1)}
+                {usuario.name.slice(0, 1)}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <div className="truncate text-sm">{usuario.nombre}</div>
+              <div className="truncate text-sm">{usuario.name}</div>
               <div className="text-[10px] text-indigo-100/35">
                 {esEntrenador ? "Entrenador" : "Atleta"}
               </div>
@@ -667,9 +842,9 @@ function AppShell({
           <nav className="flex items-center gap-1 lg:hidden">
             {[
               [House, "Inicio", "/", "inicio"],
-              [CalendarDays, "Agenda", "/agenda", "agenda"],
-              [Dumbbell, "Rutinas", "/rutinas", "rutinas"],
-              [Activity, "Actividades", "/actividades", "actividades"],
+              [CalendarDays, "Agenda", "/schedule", "agenda"],
+              [Dumbbell, "Rutinas", "/routines", "routines"],
+              [Activity, "Actividades", "/activities", "activities"],
             ].map(([Icon, label, href, vista]) => {
               const NavIcon = Icon as typeof Dumbbell;
               return (
@@ -709,9 +884,9 @@ function AppShell({
                 esEntrenador && "lg:hidden",
               )}
             >
-              <div className="text-[11px]">{usuario.nombre}</div>
+              <div className="text-[11px]">{usuario.name}</div>
               <div className="text-[9px] text-white/30">
-                {usuario.rol === "entrenador" ? "Entrenador" : "Atleta"}
+                {usuario.role === "coach" ? "Entrenador" : "Atleta"}
               </div>
             </div>
           )}
@@ -750,13 +925,13 @@ function AppShell({
 }
 
 function SelectorRutina({
-  rutinas,
+  routines,
   rutinaActiva,
   onSelect,
   desktopVertical = false,
 }: {
-  rutinas: Rutina[];
-  rutinaActiva: Rutina;
+  routines: Routine[];
+  rutinaActiva: Routine;
   onSelect: (id: string) => void;
   desktopVertical?: boolean;
 }) {
@@ -767,7 +942,7 @@ function SelectorRutina({
         desktopVertical && "xl:grid-cols-1 xl:gap-3",
       )}
     >
-      {rutinas.map((rutina, index) => (
+      {routines.map((rutina, index) => (
         <button
           key={rutina.id}
           onClick={() => onSelect(rutina.id)}
@@ -787,7 +962,7 @@ function SelectorRutina({
               desktopVertical && "xl:text-base",
             )}
           >
-            {rutina.titulo}
+            {rutina.title}
           </div>
           <div
             className={cn(
@@ -805,13 +980,13 @@ function SelectorRutina({
 
 function FilaEjercicio({
   item,
-  bloqueId,
+  blockId,
   onUpdate,
   onDelete,
 }: {
-  item: Ejercicio;
-  bloqueId: string;
-  onUpdate: (item: Ejercicio) => void;
+  item: Exercise;
+  blockId: string;
+  onUpdate: (item: Exercise) => void;
   onDelete: () => void;
 }) {
   const {
@@ -821,7 +996,7 @@ function FilaEjercicio({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id, data: { bloqueId } });
+  } = useSortable({ id: item.id, data: { blockId } });
 
   return (
     <div
@@ -839,26 +1014,26 @@ function FilaEjercicio({
         <button
           {...attributes}
           {...listeners}
-          aria-label={`Arrastrar ${item.nombre}`}
+          aria-label={`Arrastrar ${item.name}`}
           className="touch-none cursor-grab rounded-lg p-1 text-white/20 transition-colors hover:bg-white/[0.06] hover:text-white/55 active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
         </button>
         <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-violet-300/10 text-[10px] font-medium text-violet-100/60 xl:size-10 xl:text-xs">
-          {item.nombre
+          {item.name
             .split(" ")
             .map((palabra) => palabra[0])
             .join("")
             .slice(0, 2)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm xl:text-base">{item.nombre}</div>
+          <div className="truncate text-sm xl:text-base">{item.name}</div>
           <Input
-            value={item.aclaraciones}
+            value={item.instructions}
             onChange={(event) =>
-              onUpdate({ ...item, aclaraciones: event.target.value })
+              onUpdate({ ...item, instructions: event.target.value })
             }
-            aria-label={`Aclaraciones de ${item.nombre}`}
+            aria-label={`Aclaraciones de ${item.name}`}
             placeholder="Agregar aclaraciones"
             className="mt-1 h-6 border-0 bg-transparent p-0 text-[10px] text-violet-100/55 shadow-none placeholder:text-white/20 focus-visible:ring-0 xl:text-xs"
           />
@@ -870,23 +1045,23 @@ function FilaEjercicio({
             variant="ghost"
             size="icon-sm"
             onClick={() =>
-              onUpdate({ ...item, series: Math.max(1, item.series - 1) })
+              onUpdate({ ...item, sets: Math.max(1, item.sets - 1) })
             }
             className="rounded-full text-indigo-100/40 hover:bg-indigo-300/10 hover:text-white"
-            aria-label={`Quitar una serie de ${item.nombre}`}
+            aria-label={`Quitar una serie de ${item.name}`}
           >
             <Minus />
           </Button>
           <div className="w-10 text-center">
-            <div className="text-sm">{item.series}</div>
+            <div className="text-sm">{item.sets}</div>
             <div className="text-[8px] uppercase text-indigo-100/25">series</div>
           </div>
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => onUpdate({ ...item, series: item.series + 1 })}
+            onClick={() => onUpdate({ ...item, sets: item.sets + 1 })}
             className="rounded-full text-indigo-100/40 hover:bg-indigo-300/10 hover:text-white"
-            aria-label={`Agregar una serie a ${item.nombre}`}
+            aria-label={`Agregar una serie a ${item.name}`}
           >
             <Plus />
           </Button>
@@ -894,7 +1069,7 @@ function FilaEjercicio({
         <div className="space-y-1">
           <select
             value={
-              item.repeticionesMin === item.repeticionesMax
+              item.minReps === item.maxReps
                 ? "fijas"
                 : "rango"
             }
@@ -902,44 +1077,44 @@ function FilaEjercicio({
               if (event.target.value === "fijas") {
                 onUpdate({
                   ...item,
-                  repeticionesMax: item.repeticionesMin,
+                  maxReps: item.minReps,
                 });
               } else {
                 onUpdate({
                   ...item,
-                  repeticionesMax: Math.max(
-                    item.repeticionesMin + 1,
-                    item.repeticionesMax,
+                  maxReps: Math.max(
+                    item.minReps + 1,
+                    item.maxReps,
                   ),
                 });
               }
             }}
-            aria-label={`Tipo de repeticiones de ${item.nombre}`}
+            aria-label={`Tipo de reps de ${item.name}`}
             className="h-8 rounded-lg border border-white/10 bg-black/25 px-2 text-[10px] text-white outline-none focus:border-cyan-300/40"
           >
             <option value="fijas">Reps. fijas</option>
             <option value="rango">Rango</option>
           </select>
-          {item.repeticionesMin === item.repeticionesMax ? (
+          {item.minReps === item.maxReps ? (
             <label className="block w-28 text-center">
               <Input
                 type="number"
                 inputMode="numeric"
                 min={0}
-                value={item.repeticionesMin}
+                value={item.minReps}
                 onChange={(event) => {
-                  const repeticiones = Math.max(0, Number(event.target.value));
+                  const reps = Math.max(0, Number(event.target.value));
                   onUpdate({
                     ...item,
-                    repeticionesMin: repeticiones,
-                    repeticionesMax: repeticiones,
+                    minReps: reps,
+                    maxReps: reps,
                   });
                 }}
-                aria-label={`Repeticiones de ${item.nombre}`}
+                aria-label={`Repeticiones de ${item.name}`}
                 className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
-                repeticiones
+                reps.
               </div>
             </label>
           ) : (
@@ -949,17 +1124,17 @@ function FilaEjercicio({
                   type="number"
                   inputMode="numeric"
                   min={0}
-                  value={item.repeticionesMin}
+                  value={item.minReps}
                   onChange={(event) =>
                     onUpdate({
                       ...item,
-                      repeticionesMin: Math.min(
-                        item.repeticionesMax,
+                      minReps: Math.min(
+                        item.maxReps,
                         Math.max(0, Number(event.target.value)),
                       ),
                     })
                   }
-                  aria-label={`Repeticiones mínimas de ${item.nombre}`}
+                  aria-label={`Repeticiones mínimas de ${item.name}`}
                   className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
@@ -970,18 +1145,18 @@ function FilaEjercicio({
                 <Input
                   type="number"
                   inputMode="numeric"
-                  min={item.repeticionesMin}
-                  value={item.repeticionesMax}
+                  min={item.minReps}
+                  value={item.maxReps}
                   onChange={(event) =>
                     onUpdate({
                       ...item,
-                      repeticionesMax: Math.max(
-                        item.repeticionesMin,
+                      maxReps: Math.max(
+                        item.minReps,
                         Number(event.target.value),
                       ),
                     })
                   }
-                  aria-label={`Repeticiones máximas de ${item.nombre}`}
+                  aria-label={`Repeticiones máximas de ${item.name}`}
                   className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
@@ -997,14 +1172,14 @@ function FilaEjercicio({
             inputMode="decimal"
             min={0}
             step="0.5"
-            value={item.peso}
+            value={item.weight}
             onChange={(event) =>
               onUpdate({
                 ...item,
-                peso: Math.max(0, Number(event.target.value)),
+                weight: Math.max(0, Number(event.target.value)),
               })
             }
-            aria-label={`Peso de ${item.nombre}`}
+            aria-label={`Peso de ${item.name}`}
             className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
@@ -1017,17 +1192,17 @@ function FilaEjercicio({
             inputMode="numeric"
             min={0}
             placeholder="—"
-            value={item.descanso ?? ""}
+            value={item.restSeconds ?? ""}
             onChange={(event) =>
               onUpdate({
                 ...item,
-                descanso:
+                restSeconds:
                   event.target.value === ""
                     ? null
                     : Math.max(0, Number(event.target.value)),
               })
             }
-            aria-label={`Descanso de ${item.nombre}`}
+            aria-label={`Descanso de ${item.name}`}
             className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
@@ -1040,7 +1215,7 @@ function FilaEjercicio({
         size="icon-sm"
         onClick={onDelete}
         className="hidden text-indigo-100/20 hover:bg-red-400/10 hover:text-red-200 md:inline-flex"
-        aria-label={`Eliminar ${item.nombre}`}
+        aria-label={`Eliminar ${item.name}`}
       >
         <X />
       </Button>
@@ -1055,7 +1230,7 @@ function BloqueEditor({
   onToggle,
   children,
 }: {
-  bloque: Bloque;
+  bloque: Block;
   index: number;
   abierto: boolean;
   onToggle: () => void;
@@ -1063,7 +1238,7 @@ function BloqueEditor({
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `bloque:${bloque.id}`,
-    data: { bloqueId: bloque.id },
+    data: { blockId: bloque.id },
   });
 
   return (
@@ -1096,15 +1271,15 @@ function BloqueEditor({
           >
             {index + 1}
           </span>
-          <span className="text-xs font-medium xl:text-sm">{bloque.nombre}</span>
+          <span className="text-xs font-medium xl:text-sm">{bloque.name}</span>
           <span className="hidden text-[9px] text-white/30 sm:inline xl:text-[10px]">
-            {bloque.tipo}
+            {blockTypeLabel(bloque.type)}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[9px] uppercase tracking-wider text-white/30">
-            {rondasDelBloque(bloque)} ronda
-            {rondasDelBloque(bloque) === 1 ? "" : "s"}
+            {rondasDelBloque(bloque)}{" "}
+            {rondasDelBloque(bloque) === 1 ? "ronda" : "rondas"}
           </span>
           <ChevronDown
             className={cn(
@@ -1116,12 +1291,12 @@ function BloqueEditor({
       </button>
       {abierto && (
         <SortableContext
-          items={bloque.ejercicios.map((item) => item.id)}
+          items={bloque.exercises.map((item) => item.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="py-1">
             {children}
-            {bloque.ejercicios.length === 0 && (
+            {bloque.exercises.length === 0 && (
               <div className="m-3 rounded-2xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] p-6 text-center">
                 <div className="mx-auto grid size-10 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200/70">
                   <GripVertical className="size-4" />
@@ -1144,25 +1319,25 @@ function BloqueEditor({
 }
 
 function DialogoEjercicio({
-  bloques,
+  blocks,
   onAdd,
 }: {
-  bloques: Bloque[];
-  onAdd: (item: Ejercicio, bloqueId: string, nuevoBloque?: string) => void;
+  blocks: Block[];
+  onAdd: (item: Exercise, blockId: string, nuevoBloque?: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [nombre, setNombre] = useState("");
-  const [series, setSeries] = useState("3");
+  const [name, setNombre] = useState("");
+  const [sets, setSeries] = useState("3");
   const [modoRepeticiones, setModoRepeticiones] = useState<"fijas" | "rango">(
     "fijas",
   );
-  const [repeticiones, setRepeticiones] = useState("10");
-  const [repeticionesMin, setRepeticionesMin] = useState("10");
-  const [repeticionesMax, setRepeticionesMax] = useState("10");
-  const [peso, setPeso] = useState("0");
-  const [descanso, setDescanso] = useState("");
-  const [aclaraciones, setAclaraciones] = useState("");
-  const [bloqueId, setBloqueId] = useState(bloques?.[0]?.id ?? "nuevo");
+  const [reps, setRepeticiones] = useState("10");
+  const [minReps, setRepeticionesMin] = useState("10");
+  const [maxReps, setRepeticionesMax] = useState("10");
+  const [weight, setPeso] = useState("0");
+  const [restSeconds, setDescanso] = useState("");
+  const [instructions, setAclaraciones] = useState("");
+  const [blockId, setBloqueId] = useState(blocks?.[0]?.id ?? "nuevo");
   const [nuevoBloque, setNuevoBloque] = useState("");
 
   function cambiarApertura(siguiente: boolean) {
@@ -1177,36 +1352,36 @@ function DialogoEjercicio({
     setPeso("0");
     setDescanso("");
     setAclaraciones("");
-    setBloqueId(bloques?.[0]?.id ?? "nuevo");
+    setBloqueId(blocks?.[0]?.id ?? "nuevo");
     setNuevoBloque("");
   }
 
   function agregar() {
-    if (!nombre.trim() || (bloqueId === "nuevo" && !nuevoBloque.trim())) return;
+    if (!name.trim() || (blockId === "nuevo" && !nuevoBloque.trim())) return;
     onAdd(
       {
-        id: `${nombre.toLowerCase().replace(/\W+/g, "-")}-${Date.now()}`,
-        nombre: nombre.trim(),
-        series: Math.max(1, Number(series) || 1),
-        repeticionesMin: Math.max(
+        id: `${name.toLowerCase().replace(/\W+/g, "-")}-${Date.now()}`,
+        name: name.trim(),
+        sets: Math.max(1, Number(sets) || 1),
+        minReps: Math.max(
           0,
           Number(
-            modoRepeticiones === "fijas" ? repeticiones : repeticionesMin,
+            modoRepeticiones === "fijas" ? reps : minReps,
           ) || 0,
         ),
-        repeticionesMax:
+        maxReps:
           modoRepeticiones === "fijas"
-            ? Math.max(0, Number(repeticiones) || 0)
+            ? Math.max(0, Number(reps) || 0)
             : Math.max(
-                Number(repeticionesMin) || 0,
-                Number(repeticionesMax) || 0,
+                Number(minReps) || 0,
+                Number(maxReps) || 0,
               ),
-        peso: Math.max(0, Number(peso) || 0),
-        descanso:
-          descanso.trim() === "" ? null : Math.max(0, Number(descanso)),
-        aclaraciones: aclaraciones.trim(),
+        weight: Math.max(0, Number(weight) || 0),
+        restSeconds:
+          restSeconds.trim() === "" ? null : Math.max(0, Number(restSeconds)),
+        instructions: instructions.trim(),
       },
-      bloqueId,
+      blockId,
       nuevoBloque.trim(),
     );
   }
@@ -1232,7 +1407,7 @@ function DialogoEjercicio({
           <label className="space-y-2">
             <span className="text-xs text-indigo-100/55">Nombre</span>
             <Input
-              value={nombre}
+              value={name}
               onChange={(event) => setNombre(event.target.value)}
               placeholder="Ej. Peso muerto"
               className="border-white/10 bg-black/35"
@@ -1241,19 +1416,19 @@ function DialogoEjercicio({
           <label className="block space-y-2">
             <span className="text-xs text-indigo-100/55">Bloque</span>
             <select
-              value={bloqueId}
+              value={blockId}
               onChange={(event) => setBloqueId(event.target.value)}
               className="h-9 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
             >
-              {bloques.map((bloque) => (
+              {blocks.map((bloque) => (
                 <option key={bloque.id} value={bloque.id}>
-                  {bloque.nombre}
+                  {bloque.name}
                 </option>
               ))}
               <option value="nuevo">+ Crear bloque nuevo</option>
             </select>
           </label>
-          {bloqueId === "nuevo" && (
+          {blockId === "nuevo" && (
             <label className="block space-y-2">
               <span className="text-xs text-indigo-100/55">
                 Nombre del nuevo bloque
@@ -1268,9 +1443,9 @@ function DialogoEjercicio({
           )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {[
-              ["Series", series, setSeries],
-              ["Peso", peso, setPeso],
-              ["Descanso", descanso, setDescanso],
+              ["Series", sets, setSeries],
+              ["Peso", weight, setPeso],
+              ["Descanso", restSeconds, setDescanso],
             ].map(([label, value, setter]) => (
               <label key={label as string} className="space-y-2">
                 <span className="text-xs text-indigo-100/55">
@@ -1330,7 +1505,7 @@ function DialogoEjercicio({
                   type="number"
                   inputMode="numeric"
                   min={0}
-                  value={repeticiones}
+                  value={reps}
                   onChange={(event) => setRepeticiones(event.target.value)}
                   className="border-white/10 bg-black/35"
                 />
@@ -1343,7 +1518,7 @@ function DialogoEjercicio({
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    value={repeticionesMin}
+                    value={minReps}
                     onChange={(event) => setRepeticionesMin(event.target.value)}
                     className="border-white/10 bg-black/35"
                   />
@@ -1353,8 +1528,8 @@ function DialogoEjercicio({
                   <Input
                     type="number"
                     inputMode="numeric"
-                    min={Number(repeticionesMin) || 0}
-                    value={repeticionesMax}
+                    min={Number(minReps) || 0}
+                    value={maxReps}
                     onChange={(event) => setRepeticionesMax(event.target.value)}
                     className="border-white/10 bg-black/35"
                   />
@@ -1365,7 +1540,7 @@ function DialogoEjercicio({
           <label className="block space-y-2">
             <span className="text-xs text-indigo-100/55">Aclaraciones</span>
             <Input
-              value={aclaraciones}
+              value={instructions}
               onChange={(event) => setAclaraciones(event.target.value)}
               placeholder="Ej. Con barra · cada lado"
               className="border-white/10 bg-black/35"
@@ -1385,8 +1560,8 @@ function DialogoEjercicio({
               <Button
                 onClick={agregar}
                 disabled={
-                  !nombre.trim() ||
-                  (bloqueId === "nuevo" && !nuevoBloque.trim())
+                  !name.trim() ||
+                  (blockId === "nuevo" && !nuevoBloque.trim())
                 }
                 className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
               />
@@ -1404,13 +1579,13 @@ function DialogoNuevaRutina({
   atleta,
   onCreate,
 }: {
-  atleta: Usuario;
-  onCreate: (rutina: Rutina) => void;
+  atleta: User;
+  onCreate: (rutina: Routine) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [titulo, setTitulo] = useState("");
-  const [objetivo, setObjetivo] = useState("");
-  const [duracion, setDuracion] = useState("");
+  const [title, setTitulo] = useState("");
+  const [objective, setObjetivo] = useState("");
+  const [durationMinutes, setDuracion] = useState("");
 
   function cambiarApertura(siguiente: boolean) {
     setOpen(siguiente);
@@ -1421,21 +1596,21 @@ function DialogoNuevaRutina({
   }
 
   function crear() {
-    if (!titulo.trim()) return;
+    if (!title.trim()) return;
 
     const timestamp = Date.now();
     onCreate({
       id: `rutina-${atleta.id}-${timestamp}`,
-      atletaId: atleta.id,
-      titulo: titulo.trim(),
-      objetivo: objetivo.trim() || "Entrenamiento personalizado",
-      duracion: Math.max(1, Number(duracion) || 60),
-      bloques: [
+      athleteId: atleta.id,
+      title: title.trim(),
+      objective: objective.trim() || "Entrenamiento personalizado",
+      durationMinutes: Math.max(1, Number(durationMinutes) || 60),
+      blocks: [
         {
           id: `bloque-${timestamp}`,
-          nombre: "Bloque 1",
-          tipo: "Personalizado",
-          ejercicios: [],
+          name: "Bloque 1",
+          type: "custom",
+          exercises: [],
         },
       ],
     });
@@ -1456,7 +1631,7 @@ function DialogoNuevaRutina({
       </DialogTrigger>
       <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Crear rutina para {atleta.nombre}</DialogTitle>
+          <DialogTitle>Crear rutina para {atleta.name}</DialogTitle>
           <DialogDescription className="text-white/40">
             Empezá con un bloque vacío y completá los demás datos cuando quieras.
           </DialogDescription>
@@ -1466,7 +1641,7 @@ function DialogoNuevaRutina({
             <span className="text-xs text-white/55">Nombre</span>
             <Input
               autoFocus
-              value={titulo}
+              value={title}
               onChange={(event) => setTitulo(event.target.value)}
               placeholder="Ej. Potencia"
               className="border-white/10 bg-black/35"
@@ -1475,7 +1650,7 @@ function DialogoNuevaRutina({
           <label className="block space-y-2">
             <span className="text-xs text-white/55">Objetivo (opcional)</span>
             <Input
-              value={objetivo}
+              value={objective}
               onChange={(event) => setObjetivo(event.target.value)}
               placeholder="Ej. Fuerza y estabilidad"
               className="border-white/10 bg-black/35"
@@ -1489,7 +1664,7 @@ function DialogoNuevaRutina({
               type="number"
               inputMode="numeric"
               min={1}
-              value={duracion}
+              value={durationMinutes}
               onChange={(event) => setDuracion(event.target.value)}
               className="border-white/10 bg-black/35"
             />
@@ -1520,7 +1695,7 @@ function DialogoNuevaRutina({
                 <Button
                   type="button"
                   onClick={crear}
-                  disabled={!titulo.trim()}
+                  disabled={!title.trim()}
                   className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
                 />
               }
@@ -1539,31 +1714,31 @@ function DialogoDetallesRutina({
   rutina,
   onUpdate,
 }: {
-  rutina: Rutina;
-  onUpdate: (rutina: Rutina) => void;
+  rutina: Routine;
+  onUpdate: (rutina: Routine) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [titulo, setTitulo] = useState(rutina.titulo);
-  const [objetivo, setObjetivo] = useState(rutina.objetivo);
-  const [duracion, setDuracion] = useState(String(rutina.duracion));
+  const [title, setTitulo] = useState(rutina.title);
+  const [objective, setObjetivo] = useState(rutina.objective);
+  const [durationMinutes, setDuracion] = useState(String(rutina.durationMinutes));
 
   function cambiarApertura(siguiente: boolean) {
     setOpen(siguiente);
     if (!siguiente) return;
-    setTitulo(rutina.titulo);
+    setTitulo(rutina.title);
     setObjetivo(
-      rutina.objetivo === "Entrenamiento personalizado" ? "" : rutina.objetivo,
+      rutina.objective === "Entrenamiento personalizado" ? "" : rutina.objective,
     );
-    setDuracion(String(rutina.duracion));
+    setDuracion(String(rutina.durationMinutes));
   }
 
   function guardar() {
-    if (!titulo.trim()) return;
+    if (!title.trim()) return;
     onUpdate({
       ...rutina,
-      titulo: titulo.trim(),
-      objetivo: objetivo.trim() || "Entrenamiento personalizado",
-      duracion: Math.max(1, Number(duracion) || 60),
+      title: title.trim(),
+      objective: objective.trim() || "Entrenamiento personalizado",
+      durationMinutes: Math.max(1, Number(durationMinutes) || 60),
     });
     setOpen(false);
   }
@@ -1593,7 +1768,7 @@ function DialogoDetallesRutina({
             <span className="text-xs text-white/55">Nombre</span>
             <Input
               autoFocus
-              value={titulo}
+              value={title}
               onChange={(event) => setTitulo(event.target.value)}
               className="border-white/10 bg-black/35"
             />
@@ -1601,7 +1776,7 @@ function DialogoDetallesRutina({
           <label className="block space-y-2">
             <span className="text-xs text-white/55">Objetivo (opcional)</span>
             <Input
-              value={objetivo}
+              value={objective}
               onChange={(event) => setObjetivo(event.target.value)}
               placeholder="Ej. Fuerza y estabilidad"
               className="border-white/10 bg-black/35"
@@ -1615,7 +1790,7 @@ function DialogoDetallesRutina({
               type="number"
               inputMode="numeric"
               min={1}
-              value={duracion}
+              value={durationMinutes}
               onChange={(event) => setDuracion(event.target.value)}
               className="border-white/10 bg-black/35"
             />
@@ -1630,7 +1805,7 @@ function DialogoDetallesRutina({
           <Button
             type="button"
             onClick={guardar}
-            disabled={!titulo.trim()}
+            disabled={!title.trim()}
             className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
           >
             Guardar detalles
@@ -1646,12 +1821,12 @@ function DialogoAsignarPlantilla({
   atletas,
   onAssign,
 }: {
-  plantilla: PlantillaRutina;
-  atletas: Usuario[];
-  onAssign: (atletaId: number) => void;
+  plantilla: RoutineTemplate;
+  atletas: User[];
+  onAssign: (athleteId: number) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [atletaId, setAtletaId] = useState(String(atletas[0]?.id ?? ""));
+  const [athleteId, setAtletaId] = useState(String(atletas[0]?.id ?? ""));
 
   function cambiarApertura(siguiente: boolean) {
     setOpen(siguiente);
@@ -1659,7 +1834,7 @@ function DialogoAsignarPlantilla({
   }
 
   function asignar() {
-    const id = Number(atletaId);
+    const id = Number(athleteId);
     if (!id) return;
     onAssign(id);
     setOpen(false);
@@ -1680,7 +1855,7 @@ function DialogoAsignarPlantilla({
       </DialogTrigger>
       <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Asignar “{plantilla.titulo}”</DialogTitle>
+          <DialogTitle>Asignar “{plantilla.title}”</DialogTitle>
           <DialogDescription className="text-white/40">
             Se creará una copia independiente para el atleta, lista para
             personalizar pesos y detalles.
@@ -1689,13 +1864,13 @@ function DialogoAsignarPlantilla({
         <label className="block space-y-2">
           <span className="text-xs text-white/55">Atleta</span>
           <select
-            value={atletaId}
+            value={athleteId}
             onChange={(event) => setAtletaId(event.target.value)}
             className="h-10 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
           >
             {atletas.map((atleta) => (
               <option key={atleta.id} value={atleta.id}>
-                {atleta.nombre}
+                {atleta.name}
               </option>
             ))}
           </select>
@@ -1709,7 +1884,7 @@ function DialogoAsignarPlantilla({
           <Button
             type="button"
             onClick={asignar}
-            disabled={!atletaId}
+            disabled={!athleteId}
             className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
           >
             Asignar rutina
@@ -1722,14 +1897,14 @@ function DialogoAsignarPlantilla({
 }
 
 function DialogoNuevoAtleta({
-  usuarios,
+  users,
   onCreate,
 }: {
-  usuarios: Usuario[];
-  onCreate: (nombre: string, email: string) => Promise<string | null>;
+  users: User[];
+  onCreate: (name: string, email: string) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
-  const [nombre, setNombre] = useState("");
+  const [name, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [creando, setCreando] = useState(false);
@@ -1746,7 +1921,7 @@ function DialogoNuevoAtleta({
   async function crear() {
     const emailNormalizado = email.trim().toLowerCase();
     if (
-      usuarios.some(
+      users.some(
         (item) => item.email.toLowerCase() === emailNormalizado,
       )
     ) {
@@ -1754,7 +1929,7 @@ function DialogoNuevoAtleta({
       return;
     }
     setCreando(true);
-    const errorCreacion = await onCreate(nombre.trim(), emailNormalizado);
+    const errorCreacion = await onCreate(name.trim(), emailNormalizado);
     setCreando(false);
     if (errorCreacion) {
       setError(errorCreacion);
@@ -1788,7 +1963,7 @@ function DialogoNuevoAtleta({
             <span className="text-xs text-white/55">Nombre</span>
             <Input
               autoFocus
-              value={nombre}
+              value={name}
               onChange={(event) => setNombre(event.target.value)}
               placeholder="Ej. Juan"
               className="border-white/10 bg-black/35"
@@ -1823,7 +1998,7 @@ function DialogoNuevoAtleta({
             <Button
               type="button"
               onClick={crear}
-              disabled={!nombre.trim() || !email.trim() || creando}
+              disabled={!name.trim() || !email.trim() || creando}
               className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
             >
               {creando ? "Guardando..." : "Agregar alumno"}
@@ -1838,14 +2013,14 @@ function DialogoNuevoAtleta({
 
 function HomeEntrenador({
   entrenador,
-  usuarios,
+  users,
   atletas,
   atleta,
-  rutinas,
+  routines,
   rutinasPorAtleta,
-  entrenamientos,
-  actividades,
-  plantillas,
+  workouts,
+  activities,
+  templates,
   vista,
   detalleAtleta,
   rutina: rutinaGuardada,
@@ -1864,37 +2039,37 @@ function HomeEntrenador({
   onDirtyChange,
   verComoAtleta,
 }: {
-  entrenador: Usuario;
-  usuarios: Usuario[];
-  atletas: Usuario[];
-  atleta: Usuario;
-  rutinas: Rutina[];
-  rutinasPorAtleta: Rutina[];
-  entrenamientos: EntrenamientoProgramado[];
-  actividades: ActividadRealizada[];
-  plantillas: PlantillaRutina[];
-  vista: VistaEntrenador;
+  entrenador: User;
+  users: User[];
+  atletas: User[];
+  atleta: User;
+  routines: Routine[];
+  rutinasPorAtleta: Routine[];
+  workouts: ScheduledWorkout[];
+  activities: CompletedActivity[];
+  templates: RoutineTemplate[];
+  vista: CoachView;
   detalleAtleta: boolean;
-  rutina: Rutina;
+  rutina: Routine;
   onSelectAtleta: (id: number) => void;
   onSelect: (id: string) => void;
-  onSaveRutina: (rutina: Rutina) => void;
-  onCreateRutina: (rutina: Rutina) => void;
-  onSaveAsTemplate: (rutina: Rutina) => void;
-  onAssignTemplate: (plantillaId: string, atletaId: number) => void;
+  onSaveRutina: (rutina: Routine) => void;
+  onCreateRutina: (rutina: Routine) => void;
+  onSaveAsTemplate: (rutina: Routine) => void;
+  onAssignTemplate: (plantillaId: string, athleteId: number) => void;
   onDeleteTemplate: (plantillaId: string) => void;
-  onCreateAtleta: (nombre: string, email: string) => Promise<string | null>;
+  onCreateAtleta: (name: string, email: string) => Promise<string | null>;
   onDeleteRutina: (id: string) => void;
-  onCreateEntrenamiento: (item: NuevoEntrenamientoProgramado) => void;
-  onUpdateEntrenamiento: (item: EntrenamientoProgramado) => void;
+  onCreateEntrenamiento: (item: NewScheduledWorkout) => void;
+  onUpdateEntrenamiento: (item: ScheduledWorkout) => void;
   onDeleteEntrenamiento: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
   verComoAtleta: () => void;
 }) {
   const [rutina, setRutina] = useState(rutinaGuardada);
   const [seccionDetalle, setSeccionDetalle] = useState<
-    "rutinas" | "agenda" | "actividades"
-  >("rutinas");
+    "routines" | "agenda" | "activities"
+  >("routines");
   const [bloqueAbierto, setBloqueAbierto] = useState<string | null>(null);
   const [accionPendiente, setAccionPendiente] = useState<(() => void) | null>(
     null,
@@ -1955,18 +2130,18 @@ function HomeEntrenador({
   }
 
   function actualizarEjercicio(
-    bloqueId: string,
-    ejercicioId: string,
-    siguiente: Ejercicio,
+    blockId: string,
+    exerciseId: string,
+    siguiente: Exercise,
   ) {
     setRutina((actual) => ({
       ...actual,
-      bloques: actual.bloques.map((bloque) =>
-        bloque.id === bloqueId
+      blocks: actual.blocks.map((bloque) =>
+        bloque.id === blockId
           ? {
               ...bloque,
-              ejercicios: bloque.ejercicios.map((item) =>
-                item.id === ejercicioId ? siguiente : item,
+              exercises: bloque.exercises.map((item) =>
+                item.id === exerciseId ? siguiente : item,
               ),
             }
           : bloque,
@@ -1974,15 +2149,15 @@ function HomeEntrenador({
     }));
   }
 
-  function eliminarEjercicio(bloqueId: string, ejercicioId: string) {
+  function eliminarEjercicio(blockId: string, exerciseId: string) {
     setRutina((actual) => ({
       ...actual,
-      bloques: actual.bloques.map((bloque) =>
-        bloque.id === bloqueId
+      blocks: actual.blocks.map((bloque) =>
+        bloque.id === blockId
           ? {
               ...bloque,
-              ejercicios: bloque.ejercicios.filter(
-                (item) => item.id !== ejercicioId,
+              exercises: bloque.exercises.filter(
+                (item) => item.id !== exerciseId,
               ),
             }
           : bloque,
@@ -1991,21 +2166,21 @@ function HomeEntrenador({
   }
 
   function agregarEjercicio(
-    item: Ejercicio,
-    bloqueId: string,
+    item: Exercise,
+    blockId: string,
     nuevoBloque?: string,
   ) {
-    if (bloqueId === "nuevo" && nuevoBloque) {
+    if (blockId === "nuevo" && nuevoBloque) {
       const id = `bloque-${Date.now()}`;
       setRutina((actual) => ({
         ...actual,
-        bloques: [
-          ...actual.bloques,
+        blocks: [
+          ...actual.blocks,
           {
             id,
-            nombre: nuevoBloque,
-            tipo: "Personalizado",
-            ejercicios: [item],
+            name: nuevoBloque,
+            type: "custom",
+            exercises: [item],
           },
         ],
       }));
@@ -2015,55 +2190,55 @@ function HomeEntrenador({
 
     setRutina((actual) => ({
       ...actual,
-      bloques: actual.bloques.map((bloque) =>
-        bloque.id === bloqueId
-          ? { ...bloque, ejercicios: [...bloque.ejercicios, item] }
+      blocks: actual.blocks.map((bloque) =>
+        bloque.id === blockId
+          ? { ...bloque, exercises: [...bloque.exercises, item] }
           : bloque,
       ),
     }));
-    setBloqueAbierto(bloqueId);
+    setBloqueAbierto(blockId);
   }
 
   function moverEjercicio(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const bloqueOrigenId = active.data.current?.bloqueId as string | undefined;
+    const bloqueOrigenId = active.data.current?.blockId as string | undefined;
     const bloqueDestinoId = (
       String(over.id).startsWith("bloque:")
         ? String(over.id).replace("bloque:", "")
-        : over.data.current?.bloqueId
+        : over.data.current?.blockId
     ) as string | undefined;
 
     if (!bloqueOrigenId || !bloqueDestinoId) return;
 
     setRutina((actual) => {
-      const bloqueOrigen = actual.bloques.find(
+      const bloqueOrigen = actual.blocks.find(
         (bloque) => bloque.id === bloqueOrigenId,
       );
-      const bloqueDestino = actual.bloques.find(
+      const bloqueDestino = actual.blocks.find(
         (bloque) => bloque.id === bloqueDestinoId,
       );
       if (!bloqueOrigen || !bloqueDestino) return actual;
 
-      const indiceOrigen = bloqueOrigen.ejercicios.findIndex(
+      const indiceOrigen = bloqueOrigen.exercises.findIndex(
         (item) => item.id === active.id,
       );
       if (indiceOrigen < 0) return actual;
 
       if (bloqueOrigenId === bloqueDestinoId) {
         const indiceDestino = String(over.id).startsWith("bloque:")
-          ? bloqueOrigen.ejercicios.length - 1
-          : bloqueOrigen.ejercicios.findIndex((item) => item.id === over.id);
+          ? bloqueOrigen.exercises.length - 1
+          : bloqueOrigen.exercises.findIndex((item) => item.id === over.id);
         if (indiceDestino < 0 || indiceDestino === indiceOrigen) return actual;
         return {
           ...actual,
-          bloques: actual.bloques.map((bloque) =>
+          blocks: actual.blocks.map((bloque) =>
             bloque.id === bloqueOrigenId
               ? {
                   ...bloque,
-                  ejercicios: arrayMove(
-                    bloque.ejercicios,
+                  exercises: arrayMove(
+                    bloque.exercises,
                     indiceOrigen,
                     indiceDestino,
                   ),
@@ -2073,29 +2248,29 @@ function HomeEntrenador({
         };
       }
 
-      const itemMovido = bloqueOrigen.ejercicios[indiceOrigen];
+      const itemMovido = bloqueOrigen.exercises[indiceOrigen];
       const indiceDestino = String(over.id).startsWith("bloque:")
-        ? bloqueDestino.ejercicios.length
+        ? bloqueDestino.exercises.length
         : Math.max(
             0,
-            bloqueDestino.ejercicios.findIndex((item) => item.id === over.id),
+            bloqueDestino.exercises.findIndex((item) => item.id === over.id),
           );
 
       return {
         ...actual,
-        bloques: actual.bloques.map((bloque) => {
+        blocks: actual.blocks.map((bloque) => {
           if (bloque.id === bloqueOrigenId) {
             return {
               ...bloque,
-              ejercicios: bloque.ejercicios.filter(
+              exercises: bloque.exercises.filter(
                 (item) => item.id !== active.id,
               ),
             };
           }
           if (bloque.id === bloqueDestinoId) {
-            const ejercicios = [...bloque.ejercicios];
-            ejercicios.splice(indiceDestino, 0, itemMovido);
-            return { ...bloque, ejercicios };
+            const exercises = [...bloque.exercises];
+            exercises.splice(indiceDestino, 0, itemMovido);
+            return { ...bloque, exercises };
           }
           return bloque;
         }),
@@ -2104,9 +2279,9 @@ function HomeEntrenador({
     setBloqueAbierto(bloqueDestinoId);
   }
 
-  function crearYEditar(rutinaNueva: Rutina) {
+  function crearYEditar(rutinaNueva: Routine) {
     onCreateRutina(rutinaNueva);
-    setBloqueAbierto(rutinaNueva.bloques[0].id);
+    setBloqueAbierto(rutinaNueva.blocks[0].id);
   }
 
   return (
@@ -2131,16 +2306,16 @@ function HomeEntrenador({
           <div className="grid gap-3 sm:grid-cols-3">
             {[
               [atletas.length, "Atletas", "Gestioná sus perfiles"],
-              [plantillas.length, "Plantillas propias", "Reutilizables"],
+              [templates.length, "Plantillas propias", "Reutilizables"],
               [rutinasPorAtleta.length, "Planes asignados", "En todos tus atletas"],
-            ].map(([cantidad, titulo, detalle]) => (
+            ].map(([cantidad, title, detalle]) => (
               <div
-                key={titulo as string}
+                key={title as string}
                 className="rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-4"
               >
                 <div className="text-2xl font-light">{cantidad as number}</div>
                 <div className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
-                  {titulo as string}
+                  {title as string}
                 </div>
                 <div className="mt-1 text-[10px] text-white/25">
                   {detalle as string}
@@ -2160,14 +2335,14 @@ function HomeEntrenador({
                 Revisá la carga y accedé a la planificación individual.
               </div>
             </div>
-            <DialogoNuevoAtleta usuarios={usuarios} onCreate={onCreateAtleta} />
+            <DialogoNuevoAtleta users={users} onCreate={onCreateAtleta} />
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {atletas.map((item) => {
               const planes = rutinasPorAtleta.filter(
-                (rutinaActual) => rutinaActual.atletaId === item.id,
+                (rutinaActual) => rutinaActual.athleteId === item.id,
               );
-              const ejercicios = planes.reduce(
+              const exercises = planes.reduce(
                 (total, rutinaActual) =>
                   total + cantidadEjercicios(rutinaActual),
                 0,
@@ -2181,11 +2356,11 @@ function HomeEntrenador({
                   <div className="flex items-center gap-3">
                     <Avatar className="size-10">
                       <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
-                        {item.nombre.slice(0, 1)}
+                        {item.name.slice(0, 1)}
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{item.nombre}</div>
+                      <div className="truncate text-sm font-medium">{item.name}</div>
                       <div className="truncate text-[10px] text-white/30">{item.email}</div>
                     </div>
                   </div>
@@ -2197,14 +2372,14 @@ function HomeEntrenador({
                       </div>
                     </div>
                     <div className="rounded-xl bg-white/[0.035] px-3 py-2">
-                      <div className="text-sm">{ejercicios}</div>
+                      <div className="text-sm">{exercises}</div>
                       <div className="text-[9px] uppercase tracking-wider text-white/30">
                         Ejercicios
                       </div>
                     </div>
                   </div>
                   <Link
-                    href={`/entrenador/atletas/${item.id}`}
+                    href={`/coach/athletes/${item.id}`}
                     onClick={() => onSelectAtleta(item.id)}
                     className="mt-4 flex h-9 items-center justify-center gap-2 rounded-full bg-cyan-300 text-xs font-medium text-indigo-950 transition-colors hover:bg-cyan-200"
                   >
@@ -2218,7 +2393,7 @@ function HomeEntrenador({
         </section>
       )}
 
-      {vista === "rutinas" && (
+      {vista === "routines" && (
         <section className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/70 p-4 md:p-5 xl:p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="min-w-0">
@@ -2236,14 +2411,14 @@ function HomeEntrenador({
             Guardar como plantilla
           </Button>
         </div>
-        {plantillas.length === 0 ? (
+        {templates.length === 0 ? (
           <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5 text-xs text-white/35">
             Todavía no tenés plantillas. Personalizá una rutina y guardala acá
             para asignarla rápidamente.
           </div>
         ) : (
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {plantillas.map((plantilla) => (
+            {templates.map((plantilla) => (
               <div
                 key={plantilla.id}
                 className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
@@ -2251,7 +2426,7 @@ function HomeEntrenador({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <div className="truncate text-sm font-medium">
-                      {plantilla.titulo}
+                      {plantilla.title}
                     </div>
                   </div>
                   <Badge className="shrink-0 border-white/[0.08] bg-white/[0.04] text-[9px] text-white/45">
@@ -2260,14 +2435,14 @@ function HomeEntrenador({
                 </div>
                 <div className="mt-2 text-[10px] text-white/30">
                   {cantidadEjercicios(plantilla)} ejercicios ·{" "}
-                  {plantilla.duracion} min
+                  {plantilla.durationMinutes} min
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-2">
                   <DialogoAsignarPlantilla
                     plantilla={plantilla}
                     atletas={atletas}
-                    onAssign={(atletaId) =>
-                      navegar(() => onAssignTemplate(plantilla.id, atletaId))
+                    onAssign={(athleteId) =>
+                      navegar(() => onAssignTemplate(plantilla.id, athleteId))
                     }
                   />
                   <Dialog>
@@ -2276,7 +2451,7 @@ function HomeEntrenador({
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          aria-label={`Eliminar plantilla ${plantilla.titulo}`}
+                          aria-label={`Eliminar plantilla ${plantilla.title}`}
                           className="rounded-full text-white/35 hover:bg-red-400/10 hover:text-red-200"
                         />
                       }
@@ -2286,7 +2461,7 @@ function HomeEntrenador({
                     <DialogContent className="border-white/10 bg-[#111217] text-white">
                       <DialogHeader>
                         <DialogTitle>
-                          ¿Eliminar “{plantilla.titulo}”?
+                          ¿Eliminar “{plantilla.title}”?
                         </DialogTitle>
                         <DialogDescription className="text-white/40">
                           La plantilla dejará de estar disponible para nuevas
@@ -2325,21 +2500,21 @@ function HomeEntrenador({
       )}
 
       {detalleAtleta && (
-        <section id="rutinas-entrenador" className="scroll-mt-24">
+        <section id="routines-entrenador" className="scroll-mt-24">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <Link
-              href="/entrenador/atletas"
+              href="/coach/athletes"
               className="mb-3 inline-flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white"
             >
               <ArrowLeft className="size-3.5" />
               Todos los atletas
             </Link>
             <div className="mb-1 text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">
-              Planificación de {atleta.nombre}
+              Planificación de {atleta.name}
             </div>
             <h2 className="text-2xl font-light tracking-tight md:text-3xl">
-              {seccionDetalle === "rutinas"
+              {seccionDetalle === "routines"
                 ? "Plan de entrenamiento"
                 : seccionDetalle === "agenda"
                   ? "Agenda deportiva"
@@ -2350,19 +2525,19 @@ function HomeEntrenador({
             <div className="hidden items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 py-2 xl:flex">
               <Avatar className="size-8">
                 <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[10px] text-white">
-                  {atleta.nombre.slice(0, 1)}
+                  {atleta.name.slice(0, 1)}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
                 <div className="max-w-32 truncate text-xs font-medium">
-                  {atleta.nombre}
+                  {atleta.name}
                 </div>
                 <div className="text-[9px] text-white/30">
-                  {rutinas.length} planes · {cantidadEjercicios(rutina)} ejercicios
+                  {routines.length} planes · {cantidadEjercicios(rutina)} ejercicios
                 </div>
               </div>
             </div>
-            {seccionDetalle === "rutinas" && (
+            {seccionDetalle === "routines" && (
               <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
             )}
             <Button
@@ -2377,9 +2552,9 @@ function HomeEntrenador({
 
         <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1 sm:w-fit">
           {[
-            ["rutinas", "Rutinas", Dumbbell],
+            ["routines", "Rutinas", Dumbbell],
             ["agenda", "Agenda", CalendarDays],
-            ["actividades", "Actividades", Activity],
+            ["activities", "Actividades", Activity],
           ].map(([value, label, Icon]) => {
             const TabIcon = Icon as typeof Dumbbell;
             return (
@@ -2388,7 +2563,7 @@ function HomeEntrenador({
                 onClick={() =>
                   navegar(() =>
                     setSeccionDetalle(
-                      value as "rutinas" | "agenda" | "actividades",
+                      value as "routines" | "agenda" | "activities",
                     ),
                   )
                 }
@@ -2406,7 +2581,7 @@ function HomeEntrenador({
           })}
         </div>
 
-        {seccionDetalle === "rutinas" && (
+        {seccionDetalle === "routines" && (
         <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
           <div className="xl:sticky xl:top-24">
             <div className="mb-3 hidden items-center justify-between xl:flex">
@@ -2414,11 +2589,11 @@ function HomeEntrenador({
                 Rutinas asignadas
               </span>
               <span className="text-[10px] text-white/25">
-                {rutinas.length} planes
+                {routines.length} planes
               </span>
             </div>
             <SelectorRutina
-              rutinas={rutinas}
+              routines={routines}
               rutinaActiva={rutina}
               onSelect={(id) => navegar(() => onSelect(id))}
               desktopVertical
@@ -2430,10 +2605,10 @@ function HomeEntrenador({
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <div className="text-lg font-medium xl:text-xl">
-                    {rutina.titulo}
+                    {rutina.title}
                   </div>
                   <p className="mt-1 text-[11px] text-indigo-100/35 xl:text-xs">
-                    {rutina.objetivo} · {rutina.duracion} min ·{" "}
+                    {rutina.objective} · {rutina.durationMinutes} min ·{" "}
                     {totalSeries(rutina)} series
                   </p>
                 </div>
@@ -2464,19 +2639,19 @@ function HomeEntrenador({
                   </Button>
                   <DialogoEjercicio
                     key={rutina.id}
-                    bloques={rutina.bloques}
+                    blocks={rutina.blocks}
                     onAdd={agregarEjercicio}
                   />
                   <Dialog>
                     <DialogTrigger
-                      disabled={rutinas.length <= 1}
+                      disabled={routines.length <= 1}
                       render={
                         <Button
                           variant="ghost"
                           size="icon"
                           aria-label="Eliminar rutina"
                           title={
-                            rutinas.length <= 1
+                            routines.length <= 1
                               ? "Creá otra rutina antes de eliminar esta"
                               : "Eliminar rutina"
                           }
@@ -2488,11 +2663,11 @@ function HomeEntrenador({
                     </DialogTrigger>
                     <DialogContent className="border-white/10 bg-[#111217] text-white">
                       <DialogHeader>
-                        <DialogTitle>¿Eliminar “{rutina.titulo}”?</DialogTitle>
+                        <DialogTitle>¿Eliminar “{rutina.title}”?</DialogTitle>
                         <DialogDescription className="text-white/40">
-                          La rutina dejará de estar disponible para{" "}
-                          {atleta.nombre}. También se quitarán sus entrenamientos
-                          programados. Esta acción no se puede deshacer.
+                          La rutina dejará de estar disponible para {atleta.name}.
+                          También se quitarán sus entrenamientos programados. Esta
+                          acción no se puede deshacer.
                         </DialogDescription>
                       </DialogHeader>
                       <DialogFooter>
@@ -2526,7 +2701,7 @@ function HomeEntrenador({
                 collisionDetection={closestCenter}
                 onDragEnd={moverEjercicio}
               >
-                {rutina.bloques.map((bloque, index) => (
+                {rutina.blocks.map((bloque, index) => (
                   <BloqueEditor
                     key={bloque.id}
                     bloque={bloque}
@@ -2538,11 +2713,11 @@ function HomeEntrenador({
                       )
                     }
                   >
-                    {bloque.ejercicios.map((item) => (
+                    {bloque.exercises.map((item) => (
                       <FilaEjercicio
                         key={item.id}
                         item={item}
-                        bloqueId={bloque.id}
+                        blockId={bloque.id}
                         onUpdate={(siguiente) =>
                           actualizarEjercicio(bloque.id, item.id, siguiente)
                         }
@@ -2557,24 +2732,24 @@ function HomeEntrenador({
         </div>
         )}
         {seccionDetalle === "agenda" && (
-        <AgendaDeportiva
+        <SportsSchedule
           embedded
           modoCoach
           atleta={atleta}
           usuarioActual={entrenador}
-          rutinas={rutinas}
-          entrenamientos={entrenamientos}
+          routines={routines}
+          workouts={workouts}
           onCreate={onCreateEntrenamiento}
           onUpdate={onUpdateEntrenamiento}
           onDelete={onDeleteEntrenamiento}
           onStart={() => undefined}
         />
         )}
-        {seccionDetalle === "actividades" && (
-        <HistorialActividades
+        {seccionDetalle === "activities" && (
+        <ActivityHistory
           embedded
           atleta={atleta}
-          actividades={actividades}
+          activities={activities}
         />
         )}
         </section>
@@ -2621,7 +2796,7 @@ function HomeEntrenador({
   );
 }
 
-function OverviewRutina({ rutina }: { rutina: Rutina }) {
+function OverviewRutina({ rutina }: { rutina: Routine }) {
   return (
     <Dialog>
       <DialogTrigger
@@ -2647,17 +2822,17 @@ function OverviewRutina({ rutina }: { rutina: Rutina }) {
             </span>
           </div>
           <DialogTitle className="mt-2 text-2xl font-light tracking-tight">
-            {rutina.titulo}
+            {rutina.title}
           </DialogTitle>
           <DialogDescription className="text-white/40">
-            {rutina.bloques.length} bloques conectados · {totalSeries(rutina)}{" "}
-            series · {rutina.duracion} min
+            {rutina.blocks.length} bloques conectados · {totalSeries(rutina)}{" "}
+            series · {rutina.durationMinutes} min
           </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[calc(88vh-9rem)] overflow-y-auto px-4 py-6 md:px-8">
           <div className="relative before:absolute before:bottom-5 before:left-[19px] before:top-5 before:w-px before:bg-gradient-to-b before:from-cyan-300/60 before:via-violet-400/45 before:to-blue-400/25 md:before:left-1/2">
-            {rutina.bloques.map((bloque, index) => (
+            {rutina.blocks.map((bloque, index) => (
               <div
                 key={bloque.id}
                 className="relative mb-5 flex items-start gap-3 last:mb-0 md:grid md:grid-cols-[1fr_44px_1fr] md:gap-5"
@@ -2687,35 +2862,35 @@ function OverviewRutina({ rutina }: { rutina: Rutina }) {
                         Bloque {index + 1}
                       </div>
                       <h3 className="mt-1 text-sm font-medium">
-                        {bloque.nombre}
+                        {bloque.name}
                       </h3>
                     </div>
                     <Badge className="border-white/10 bg-black/25 text-[8px] text-white/45">
-                      {rondasDelBloque(bloque)} ronda
-                      {rondasDelBloque(bloque) === 1 ? "" : "s"}
+                      {rondasDelBloque(bloque)}{" "}
+                      {rondasDelBloque(bloque) === 1 ? "ronda" : "rondas"}
                     </Badge>
                   </div>
 
                   <div className="mt-3 space-y-2 border-t border-white/[0.07] pt-3">
-                    {bloque.ejercicios.map((item) => (
+                    {bloque.exercises.map((item) => (
                       <div key={item.id} className="flex items-start gap-2">
                         <span className="mt-1.5 size-1 shrink-0 rounded-full bg-white/30" />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-baseline justify-between gap-2">
                             <span className="truncate text-[11px] text-white/75">
-                              {item.nombre}
+                              {item.name}
                             </span>
                             <span className="shrink-0 text-[9px] tabular-nums text-white/35">
-                              {item.series}×{repeticionesObjetivo(item)}
-                              {item.peso > 0 ? ` · ${item.peso} kg` : ""}
-                              {item.descanso !== null
-                                ? ` · ${item.descanso} s`
+                              {item.sets}×{repeticionesObjetivo(item)}
+                              {item.weight > 0 ? ` · ${item.weight} kg` : ""}
+                              {item.restSeconds !== null
+                                ? ` · ${item.restSeconds} s`
                                 : ""}
                             </span>
                           </div>
-                          {item.aclaraciones && (
+                          {item.instructions && (
                             <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
-                              {item.aclaraciones}
+                              {item.instructions}
                             </div>
                           )}
                         </div>
@@ -2739,16 +2914,16 @@ function OverviewRutina({ rutina }: { rutina: Rutina }) {
 
 function HomeAtleta({
   atleta,
-  rutinas,
+  routines,
   rutina,
   onSelect,
   onStart,
   progreso,
   onReset,
 }: {
-  atleta: Usuario;
-  rutinas: Rutina[];
-  rutina: Rutina;
+  atleta: User;
+  routines: Routine[];
+  rutina: Routine;
   onSelect: (id: string) => void;
   onStart: () => void;
   progreso: number;
@@ -2763,7 +2938,7 @@ function HomeAtleta({
         </div>
         <Avatar className="size-10 border border-violet-200/15">
           <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
-            {atleta.nombre.slice(0, 1)}
+            {atleta.name.slice(0, 1)}
           </AvatarFallback>
         </Avatar>
       </div>
@@ -2775,11 +2950,11 @@ function HomeAtleta({
               Tus rutinas
             </span>
             <span className="text-[10px] text-white/25">
-              {rutinas.length} planes
+              {routines.length} planes
             </span>
           </div>
           <SelectorRutina
-            rutinas={rutinas}
+            routines={routines}
             rutinaActiva={rutina}
             onSelect={onSelect}
             desktopVertical
@@ -2797,16 +2972,16 @@ function HomeAtleta({
           </div>
           <div className="mt-10 md:mt-12">
             <h2 className="text-3xl font-light tracking-[-0.04em] md:text-4xl">
-              {rutina.titulo}
+              {rutina.title}
             </h2>
             <p className="mt-2 text-xs text-indigo-100/40">
-              {rutina.objetivo}
+              {rutina.objective}
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {[
-                [Clock3, `${rutina.duracion} min`],
+                [Clock3, `${rutina.durationMinutes} min`],
                 [Zap, `${totalSeries(rutina)} series`],
-                [LayoutGrid, `${rutina.bloques.length} bloques`],
+                [LayoutGrid, `${rutina.blocks.length} bloques`],
               ].map(([Icon, value]) => {
                 const InfoIcon = Icon as typeof Clock3;
                 return (
@@ -2879,35 +3054,35 @@ function HomeAtleta({
 
 function HomeHoy({
   atleta,
-  rutinas,
-  entrenamientos,
+  routines,
+  workouts,
   onStart,
 }: {
-  atleta: Usuario;
-  rutinas: Rutina[];
-  entrenamientos: EntrenamientoProgramado[];
-  onStart: (item: EntrenamientoProgramado) => void;
+  atleta: User;
+  routines: Routine[];
+  workouts: ScheduledWorkout[];
+  onStart: (item: ScheduledWorkout) => void;
 }) {
-  const hoy = fechaLocal();
+  const hoy = localDate();
   const fechaLegible = new Intl.DateTimeFormat("es-AR", {
     weekday: "long",
     day: "numeric",
     month: "long",
   }).format(new Date(`${hoy}T12:00:00`));
-  const rutinasDeHoy = entrenamientos
+  const rutinasDeHoy = workouts
     .filter(
       (item) =>
-        item.fecha === hoy &&
-        item.origen === "rutina" &&
-        item.estado !== "omitido",
+        item.date === hoy &&
+        item.origin === "routine" &&
+        item.status !== "skipped",
     )
-    .sort((a, b) => (a.hora ?? "").localeCompare(b.hora ?? ""));
+    .sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12">
       <div className="mb-7 flex items-center justify-between">
         <div>
-          <div className="text-xs text-white/40">Hola, {atleta.nombre}</div>
+          <div className="text-xs text-white/40">Hola, {atleta.name}</div>
           <h1 className="mt-1 text-3xl font-light tracking-[-0.035em] md:text-4xl">
             Tu entrenamiento de hoy
           </h1>
@@ -2917,7 +3092,7 @@ function HomeHoy({
         </div>
         <Avatar className="size-11 border border-violet-200/15">
           <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
-            {atleta.nombre.slice(0, 1)}
+            {atleta.name.slice(0, 1)}
           </AvatarFallback>
         </Avatar>
       </div>
@@ -2925,13 +3100,13 @@ function HomeHoy({
       {rutinasDeHoy.length > 0 ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {rutinasDeHoy.map((entrenamiento) => {
-            const rutina = rutinas.find(
+            const rutina = routines.find(
               (item) =>
-                entrenamiento.origen === "rutina" &&
-                item.id === entrenamiento.rutinaId,
+                entrenamiento.origin === "routine" &&
+                item.id === entrenamiento.routineId,
             );
             if (!rutina) return null;
-            const completada = entrenamiento.estado === "completado";
+            const completed = entrenamiento.status === "completed";
 
             return (
               <Card
@@ -2943,21 +3118,21 @@ function HomeHoy({
                   <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 text-[10px] text-cyan-100/55">
-                        {entrenamiento.hora && (
+                        {entrenamiento.time && (
                           <>
                             <Clock3 className="size-3" />
-                            <span>{entrenamiento.hora}</span>
+                            <span>{entrenamiento.time}</span>
                           </>
                         )}
                       </div>
                       <h2 className="mt-4 text-2xl font-light tracking-[-0.03em]">
-                        {rutina.titulo}
+                        {rutina.title}
                       </h2>
                       <p className="mt-2 text-xs leading-relaxed text-white/35">
-                        {rutina.objetivo}
+                        {rutina.objective}
                       </p>
                     </div>
-                    {completada && (
+                    {completed && (
                       <Badge className="shrink-0 border-emerald-200/10 bg-emerald-300/10 text-[9px] text-emerald-200">
                         <CheckCircle2 />
                         Completada
@@ -2968,7 +3143,7 @@ function HomeHoy({
                   <div className="mt-5 flex flex-wrap gap-2">
                     <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-3 py-2 text-[10px] text-white/55">
                       <Clock3 className="size-3 text-cyan-200" />
-                      {entrenamiento.duracionMinutos} min
+                      {entrenamiento.durationMinutes} min
                     </div>
                     <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-3 py-2 text-[10px] text-white/55">
                       <Zap className="size-3 text-violet-200" />
@@ -2976,12 +3151,12 @@ function HomeHoy({
                     </div>
                   </div>
 
-                  {!completada && (
+                  {!completed && (
                     <Button
                       onClick={() => onStart(entrenamiento)}
                       className="mt-6 h-11 w-full rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 sm:w-auto sm:px-7"
                     >
-                      {entrenamiento.estado === "en-curso"
+                      {entrenamiento.status === "in-progress"
                         ? "Continuar rutina"
                         : "Comenzar rutina"}
                       <ArrowRight />
@@ -3006,7 +3181,7 @@ function HomeHoy({
               agenda.
             </p>
             <Link
-              href="/agenda"
+              href="/schedule"
               className="mt-5 inline-flex h-10 items-center gap-2 rounded-full bg-cyan-300 px-5 text-xs font-medium text-indigo-950 transition-colors hover:bg-cyan-200"
             >
               Ver agenda
@@ -3091,11 +3266,11 @@ function WorkoutMode({
   onExit,
   onFinish,
 }: {
-  rutina: Rutina;
+  rutina: Routine;
   sesionId: string;
-  registros: Record<string, RegistroSerie>;
+  registros: Record<string, TrainingSetRecord>;
   setRegistros: React.Dispatch<
-    React.SetStateAction<Record<string, RegistroSerie>>
+    React.SetStateAction<Record<string, TrainingSetRecord>>
   >;
   indiceActivo: number;
   setIndiceActivo: React.Dispatch<React.SetStateAction<number>>;
@@ -3104,7 +3279,7 @@ function WorkoutMode({
 }) {
   const pasos = pasosDeRutina(rutina, sesionId);
   const paso = pasos[indiceActivo];
-  const bloque = rutina.bloques[paso.bloqueIndex];
+  const bloque = rutina.blocks[paso.bloqueIndex];
   const proximo = pasos[indiceActivo + 1];
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -3115,24 +3290,25 @@ function WorkoutMode({
   const inicioPointer = useRef<number | null>(null);
   const distanciaPointer = useRef(0);
   const esBloqueBreve =
-    bloque.ejercicios.length > 1 &&
-    (bloque.tipo.includes("Preparación") ||
-      bloque.tipo.includes("Circuito") ||
-      /entrada|activación|movilidad/i.test(bloque.nombre));
+    bloque.exercises.length > 1 &&
+    (["preparation", "specific-preparation", "circuit-2-rounds"].includes(
+      bloque.type,
+    ) ||
+      /entrada|activación|movilidad/i.test(bloque.name));
 
-  const valorInicial: RegistroSerie = {
-    peso: paso.peso,
-    repeticiones: paso.repeticionesMin,
-    completada: false,
-    omitida: false,
+  const valorInicial: TrainingSetRecord = {
+    weight: paso.weight,
+    reps: paso.minReps,
+    completed: false,
+    skipped: false,
   };
-  const registro = registros[paso.pasoId] ?? valorInicial;
+  const registro = registros[paso.stepId] ?? valorInicial;
 
-  function actualizar(patch: Partial<RegistroSerie>) {
+  function actualizar(patch: Partial<TrainingSetRecord>) {
     setRegistros((actuales) => ({
       ...actuales,
-      [paso.pasoId]: {
-        ...(actuales[paso.pasoId] ?? valorInicial),
+      [paso.stepId]: {
+        ...(actuales[paso.stepId] ?? valorInicial),
         ...patch,
       },
     }));
@@ -3143,7 +3319,7 @@ function WorkoutMode({
     let siguiente = indiceActivo + 1;
     while (
       siguiente < pasos.length &&
-      registros[pasos[siguiente].pasoId]?.omitida
+      registros[pasos[siguiente].stepId]?.skipped
     ) {
       siguiente += 1;
     }
@@ -3160,21 +3336,21 @@ function WorkoutMode({
       if (index < indiceActivo) return false;
       if (alcance === "serie") return index === indiceActivo;
       if (alcance === "ejercicio") return item.id === paso.id;
-      return item.bloqueId === paso.bloqueId;
+      return item.blockId === paso.blockId;
     });
-    const idsOmitidos = new Set(objetivos.map((item) => item.pasoId));
+    const idsOmitidos = new Set(objetivos.map((item) => item.stepId));
 
     setRegistros((actuales) => {
       const siguientes = { ...actuales };
       objetivos.forEach((item) => {
-        const existente = actuales[item.pasoId];
-        siguientes[item.pasoId] = existente
-          ? { ...existente, completada: false, omitida: true }
+        const existente = actuales[item.stepId];
+        siguientes[item.stepId] = existente
+          ? { ...existente, completed: false, skipped: true }
           : {
-              peso: item.peso,
-              repeticiones: item.repeticionesMin,
-              completada: false,
-              omitida: true,
+              weight: item.weight,
+              reps: item.minReps,
+              completed: false,
+              skipped: true,
             };
       });
       return siguientes;
@@ -3183,8 +3359,8 @@ function WorkoutMode({
     let siguiente = indiceActivo + 1;
     while (
       siguiente < pasos.length &&
-      (idsOmitidos.has(pasos[siguiente].pasoId) ||
-        registros[pasos[siguiente].pasoId]?.omitida)
+      (idsOmitidos.has(pasos[siguiente].stepId) ||
+        registros[pasos[siguiente].stepId]?.skipped)
     ) {
       siguiente += 1;
     }
@@ -3205,26 +3381,26 @@ function WorkoutMode({
   function completarRondaResumida() {
     const objetivos = pasos.filter(
       (item) =>
-        item.bloqueId === paso.bloqueId && item.ronda === paso.ronda,
+        item.blockId === paso.blockId && item.round === paso.round,
     );
-    const ids = new Set(objetivos.map((item) => item.pasoId));
+    const ids = new Set(objetivos.map((item) => item.stepId));
 
     setRegistros((actuales) => {
       const siguientes = { ...actuales };
       objetivos.forEach((item) => {
-        siguientes[item.pasoId] = {
-          peso: actuales[item.pasoId]?.peso ?? item.peso,
-          repeticiones:
-            actuales[item.pasoId]?.repeticiones ?? item.repeticionesMin,
-          completada: true,
-          omitida: false,
+        siguientes[item.stepId] = {
+          weight: actuales[item.stepId]?.weight ?? item.weight,
+          reps:
+            actuales[item.stepId]?.reps ?? item.minReps,
+          completed: true,
+          skipped: false,
         };
       });
       return siguientes;
     });
 
     const ultimoIndice = pasos.reduce(
-      (ultimo, item, index) => (ids.has(item.pasoId) ? index : ultimo),
+      (ultimo, item, index) => (ids.has(item.stepId) ? index : ultimo),
       indiceActivo,
     );
     if (ultimoIndice >= pasos.length - 1) {
@@ -3264,7 +3440,7 @@ function WorkoutMode({
     setDragging(false);
 
     if (distancia < -80) {
-      if (registro.completada || registro.omitida) {
+      if (registro.completed || registro.skipped) {
         avanzar();
       } else {
         setMensaje("Primero completá la serie");
@@ -3299,13 +3475,13 @@ function WorkoutMode({
               Rutina en curso
             </div>
             <div className="mt-1 text-[10px] text-indigo-100/35">
-              Bloque {paso.bloqueIndex + 1} de {rutina.bloques.length}
+              Bloque {paso.bloqueIndex + 1} de {rutina.blocks.length}
             </div>
           </div>
           <div className="size-9" />
         </div>
         <Progress
-          value={(paso.bloqueIndex / rutina.bloques.length) * 100}
+          value={(paso.bloqueIndex / rutina.blocks.length) * 100}
           className="h-1 bg-indigo-300/10"
         />
       </div>
@@ -3350,10 +3526,10 @@ function WorkoutMode({
         <div className="mb-3 flex items-center justify-between">
           <div>
             <Badge className="border-violet-200/15 bg-violet-300/10 text-[9px] text-violet-100">
-              {paso.bloqueNombre}
+              {paso.blockName}
             </Badge>
             <span className="ml-2 text-[9px] text-indigo-100/30">
-              Ronda {paso.ronda}/{paso.rondas}
+              Ronda {paso.round}/{paso.rondas}
             </span>
           </div>
           <div
@@ -3364,7 +3540,7 @@ function WorkoutMode({
                 "hidden",
             )}
           >
-            {bloque.ejercicios.map((item, index) => (
+            {bloque.exercises.map((item, index) => (
               <span
                 key={item.id}
                 className={cn(
@@ -3391,7 +3567,7 @@ function WorkoutMode({
                     Toda la vuelta, de un vistazo
                   </h1>
                   <p className="mt-1 text-[10px] text-white/35">
-                    {bloque.ejercicios.length} ejercicios · vuelta {paso.ronda}{" "}
+                    {bloque.exercises.length} ejercicios · vuelta {paso.round}{" "}
                     de {paso.rondas}
                   </p>
                 </div>
@@ -3401,15 +3577,15 @@ function WorkoutMode({
               </div>
 
               <div className="mt-5 divide-y divide-white/[0.07] rounded-2xl border border-white/[0.07] bg-black/20 px-4">
-                {bloque.ejercicios.map((item, index) => {
+                {bloque.exercises.map((item, index) => {
                   const pasoDeRonda = pasos.find(
                     (candidato) =>
-                      candidato.bloqueId === paso.bloqueId &&
-                      candidato.ronda === paso.ronda &&
+                      candidato.blockId === paso.blockId &&
+                      candidato.round === paso.round &&
                       candidato.id === item.id,
                   );
                   const completado = pasoDeRonda
-                    ? registros[pasoDeRonda.pasoId]?.completada
+                    ? registros[pasoDeRonda.stepId]?.completed
                     : false;
 
                   return (
@@ -3429,16 +3605,16 @@ function WorkoutMode({
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-xs text-white/80">
-                          {item.nombre}
+                          {item.name}
                         </div>
-                        {item.aclaraciones && (
+                        {item.instructions && (
                           <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
-                            {item.aclaraciones}
+                            {item.instructions}
                           </div>
                         )}
                       </div>
                       <div className="shrink-0 text-[10px] tabular-nums text-white/40">
-                        {item.series}×{repeticionesObjetivo(item)}
+                        {item.sets}×{repeticionesObjetivo(item)}
                       </div>
                     </div>
                   );
@@ -3450,9 +3626,9 @@ function WorkoutMode({
                 className="mt-5 h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100"
               >
                 <Check />
-                {paso.ronda === paso.rondas
+                {paso.round === paso.rondas
                   ? "Completar calentamiento"
-                  : `Completar vuelta ${paso.ronda}`}
+                  : `Completar vuelta ${paso.round}`}
               </Button>
               <button
                 onClick={() => omitir("bloque")}
@@ -3473,7 +3649,7 @@ function WorkoutMode({
           )}
           <div
             role="group"
-            aria-label={`${paso.nombre}, ronda ${paso.ronda}`}
+            aria-label={`${paso.name}, ronda ${paso.round}`}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}
             onPointerUp={pointerUp}
@@ -3484,9 +3660,9 @@ function WorkoutMode({
             }}
             className={cn(
               "relative z-10 min-h-[425px] select-none overflow-hidden rounded-[2rem] border bg-[#101116] p-4 shadow-[0_30px_80px_rgba(0,0,0,.5)] md:p-5",
-              registro.completada
+              registro.completed
                 ? "border-cyan-300/30"
-                : registro.omitida
+                : registro.skipped
                   ? "border-orange-200/20"
                   : "border-violet-200/[0.12]",
               !dragging && "transition-transform duration-200",
@@ -3501,10 +3677,10 @@ function WorkoutMode({
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="text-[9px] uppercase tracking-[0.16em] text-indigo-100/30">
-                    Serie {paso.ronda} de {paso.series}
+                    Serie {paso.round} de {paso.sets}
                   </div>
                   <h1 className="mt-2 text-3xl font-light tracking-[-0.04em]">
-                    {paso.nombre}
+                    {paso.name}
                   </h1>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -3539,22 +3715,22 @@ function WorkoutMode({
                           {
                             alcance: "serie" as const,
                             icono: SkipForward,
-                            titulo: "Saltar esta serie",
-                            texto: `Omitir solo la serie ${paso.ronda} de ${paso.nombre}.`,
+                            title: "Saltar esta serie",
+                            texto: `Omitir solo la serie ${paso.round} de ${paso.name}.`,
                           },
                           {
                             alcance: "ejercicio" as const,
                             icono: Dumbbell,
-                            titulo: "Saltar ejercicio",
+                            title: "Saltar ejercicio",
                             texto:
                               "Útil si la máquina está ocupada. Omite sus series restantes.",
                           },
                           {
                             alcance: "bloque" as const,
                             icono: LayoutGrid,
-                            titulo: "Saltar bloque",
+                            title: "Saltar bloque",
                             texto:
-                              paso.bloqueIndex === rutina.bloques.length - 1
+                              paso.bloqueIndex === rutina.blocks.length - 1
                                 ? "Omitir lo restante y finalizar la rutina."
                                 : `Pasar directamente al bloque ${paso.bloqueIndex + 2}.`,
                           },
@@ -3573,7 +3749,7 @@ function WorkoutMode({
                             </div>
                             <div>
                               <div className="text-sm text-white">
-                                {opcion.titulo}
+                                {opcion.title}
                               </div>
                               <div className="mt-1 text-[10px] leading-relaxed text-white/35">
                                 {opcion.texto}
@@ -3587,16 +3763,16 @@ function WorkoutMode({
                   <div
                     className={cn(
                       "grid size-10 place-items-center rounded-full border",
-                      registro.completada
+                      registro.completed
                         ? "border-cyan-200/25 bg-cyan-300 text-indigo-950"
-                        : registro.omitida
+                        : registro.skipped
                           ? "border-orange-200/20 bg-orange-300/10 text-orange-200"
                           : "border-indigo-200/10 bg-indigo-300/[0.07] text-indigo-100/30",
                     )}
                   >
-                    {registro.completada ? (
+                    {registro.completed ? (
                       <Check />
-                    ) : registro.omitida ? (
+                    ) : registro.skipped ? (
                       <SkipForward />
                     ) : (
                       <Dumbbell />
@@ -3605,18 +3781,18 @@ function WorkoutMode({
                 </div>
               </div>
 
-              {paso.aclaraciones && (
+              {paso.instructions && (
                 <div className="mt-3 flex w-full flex-col rounded-xl border border-violet-300/15 bg-violet-300/[0.07] px-3 py-2">
                   <span className="text-[8px] uppercase tracking-[0.14em] text-violet-200/45">
                     Aclaraciones
                   </span>
                   <span className="mt-1 text-[11px] leading-relaxed text-violet-100/70">
-                    {paso.aclaraciones}
+                    {paso.instructions}
                   </span>
                 </div>
               )}
 
-              {paso.descanso !== null && (
+              {paso.restSeconds !== null && (
                 <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-300/15 bg-blue-400/[0.07] px-3 py-2">
                   <div className="flex items-center gap-2">
                     <div className="grid size-8 place-items-center rounded-full bg-blue-300/10 text-blue-200">
@@ -3632,7 +3808,7 @@ function WorkoutMode({
                     </div>
                   </div>
                   <div className="text-lg font-light tabular-nums text-blue-100">
-                    {paso.descanso}
+                    {paso.restSeconds}
                     <span className="ml-1 text-[10px] text-blue-100/40">s</span>
                   </div>
                 </div>
@@ -3644,15 +3820,15 @@ function WorkoutMode({
                 <CampoPrescripcion
                   label="Repeticiones"
                   hint={`Objetivo ${repeticionesObjetivo(paso)}`}
-                  value={registro.repeticiones}
-                  onChange={(repeticiones) => actualizar({ repeticiones })}
+                  value={registro.reps}
+                  onChange={(reps) => actualizar({ reps })}
                 />
                 <CampoPrescripcion
                   label="Peso"
                   hint="Kilogramos"
                   step={0.5}
-                  value={registro.peso}
-                  onChange={(peso) => actualizar({ peso })}
+                  value={registro.weight}
+                  onChange={(weight) => actualizar({ weight })}
                 />
               </div>
 
@@ -3662,18 +3838,18 @@ function WorkoutMode({
                 onClick={(event) => {
                   event.stopPropagation();
                   actualizar({
-                    completada: !registro.completada,
-                    omitida: false,
+                    completed: !registro.completed,
+                    skipped: false,
                   });
                 }}
                 className={cn(
                   "mt-auto h-12 w-full rounded-full",
-                  registro.completada
+                  registro.completed
                     ? "border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15"
                     : "bg-indigo-50 text-indigo-950 hover:bg-cyan-100",
                 )}
               >
-                {registro.completada ? (
+                {registro.completed ? (
                   <>
                     <RotateCcw />
                     Serie completada
@@ -3681,7 +3857,7 @@ function WorkoutMode({
                 ) : (
                   <>
                     <Check />
-                    {registro.omitida
+                    {registro.skipped
                       ? "Registrar esta serie"
                       : "Completar serie"}
                   </>
@@ -3717,7 +3893,7 @@ function WorkoutMode({
             Anterior
           </Button>
           <Button
-            disabled={!registro.completada && !registro.omitida}
+            disabled={!registro.completed && !registro.skipped}
             onClick={avanzar}
             className="h-11 flex-[1.5] rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 disabled:bg-indigo-300/10 disabled:text-indigo-100/25"
           >
@@ -3728,7 +3904,7 @@ function WorkoutMode({
 
         <div className="mt-2 flex items-center justify-end rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.04] p-3">
           <div className="max-w-40 truncate text-[10px] text-indigo-100/35">
-            Próximo: {proximo?.nombre ?? "Fin"}
+            Próximo: {proximo?.name ?? "Fin"}
           </div>
         </div>
           </>
@@ -3744,12 +3920,12 @@ function RutinaCompletada({
   setFeedback,
   onDone,
 }: {
-  atleta: Usuario;
+  atleta: User;
   feedback: string;
   setFeedback: (value: string) => void;
-  onDone: (esfuerzo: number) => void;
+  onDone: (effort: number) => void;
 }) {
-  const [esfuerzo, setEsfuerzo] = useState(4);
+  const [effort, setEsfuerzo] = useState(4);
   return (
     <div className="mx-auto grid min-h-[calc(100vh-4.5rem)] max-w-5xl place-items-center px-4 py-8 md:px-8 xl:px-10">
       <Card className="w-full border-violet-200/[0.12] bg-[#101116] text-center text-white shadow-[0_30px_90px_rgba(0,0,0,.5)]">
@@ -3758,9 +3934,9 @@ function RutinaCompletada({
           <div className="mx-auto grid size-16 place-items-center rounded-full bg-gradient-to-br from-cyan-300 to-violet-400 text-indigo-950">
             <Trophy className="size-6" />
           </div>
-          <h1 className="mt-5 text-3xl font-light">Rutina completada</h1>
+          <h1 className="mt-5 text-3xl font-light">          Rutina completada</h1>
           <p className="mt-2 text-xs text-indigo-100/40">
-            Excelente trabajo, {atleta.nombre}.
+            Excelente trabajo, {atleta.name}.
           </p>
           <div className="my-6 flex justify-center gap-2">
             {[1, 2, 3, 4, 5].map((value) => (
@@ -3770,13 +3946,13 @@ function RutinaCompletada({
                 aria-label={`Esfuerzo ${value} de 5`}
                 className={cn(
                   "grid size-10 place-items-center rounded-full border",
-                  value <= esfuerzo
+                  value <= effort
                     ? "border-orange-200/20 bg-orange-300/10 text-orange-300"
                     : "border-indigo-200/10 text-indigo-100/15",
                 )}
               >
                 <Flame
-                  className={cn("size-4", value <= esfuerzo && "fill-current")}
+                  className={cn("size-4", value <= effort && "fill-current")}
                 />
               </button>
             ))}
@@ -3790,7 +3966,7 @@ function RutinaCompletada({
             className="min-h-24 border-white/10 bg-black/30 text-white placeholder:text-white/25"
           />
           <Button
-            onClick={() => onDone(esfuerzo)}
+            onClick={() => onDone(effort)}
             className="mt-4 h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100"
           >
             Enviar y cerrar
@@ -3805,7 +3981,7 @@ function RutinaCompletada({
 
 function ExperienciaAtleta({
   atleta,
-  rutinas,
+  routines,
   rutina,
   entrenamientoInicial,
   onSelect,
@@ -3816,26 +3992,26 @@ function ExperienciaAtleta({
   registros,
   setRegistros,
 }: {
-  atleta: Usuario;
-  rutinas: Rutina[];
-  rutina: Rutina;
-  entrenamientoInicial?: EntrenamientoProgramado;
+  atleta: User;
+  routines: Routine[];
+  rutina: Routine;
+  entrenamientoInicial?: ScheduledWorkout;
   onSelect: (id: string) => void;
   onCreateEntrenamiento: (
-    item: NuevoEntrenamientoProgramado,
-  ) => EntrenamientoProgramado;
-  onUpdateEntrenamiento: (item: EntrenamientoProgramado) => void;
-  onCompleteRoutine: (datos: {
-    entrenamiento: EntrenamientoProgramado;
-    rutina: Rutina;
-    series: SerieActividad[];
-    esfuerzo: number;
+    item: NewScheduledWorkout,
+  ) => ScheduledWorkout;
+  onUpdateEntrenamiento: (item: ScheduledWorkout) => void;
+  onCompleteRoutine: (data: {
+    entrenamiento: ScheduledWorkout;
+    rutina: Routine;
+    sets: ActivitySet[];
+    effort: number;
     feedback: string;
   }) => void;
   onCloseScheduled: () => void;
-  registros: Record<string, RegistroSerie>;
+  registros: Record<string, TrainingSetRecord>;
   setRegistros: React.Dispatch<
-    React.SetStateAction<Record<string, RegistroSerie>>
+    React.SetStateAction<Record<string, TrainingSetRecord>>
   >;
 }) {
   const [pantalla, setPantalla] = useState<"home" | "workout" | "final">(
@@ -3844,11 +4020,11 @@ function ExperienciaAtleta({
   const [indiceActivo, setIndiceActivo] = useState(0);
   const [feedback, setFeedback] = useState("");
   const [entrenamiento, setEntrenamiento] = useState<
-    EntrenamientoProgramado | undefined
+    ScheduledWorkout | undefined
   >(entrenamientoInicial);
   const sesionId = entrenamiento?.id;
   const progreso = Object.entries(registros).filter(
-    ([key, value]) => sesionId && key.startsWith(`${sesionId}-`) && value.completada,
+    ([key, value]) => sesionId && key.startsWith(`${sesionId}-`) && value.completed,
   ).length;
 
   function reset() {
@@ -3865,7 +4041,7 @@ function ExperienciaAtleta({
 
   function iniciar() {
     if (entrenamiento) {
-      const enCurso = { ...entrenamiento, estado: "en-curso" as const };
+      const enCurso = { ...entrenamiento, status: "in-progress" as const };
       setEntrenamiento(enCurso);
       onUpdateEntrenamiento(enCurso);
       setPantalla("workout");
@@ -3873,17 +4049,17 @@ function ExperienciaAtleta({
     }
 
     const creado = onCreateEntrenamiento({
-      atletaId: atleta.id,
-      fecha: fechaLocal(),
-      hora: null,
-      duracionMinutos: rutina.duracion,
-      estado: "en-curso",
-      creadoPorId: atleta.id,
-      notas: "",
-      origen: "rutina",
-      rutinaId: rutina.id,
-      titulo: null,
-      categoria: null,
+      athleteId: atleta.id,
+      date: localDate(),
+      time: null,
+      durationMinutes: rutina.durationMinutes,
+      status: "in-progress",
+      createdById: atleta.id,
+      notes: "",
+      origin: "routine",
+      routineId: rutina.id,
+      title: null,
+      category: null,
     });
     setEntrenamiento(creado);
     setPantalla("workout");
@@ -3918,29 +4094,29 @@ function ExperienciaAtleta({
         atleta={atleta}
         feedback={feedback}
         setFeedback={setFeedback}
-        onDone={(esfuerzo) => {
+        onDone={(effort) => {
           if (entrenamiento) {
             const completado = {
               ...entrenamiento,
-              estado: "completado" as const,
+              status: "completed" as const,
             };
-            const series = pasosDeRutina(rutina, entrenamiento.id).flatMap(
-              (paso): SerieActividad[] => {
-                const registro = registros[paso.pasoId];
-                if (!registro || (!registro.completada && !registro.omitida)) {
+            const sets = pasosDeRutina(rutina, entrenamiento.id).flatMap(
+              (paso): ActivitySet[] => {
+                const registro = registros[paso.stepId];
+                if (!registro || (!registro.completed && !registro.skipped)) {
                   return [];
                 }
                 return [
                   {
-                    pasoId: paso.pasoId,
-                    ejercicioId: paso.id,
-                    ejercicioNombre: paso.nombre,
-                    bloqueId: paso.bloqueId,
-                    bloqueNombre: paso.bloqueNombre,
-                    ronda: paso.ronda,
-                    peso: registro.peso,
-                    repeticiones: registro.repeticiones,
-                    omitida: registro.omitida,
+                    stepId: paso.stepId,
+                    exerciseId: paso.id,
+                    exerciseName: paso.name,
+                    blockId: paso.blockId,
+                    blockName: paso.blockName,
+                    round: paso.round,
+                    weight: registro.weight,
+                    reps: registro.reps,
+                    skipped: registro.skipped,
                   },
                 ];
               },
@@ -3950,8 +4126,8 @@ function ExperienciaAtleta({
             onCompleteRoutine({
               entrenamiento: completado,
               rutina,
-              series,
-              esfuerzo,
+              sets,
+              effort,
               feedback: feedback.trim(),
             });
           }
@@ -3964,7 +4140,7 @@ function ExperienciaAtleta({
   return (
     <HomeAtleta
       atleta={atleta}
-      rutinas={rutinas}
+      routines={routines}
       rutina={rutina}
       onSelect={(id) => {
         onSelect(id);
@@ -3980,107 +4156,108 @@ function ExperienciaAtleta({
 
 export default function Home() {
   const pathname = usePathname();
-  const [usuarios, setUsuarios] = useState<Usuario[]>(usuariosIniciales);
-  const [rutinas, setRutinas] = useState<Rutina[]>(rutinasIniciales);
-  const [plantillas, setPlantillas] = useState<PlantillaRutina[]>([]);
-  const [entrenamientos, setEntrenamientos] = useState<
-    EntrenamientoProgramado[]
+  const [users, setUsuarios] = useState<User[]>(initialUsers);
+  const [routines, setRutinas] = useState<Routine[]>(initialRoutines);
+  const [templates, setPlantillas] = useState<RoutineTemplate[]>([]);
+  const [workouts, setEntrenamientos] = useState<
+    ScheduledWorkout[]
   >([]);
-  const [actividades, setActividades] = useState<ActividadRealizada[]>([]);
+  const [activities, setActividades] = useState<CompletedActivity[]>([]);
   const [entrenamientoActivoId, setEntrenamientoActivoId] = useState<
     string | null
   >(null);
-  const [rutinaId, setRutinaId] = useState(rutinasIniciales[0].id);
-  const [usuarioId, setUsuarioId] = useState<number | null>(null);
+  const [routineId, setRutinaId] = useState(initialRoutines[0].id);
+  const [userId, setUserId] = useState<number | null>(null);
   const [atletaSeleccionadoId, setAtletaSeleccionadoId] = useState(1);
   const [vistaPrevia, setVistaPrevia] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
   const [registros, setRegistros] = useState<
-    Record<string, RegistroSerie>
+    Record<string, TrainingSetRecord>
   >({});
-  const [hidratado, setHidratado] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const colaPersistenciaRef = useRef<Promise<void>>(Promise.resolve());
-  const datosRemotosAplicadosRef = useRef(false);
+  const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const remoteDataAppliedRef = useRef(false);
   const usuario =
-    usuarios.find((item) => item.id === usuarioId) ?? null;
-  const atletasDelCoach = usuarios.filter(
+    users.find((item) => item.id === userId) ?? null;
+  const atletasDelCoach = users.filter(
     (item) =>
-      item.rol === "atleta" && usuario?.atletaIds?.includes(item.id),
+      item.role === "athlete" && usuario?.athleteIds?.includes(item.id),
   );
   const atleta =
-    usuario?.rol === "atleta"
+    usuario?.role === "athlete"
       ? usuario
       : atletasDelCoach.find((item) => item.id === atletaSeleccionadoId) ??
         atletasDelCoach[0];
   const rutinasDelAtleta = atleta
-    ? rutinas.filter((item) => item.atletaId === atleta.id)
+    ? routines.filter((item) => item.athleteId === atleta.id)
     : [];
   const rutina =
-    rutinasDelAtleta.find((item) => item.id === rutinaId) ??
+    rutinasDelAtleta.find((item) => item.id === routineId) ??
     rutinasDelAtleta[0];
-  const entrenamientoActivo = entrenamientos.find(
+  const entrenamientoActivo = workouts.find(
     (item) => item.id === entrenamientoActivoId,
   );
   const rutinaDeEntrenamiento =
-    entrenamientoActivo?.origen === "rutina"
+    entrenamientoActivo?.origin === "routine"
       ? rutinasDelAtleta.find(
-          (item) => item.id === entrenamientoActivo.rutinaId,
+          (item) => item.id === entrenamientoActivo.routineId,
         ) ?? rutina
       : rutina;
   const atletaRutaId = Number(pathname.split("/").at(-1));
   const detalleAtleta =
-    pathname.startsWith("/entrenador/atletas/") &&
+    pathname.startsWith("/coach/athletes/") &&
     Number.isInteger(atletaRutaId);
-  const vistaEntrenador: VistaEntrenador =
-    pathname.startsWith("/entrenador/atletas")
+  const vistaEntrenador: CoachView =
+    pathname.startsWith("/coach/athletes")
       ? "atletas"
-      : pathname === "/entrenador/rutinas"
-        ? "rutinas"
+      : pathname === "/coach/routines"
+        ? "routines"
         : "resumen";
-  const vistaAtleta: VistaAtleta =
-    pathname === "/agenda"
+  const vistaAtleta: AthleteView =
+    pathname === "/schedule"
       ? "agenda"
-      : pathname === "/actividades"
-        ? "actividades"
-      : pathname === "/rutinas"
-        ? "rutinas"
+      : pathname === "/activities"
+        ? "activities"
+      : pathname === "/routines"
+        ? "routines"
         : "inicio";
 
   useEffect(() => {
-    let cancelado = false;
+    let cancelled = false;
     const frame = window.requestAnimationFrame(() => {
-      void hidratar();
+      void hydrate();
     });
-    const reintentarPendientes = () => {
-      void hidratar();
+    const retryPending = () => {
+      void hydrate();
     };
-    window.addEventListener("online", reintentarPendientes);
+    window.addEventListener("online", retryPending);
 
-    async function hidratar() {
-      let datosRemotosAplicados = false;
-      let usuariosDisponibles = usuariosIniciales;
-      let rutinasDisponibles = rutinasIniciales;
-      let plantillasDisponibles: PlantillaRutina[] = [];
-      let entrenamientosDisponibles: EntrenamientoProgramado[] = [];
-      let actividadesDisponibles: ActividadRealizada[] = [];
-      let usuariosPersistidos: Usuario[] = [];
-      let rutinasPersistidas: Rutina[] = [];
-      let plantillasPersistidas: PlantillaRutina[] = [];
-      let entrenamientosPersistidos: EntrenamientoProgramado[] = [];
-      let actividadesPersistidas: ActividadRealizada[] = [];
-      const usuariosGuardados = window.localStorage.getItem(usersStorageKey);
-      if (usuariosGuardados) {
+    async function hydrate() {
+      migrateLegacyStorage();
+      let remoteDataApplied = false;
+      let availableUsers = initialUsers;
+      let availableRoutines = initialRoutines;
+      let availableTemplates: RoutineTemplate[] = [];
+      let availableWorkouts: ScheduledWorkout[] = [];
+      let availableActivities: CompletedActivity[] = [];
+      let persistedUsers: User[] = [];
+      let persistedRoutines: Routine[] = [];
+      let persistedTemplates: RoutineTemplate[] = [];
+      let persistedWorkouts: ScheduledWorkout[] = [];
+      let persistedActivities: CompletedActivity[] = [];
+      const storedUsers = window.localStorage.getItem(usersStorageKey);
+      if (storedUsers) {
         try {
-          const persistidos = JSON.parse(usuariosGuardados) as Usuario[];
-          usuariosPersistidos = persistidos;
-          usuariosDisponibles = [
+          const persistidos = JSON.parse(storedUsers) as User[];
+          persistedUsers = persistidos;
+          availableUsers = [
             ...persistidos,
-            ...usuariosIniciales.filter(
-              (semilla) =>
+            ...initialUsers.filter(
+              (seed) =>
                 !persistidos.some(
                   (item) =>
-                    item.id === semilla.id || item.email === semilla.email,
+                    item.id === seed.id || item.email === seed.email,
                 ),
             ),
           ];
@@ -4091,75 +4268,75 @@ export default function Home() {
       const guardadas = window.localStorage.getItem(storageKey);
       if (guardadas) {
         try {
-          const persistidas = JSON.parse(guardadas) as (Rutina & {
+          const persistidas = JSON.parse(guardadas) as (Routine & {
             dia?: string;
           })[];
-          rutinasPersistidas = persistidas.map(normalizarRutina);
-          rutinasDisponibles = [
-            ...rutinasPersistidas,
-            ...rutinasIniciales.filter(
-              (semilla) =>
-                !persistidas.some((item) => item.id === semilla.id),
+          persistedRoutines = persistidas.map(normalizeRoutine);
+          availableRoutines = [
+            ...persistedRoutines,
+            ...initialRoutines.filter(
+              (seed) =>
+                !persistidas.some((item) => item.id === seed.id),
             ),
           ];
         } catch {
           window.localStorage.removeItem(storageKey);
         }
       }
-      const plantillasGuardadas = window.localStorage.getItem(templatesStorageKey);
-      if (plantillasGuardadas) {
+      const storedTemplates = window.localStorage.getItem(templatesStorageKey);
+      if (storedTemplates) {
         try {
-          const persistidas = JSON.parse(plantillasGuardadas) as (PlantillaRutina & {
+          const persistidas = JSON.parse(storedTemplates) as (RoutineTemplate & {
             dia?: string;
           })[];
-          plantillasPersistidas = persistidas.map(normalizarPlantilla);
-          plantillasDisponibles = plantillasPersistidas;
+          persistedTemplates = persistidas.map(normalizeTemplate);
+          availableTemplates = persistedTemplates;
         } catch {
           window.localStorage.removeItem(templatesStorageKey);
         }
       }
-      const agendaGuardada = window.localStorage.getItem(agendaStorageKey);
-      if (agendaGuardada) {
+      const storedSchedule = window.localStorage.getItem(agendaStorageKey);
+      if (storedSchedule) {
         try {
-          entrenamientosDisponibles = JSON.parse(
-            agendaGuardada,
-          ) as EntrenamientoProgramado[];
-          entrenamientosPersistidos = entrenamientosDisponibles;
+          availableWorkouts = JSON.parse(
+            storedSchedule,
+          ) as ScheduledWorkout[];
+          persistedWorkouts = availableWorkouts;
         } catch {
           window.localStorage.removeItem(agendaStorageKey);
         }
       }
-      const actividadesGuardadas = window.localStorage.getItem(
+      const storedActivities = window.localStorage.getItem(
         activitiesStorageKey,
       );
-      if (actividadesGuardadas) {
+      if (storedActivities) {
         try {
-          actividadesDisponibles = JSON.parse(
-            actividadesGuardadas,
-          ) as ActividadRealizada[];
-          actividadesPersistidas = actividadesDisponibles;
+          availableActivities = JSON.parse(
+            storedActivities,
+          ) as CompletedActivity[];
+          persistedActivities = availableActivities;
         } catch {
           window.localStorage.removeItem(activitiesStorageKey);
         }
       }
-      const datosLocales = {
-        usuarios: usuariosDisponibles,
-        rutinas: rutinasDisponibles,
-        plantillas: plantillasDisponibles,
-        entrenamientos: entrenamientosDisponibles,
-        actividades: actividadesDisponibles,
+      const localData = {
+        users: availableUsers,
+        routines: availableRoutines,
+        templates: availableTemplates,
+        workouts: availableWorkouts,
+        activities: availableActivities,
       };
-      const datosLocalesPersistidos = {
-        usuarios: usuariosPersistidos,
-        rutinas: rutinasPersistidas,
-        plantillas: plantillasPersistidas,
-        entrenamientos: entrenamientosPersistidos,
-        actividades: actividadesPersistidas,
+      const persistedLocalData = {
+        users: persistedUsers,
+        routines: persistedRoutines,
+        templates: persistedTemplates,
+        workouts: persistedWorkouts,
+        activities: persistedActivities,
       };
 
-      let datosFinales = supabaseConfigured
-        ? datosLocalesPersistidos
-        : datosLocales;
+      let finalData = supabaseConfigured
+        ? persistedLocalData
+        : localData;
       try {
         if (!supabaseConfigured) {
           throw new Error(
@@ -4167,88 +4344,88 @@ export default function Home() {
           );
         }
         await navigator.locks.request(supabaseMigrationLock, async () => {
-          const estadoMigracion = window.localStorage.getItem(
+          const migrationStatus = window.localStorage.getItem(
             supabaseMigrationStorageKey,
           );
-          if (estadoMigracion === "true") {
+          if (migrationStatus === "true") {
             window.localStorage.removeItem(
               supabaseMigrationSourceStorageKey,
             );
             return;
           }
 
-          let origen = leerOrigenMigracion();
-          if (!origen) {
-            origen = {
-              datosPersistidos: datosLocalesPersistidos,
-              datosConSemillas: datosLocales,
-              usarSemillas:
-                estadoMigracion === "seeds"
+          let origin = readMigrationSource();
+          if (!origin) {
+            origin = {
+              persistedData: persistedLocalData,
+              dataWithSeeds: localData,
+              useSeeds:
+                migrationStatus === "seeds"
                   ? true
-                  : estadoMigracion === "local"
+                  : migrationStatus === "local"
                     ? false
                     : null,
-              mutaciones: [],
-              usuarioId: null,
-              atletaId: null,
-              remapeoIniciado: false,
+              mutations: [],
+              userId: null,
+              athleteId: null,
+              remappingStarted: false,
             };
-            guardarOrigenMigracion(origen);
+            saveMigrationSource(origin);
           }
 
-          const datosRemotosActuales = await cargarDatosSupabase();
-          if (origen.usarSemillas === null) {
-            origen = {
-              ...origen,
-              usarSemillas: Object.values(datosRemotosActuales).every(
+          const currentRemoteData = await loadSupabaseData();
+          if (origin.useSeeds === null) {
+            origin = {
+              ...origin,
+              useSeeds: Object.values(currentRemoteData).every(
                 (items) => items.length === 0,
               ),
             };
-            guardarOrigenMigracion(origen);
+            saveMigrationSource(origin);
             window.localStorage.setItem(
               supabaseMigrationStorageKey,
-              origen.usarSemillas ? "seeds" : "local",
+              origin.useSeeds ? "seeds" : "local",
             );
           }
 
-          const mapeoUsuarios = await migrarDatosFaltantes(
-            origen.usarSemillas
-              ? origen.datosConSemillas
-              : origen.datosPersistidos,
+          const userMapping = await migrateMissingData(
+            origin.useSeeds
+              ? origin.dataWithSeeds
+              : origin.persistedData,
           );
           window.localStorage.setItem(
             supabaseUserMappingStorageKey,
-            JSON.stringify(mapeoUsuarios),
+            JSON.stringify(userMapping),
           );
-          if (!origen.remapeoIniciado) {
-            origen = {
-              ...origen,
-              mutaciones: leerMutacionesPendientes(),
-              usuarioId: window.localStorage.getItem(sessionStorageKey),
-              atletaId: window.localStorage.getItem(
+          if (!origin.remappingStarted) {
+            origin = {
+              ...origin,
+              mutations: readPendingMutations(),
+              userId: window.localStorage.getItem(sessionStorageKey),
+              athleteId: window.localStorage.getItem(
                 selectedAthleteStorageKey,
               ),
-              remapeoIniciado: true,
+              remappingStarted: true,
             };
-            guardarOrigenMigracion(origen);
+            saveMigrationSource(origin);
           }
           await navigator.locks.request(supabaseOutboxLock, () => {
-            guardarMutacionesPendientes(
-              origen.mutaciones.map((mutacion) =>
-                remapearMutacionSupabase(mutacion, mapeoUsuarios),
+            savePendingMutations(
+              origin.mutations.map((mutation) =>
+                remapSupabaseMutation(mutation, userMapping),
               ),
             );
           });
 
-          for (const [clave, idGuardado] of [
-            [sessionStorageKey, origen.usuarioId],
-            [selectedAthleteStorageKey, origen.atletaId],
+          for (const [key, storedId] of [
+            [sessionStorageKey, origin.userId],
+            [selectedAthleteStorageKey, origin.athleteId],
           ] as const) {
-            const idRemapeado = idGuardado
-              ? mapeoUsuarios[idGuardado]
+            const remappedId = storedId
+              ? userMapping[storedId]
               : undefined;
-            if (idRemapeado !== undefined) {
-              window.localStorage.setItem(clave, String(idRemapeado));
+            if (remappedId !== undefined) {
+              window.localStorage.setItem(key, String(remappedId));
             }
           }
           window.localStorage.setItem(supabaseMigrationStorageKey, "true");
@@ -4256,119 +4433,119 @@ export default function Home() {
             supabaseMigrationSourceStorageKey,
           );
         });
-        await ejecutarMutacionesPendientes();
-        const datosRemotos = await cargarDatosSupabase();
-        datosFinales = datosRemotos;
-        datosRemotosAplicados = true;
-        if (!cancelado) setSyncError(null);
+        await executePendingMutations();
+        const remoteData = await loadSupabaseData();
+        finalData = remoteData;
+        remoteDataApplied = true;
+        if (!cancelled) setSyncError(null);
       } catch (error) {
-        if (!cancelado) setSyncError(mensajeDeError(error));
+        if (!cancelled) setSyncError(errorMessage(error));
       }
 
-      if (cancelado) return;
-      setUsuarios(datosFinales.usuarios);
-      setRutinas(datosFinales.rutinas);
-      setPlantillas(datosFinales.plantillas);
-      setEntrenamientos(datosFinales.entrenamientos);
-      setActividades(datosFinales.actividades);
-      datosRemotosAplicadosRef.current = datosRemotosAplicados;
+      if (cancelled) return;
+      setUsuarios(finalData.users);
+      setRutinas(finalData.routines);
+      setPlantillas(finalData.templates);
+      setEntrenamientos(finalData.workouts);
+      setActividades(finalData.activities);
+      remoteDataAppliedRef.current = remoteDataApplied;
 
-      const usuarioGuardado = Number(
+      const storedUserId = Number(
         window.localStorage.getItem(sessionStorageKey),
       );
-      if (datosFinales.usuarios.some((item) => item.id === usuarioGuardado)) {
-        setUsuarioId(usuarioGuardado);
-        const usuarioInicial = datosFinales.usuarios.find(
-          (item) => item.id === usuarioGuardado,
+      if (finalData.users.some((item) => item.id === storedUserId)) {
+        setUserId(storedUserId);
+        const initialUser = finalData.users.find(
+          (item) => item.id === storedUserId,
         );
-        const atletaGuardado = Number(
+        const storedAthleteId = Number(
           window.localStorage.getItem(selectedAthleteStorageKey),
         );
         setAtletaSeleccionadoId(
-          usuarioInicial?.rol === "atleta"
-            ? usuarioInicial.id
-            : usuarioInicial?.atletaIds?.includes(atletaRutaId)
+          initialUser?.role === "athlete"
+            ? initialUser.id
+            : initialUser?.athleteIds?.includes(atletaRutaId)
               ? atletaRutaId
-              : usuarioInicial?.atletaIds?.includes(atletaGuardado)
-                ? atletaGuardado
-                : usuarioInicial?.atletaIds?.[0] ?? 1,
+              : initialUser?.athleteIds?.includes(storedAthleteId)
+                ? storedAthleteId
+                : initialUser?.athleteIds?.[0] ?? 1,
         );
       }
-      setHidratado(true);
+      setHydrated(true);
     }
 
     return () => {
-      cancelado = true;
+      cancelled = true;
       window.cancelAnimationFrame(frame);
-      window.removeEventListener("online", reintentarPendientes);
+      window.removeEventListener("online", retryPending);
     };
   }, [atletaRutaId]);
 
   useEffect(() => {
-    if (hidratado) {
-      window.localStorage.setItem(storageKey, JSON.stringify(rutinas));
-      window.localStorage.setItem(usersStorageKey, JSON.stringify(usuarios));
+    if (hydrated) {
+      window.localStorage.setItem(storageKey, JSON.stringify(routines));
+      window.localStorage.setItem(usersStorageKey, JSON.stringify(users));
       window.localStorage.setItem(
         templatesStorageKey,
-        JSON.stringify(plantillas),
+        JSON.stringify(templates),
       );
       window.localStorage.setItem(
         agendaStorageKey,
-        JSON.stringify(entrenamientos),
+        JSON.stringify(workouts),
       );
       window.localStorage.setItem(
         activitiesStorageKey,
-        JSON.stringify(actividades),
+        JSON.stringify(activities),
       );
     }
   }, [
-    rutinas,
-    usuarios,
-    plantillas,
-    entrenamientos,
-    actividades,
-    hidratado,
+    routines,
+    users,
+    templates,
+    workouts,
+    activities,
+    hydrated,
   ]);
 
-  function persistir(mutacionNueva: NuevaMutacionSupabase) {
-    const mutacion: MutacionSupabase = {
-      ...mutacionNueva,
+  function persist(newMutation: NewSupabaseMutation) {
+    const mutation: SupabaseMutation = {
+      ...newMutation,
       id: crypto.randomUUID(),
     };
-    const requiereRemapeo = !datosRemotosAplicadosRef.current;
-    const trabajo = colaPersistenciaRef.current.then(async () => {
-      await encolarMutacion(mutacion, requiereRemapeo);
-      await ejecutarMutacionesPendientes();
+    const requiresRemapping = !remoteDataAppliedRef.current;
+    const operation = persistenceQueueRef.current.then(async () => {
+      await enqueueMutation(mutation, requiresRemapping);
+      await executePendingMutations();
     });
-    colaPersistenciaRef.current = trabajo.catch(() => undefined);
-    void trabajo
+    persistenceQueueRef.current = operation.catch(() => undefined);
+    void operation
       .then(() => setSyncError(null))
-      .catch((error: unknown) => setSyncError(mensajeDeError(error)));
+      .catch((error: unknown) => setSyncError(errorMessage(error)));
   }
 
-  function guardarRutina(rutinaGuardada: Rutina) {
+  function guardarRutina(rutinaGuardada: Routine) {
     setRutinas((actuales) =>
       actuales.map((item) =>
         item.id === rutinaGuardada.id ? rutinaGuardada : item,
       ),
     );
-    persistir({ tipo: "guardar-rutinas", datos: [rutinaGuardada] });
+    persist({ type: "save-routines", data: [rutinaGuardada] });
   }
 
   function acceder(email: string) {
-    const usuarioEncontrado = usuarios.find(
+    const usuarioEncontrado = users.find(
       (item) => item.email === email.trim().toLowerCase(),
     );
     if (!usuarioEncontrado) return false;
 
-    const atletaId =
-      usuarioEncontrado.rol === "atleta"
+    const athleteId =
+      usuarioEncontrado.role === "athlete"
         ? usuarioEncontrado.id
-        : usuarioEncontrado.atletaIds?.[0] ?? 1;
-    const primeraRutina = rutinas.find((item) => item.atletaId === atletaId);
-    setUsuarioId(usuarioEncontrado.id);
-    setAtletaSeleccionadoId(atletaId);
-    setRutinaId(primeraRutina?.id ?? rutinasIniciales[0].id);
+        : usuarioEncontrado.athleteIds?.[0] ?? 1;
+    const primeraRutina = routines.find((item) => item.athleteId === athleteId);
+    setUserId(usuarioEncontrado.id);
+    setAtletaSeleccionadoId(athleteId);
+    setRutinaId(primeraRutina?.id ?? initialRoutines[0].id);
     setVistaPrevia(false);
     window.localStorage.setItem(
       sessionStorageKey,
@@ -4378,116 +4555,116 @@ export default function Home() {
   }
 
   function seleccionarAtleta(id: number) {
-    const primeraRutina = rutinas.find((item) => item.atletaId === id);
+    const primeraRutina = routines.find((item) => item.athleteId === id);
     setAtletaSeleccionadoId(id);
     window.localStorage.setItem(selectedAthleteStorageKey, String(id));
     if (primeraRutina) setRutinaId(primeraRutina.id);
     setRegistros({});
   }
 
-  function crearRutina(rutinaNueva: Rutina) {
+  function crearRutina(rutinaNueva: Routine) {
     setRutinas((actuales) => [...actuales, rutinaNueva]);
     setRutinaId(rutinaNueva.id);
-    persistir({ tipo: "guardar-rutinas", datos: [rutinaNueva] });
+    persist({ type: "save-routines", data: [rutinaNueva] });
   }
 
   function crearEntrenamiento(
-    item: NuevoEntrenamientoProgramado,
-  ): EntrenamientoProgramado {
+    item: NewScheduledWorkout,
+  ): ScheduledWorkout {
     const ahora = new Date().toISOString();
-    const creado: EntrenamientoProgramado = {
+    const creado: ScheduledWorkout = {
       ...item,
-      id: crearIdEntrenamiento(),
-      creadoEn: ahora,
-      actualizadoEn: ahora,
+      id: createWorkoutId(),
+      createdAt: ahora,
+      updatedAt: ahora,
     };
     setEntrenamientos((actuales) => [...actuales, creado]);
-    persistir({ tipo: "guardar-entrenamientos", datos: [creado] });
+    persist({ type: "save-workouts", data: [creado] });
     return creado;
   }
 
-  function actualizarEntrenamiento(item: EntrenamientoProgramado) {
+  function actualizarEntrenamiento(item: ScheduledWorkout) {
     const actualizado = {
       ...item,
-      actualizadoEn: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     setEntrenamientos((actuales) =>
       actuales.map((actual) =>
         actual.id === item.id ? actualizado : actual,
       ),
     );
-    persistir({ tipo: "guardar-entrenamientos", datos: [actualizado] });
-    if (item.origen === "externo" && item.estado === "completado") {
-      const actividad: ActividadRealizada = {
-        id: idActividad(item.id),
-        atletaId: item.atletaId,
-        entrenamientoProgramadoId: item.id,
-        tipo: "externa",
-        titulo: item.titulo,
-        categoria: item.categoria,
-        rutinaId: null,
-        rutinaSnapshot: null,
-        fecha: item.fecha,
-        completadaEn: new Date().toISOString(),
-        duracionMinutos: item.duracionMinutos,
-        esfuerzo: null,
+    persist({ type: "save-workouts", data: [actualizado] });
+    if (item.origin === "external" && item.status === "completed") {
+      const actividad: CompletedActivity = {
+        id: activityId(item.id),
+        athleteId: item.athleteId,
+        scheduledWorkoutId: item.id,
+        type: "external",
+        title: item.title,
+        category: item.category,
+        routineId: null,
+        routineSnapshot: null,
+        date: item.date,
+        completedAt: new Date().toISOString(),
+        durationMinutes: item.durationMinutes,
+        effort: null,
         feedback: "",
-        notas: item.notas,
-        series: [],
-        registradaPorId: usuario?.id ?? item.atletaId,
+        notes: item.notes,
+        sets: [],
+        recordedById: usuario?.id ?? item.athleteId,
       };
       setActividades((actuales) =>
         actuales.some(
           (actual) =>
-            actual.entrenamientoProgramadoId === item.id,
+            actual.scheduledWorkoutId === item.id,
         )
           ? actuales
           : [...actuales, actividad],
       );
-      persistir({ tipo: "guardar-actividad", datos: actividad });
+      persist({ type: "save-activity", data: actividad });
     }
   }
 
   function registrarActividadRutina({
     entrenamiento,
     rutina: rutinaCompletada,
-    series,
-    esfuerzo,
+    sets,
+    effort,
     feedback,
   }: {
-    entrenamiento: EntrenamientoProgramado;
-    rutina: Rutina;
-    series: SerieActividad[];
-    esfuerzo: number;
+    entrenamiento: ScheduledWorkout;
+    rutina: Routine;
+    sets: ActivitySet[];
+    effort: number;
     feedback: string;
   }) {
-    const actividad: ActividadRealizada = {
-      id: idActividad(entrenamiento.id),
-      atletaId: entrenamiento.atletaId,
-      entrenamientoProgramadoId: entrenamiento.id,
-      tipo: "rutina",
-      titulo: rutinaCompletada.titulo,
-      categoria: null,
-      rutinaId: rutinaCompletada.id,
-      rutinaSnapshot: snapshotRutina(rutinaCompletada),
-      fecha: entrenamiento.fecha,
-      completadaEn: new Date().toISOString(),
-      duracionMinutos: entrenamiento.duracionMinutos,
-      esfuerzo,
+    const actividad: CompletedActivity = {
+      id: activityId(entrenamiento.id),
+      athleteId: entrenamiento.athleteId,
+      scheduledWorkoutId: entrenamiento.id,
+      type: "routine",
+      title: rutinaCompletada.title,
+      category: null,
+      routineId: rutinaCompletada.id,
+      routineSnapshot: snapshotRoutine(rutinaCompletada),
+      date: entrenamiento.date,
+      completedAt: new Date().toISOString(),
+      durationMinutes: entrenamiento.durationMinutes,
+      effort,
       feedback,
-      notas: entrenamiento.notas,
-      series,
-      registradaPorId: usuario?.id ?? entrenamiento.atletaId,
+      notes: entrenamiento.notes,
+      sets,
+      recordedById: usuario?.id ?? entrenamiento.athleteId,
     };
     setActividades((actuales) =>
       actuales.some(
         (actual) =>
-          actual.entrenamientoProgramadoId === entrenamiento.id,
+          actual.scheduledWorkoutId === entrenamiento.id,
       )
         ? actuales
         : [...actuales, actividad],
     );
-    persistir({ tipo: "guardar-actividad", datos: actividad });
+    persist({ type: "save-activity", data: actividad });
   }
 
   function eliminarEntrenamiento(id: string) {
@@ -4502,37 +4679,37 @@ export default function Home() {
       ),
     );
     if (entrenamientoActivoId === id) setEntrenamientoActivoId(null);
-    persistir({ tipo: "eliminar-entrenamiento", entidadId: id });
+    persist({ type: "delete-workout", entityId: id });
   }
 
-  function comenzarEntrenamiento(item: EntrenamientoProgramado) {
-    if (item.origen !== "rutina") return;
-    setRutinaId(item.rutinaId);
-    actualizarEntrenamiento({ ...item, estado: "en-curso" });
+  function comenzarEntrenamiento(item: ScheduledWorkout) {
+    if (item.origin !== "routine") return;
+    setRutinaId(item.routineId);
+    actualizarEntrenamiento({ ...item, status: "in-progress" });
     setEntrenamientoActivoId(item.id);
   }
 
-  function guardarComoPlantilla(rutina: Rutina) {
-    if (!usuario || usuario.rol !== "entrenador") return;
+  function guardarComoPlantilla(rutina: Routine) {
+    if (!usuario || usuario.role !== "coach") return;
     const id = idPlantilla(usuario.id);
     const plantilla = {
       ...rutina,
       id,
-      entrenadorId: usuario.id,
+      coachId: usuario.id,
     };
     setPlantillas((actuales) => [...actuales, plantilla]);
-    persistir({ tipo: "guardar-plantillas", datos: [plantilla] });
+    persist({ type: "save-templates", data: [plantilla] });
   }
 
-  function asignarPlantilla(plantillaId: string, atletaId: number) {
-    const plantilla = plantillas.find(
-      (item) => item.id === plantillaId && item.entrenadorId === usuario?.id,
+  function asignarPlantilla(plantillaId: string, athleteId: number) {
+    const plantilla = templates.find(
+      (item) => item.id === plantillaId && item.coachId === usuario?.id,
     );
     if (!plantilla) return;
-    const rutinaNueva = rutinaDesdePlantilla(plantilla, atletaId);
+    const rutinaNueva = rutinaDesdePlantilla(plantilla, athleteId);
     setRutinas((actuales) => [...actuales, rutinaNueva]);
-    persistir({ tipo: "guardar-rutinas", datos: [rutinaNueva] });
-    seleccionarAtleta(atletaId);
+    persist({ type: "save-routines", data: [rutinaNueva] });
+    seleccionarAtleta(athleteId);
     setRutinaId(rutinaNueva.id);
     setRegistros({});
   }
@@ -4541,56 +4718,56 @@ export default function Home() {
     setPlantillas((actuales) =>
       actuales.filter(
         (plantilla) =>
-          plantilla.id !== plantillaId || plantilla.entrenadorId !== usuario?.id,
+          plantilla.id !== plantillaId || plantilla.coachId !== usuario?.id,
       ),
     );
-    persistir({ tipo: "eliminar-plantilla", entidadId: plantillaId });
+    persist({ type: "delete-template", entityId: plantillaId });
   }
 
-  async function crearAtleta(nombre: string, email: string) {
-    if (!usuario || usuario.rol !== "entrenador") {
+  async function crearAtleta(name: string, email: string) {
+    if (!usuario || usuario.role !== "coach") {
       return "Solo un entrenador puede agregar atletas.";
     }
     if (!supabaseConfigured) {
       return "La base de datos no está configurada.";
     }
-    const rutinaBase: Omit<Rutina, "atletaId"> = {
+    const rutinaBase: Omit<Routine, "athleteId"> = {
       id: `rutina-${crypto.randomUUID()}`,
-      titulo: "Nueva rutina",
-      objetivo: "Entrenamiento personalizado",
-      duracion: 60,
-      bloques: [
+      title: "Nueva rutina",
+      objective: "Entrenamiento personalizado",
+      durationMinutes: 60,
+      blocks: [
         {
           id: `bloque-${crypto.randomUUID()}`,
-          nombre: "Bloque 1",
-          tipo: "Personalizado",
-          ejercicios: [],
+          name: "Bloque 1",
+          type: "custom",
+          exercises: [],
         },
       ],
     };
 
     let id: number;
     try {
-      id = await crearAtletaConRutina({
-        entrenadorId: usuario.id,
-        nombre,
+      id = await createAthleteWithRoutine({
+        coachId: usuario.id,
+        name,
         email,
-        rutina: rutinaBase,
+        routine: rutinaBase,
       });
     } catch (error) {
-      const mensaje = mensajeDeError(error);
+      const mensaje = errorMessage(error);
       setSyncError(mensaje);
       return mensaje;
     }
 
-    const nuevoAtleta: Usuario = { id, nombre, email, rol: "atleta" };
-    const rutinaInicial: Rutina = { ...rutinaBase, atletaId: id };
+    const nuevoAtleta: User = { id, name, email, role: "athlete" };
+    const rutinaInicial: Routine = { ...rutinaBase, athleteId: id };
     setUsuarios((actuales) => [
       ...actuales.map((item) =>
         item.id === usuario.id
           ? {
               ...item,
-              atletaIds: [...new Set([...(item.atletaIds ?? []), id])],
+              athleteIds: [...new Set([...(item.athleteIds ?? []), id])],
             }
           : item,
       ),
@@ -4607,13 +4784,13 @@ export default function Home() {
   function eliminarRutina(id: string) {
     const restantes = rutinasDelAtleta.filter((item) => item.id !== id);
     if (restantes.length === 0) return;
-    const idsDeEntrenamientos = entrenamientos
-      .filter((item) => item.origen === "rutina" && item.rutinaId === id)
+    const idsDeEntrenamientos = workouts
+      .filter((item) => item.origin === "routine" && item.routineId === id)
       .map((item) => item.id);
     setRutinas((actuales) => actuales.filter((item) => item.id !== id));
     setEntrenamientos((actuales) =>
       actuales.filter(
-        (item) => item.origen !== "rutina" || item.rutinaId !== id,
+        (item) => item.origin !== "routine" || item.routineId !== id,
       ),
     );
     setRutinaId(restantes[0].id);
@@ -4627,12 +4804,12 @@ export default function Home() {
         ),
       ),
     );
-    persistir({ tipo: "eliminar-rutina", entidadId: id });
+    persist({ type: "delete-routine", entityId: id });
   }
 
   function salir() {
     window.localStorage.removeItem(sessionStorageKey);
-    setUsuarioId(null);
+    setUserId(null);
     setVistaPrevia(false);
     setRegistros({});
     setEntrenamientoActivoId(null);
@@ -4650,7 +4827,7 @@ export default function Home() {
     salir();
   }
 
-  if (!hidratado) {
+  if (!hydrated) {
     return <div className="min-h-screen bg-[#07080b]" />;
   }
 
@@ -4662,7 +4839,7 @@ export default function Home() {
     return <LandingAcceso onAccess={acceder} />;
   }
 
-  const mostrandoAtleta = usuario.rol === "atleta" || vistaPrevia;
+  const mostrandoAtleta = usuario.role === "athlete" || vistaPrevia;
 
   return (
     <AppShell
@@ -4678,21 +4855,21 @@ export default function Home() {
         <HomeEntrenador
           key={`${atleta.id}-${rutina.id}`}
           entrenador={usuario}
-          usuarios={usuarios}
+          users={users}
           atletas={atletasDelCoach}
           atleta={atleta}
-          rutinas={rutinasDelAtleta}
-          rutinasPorAtleta={rutinas.filter((item) =>
-            atletasDelCoach.some((atletaActual) => atletaActual.id === item.atletaId),
+          routines={rutinasDelAtleta}
+          rutinasPorAtleta={routines.filter((item) =>
+            atletasDelCoach.some((atletaActual) => atletaActual.id === item.athleteId),
           )}
-          entrenamientos={entrenamientos.filter(
-            (item) => item.atletaId === atleta.id,
+          workouts={workouts.filter(
+            (item) => item.athleteId === atleta.id,
           )}
-          actividades={actividades.filter(
-            (item) => item.atletaId === atleta.id,
+          activities={activities.filter(
+            (item) => item.athleteId === atleta.id,
           )}
-          plantillas={plantillas.filter(
-            (plantilla) => plantilla.entrenadorId === usuario.id,
+          templates={templates.filter(
+            (plantilla) => plantilla.coachId === usuario.id,
           )}
           vista={vistaEntrenador}
           detalleAtleta={detalleAtleta}
@@ -4713,40 +4890,40 @@ export default function Home() {
           verComoAtleta={() => setVistaPrevia(true)}
         />
       ) : vistaAtleta === "agenda" && !entrenamientoActivo ? (
-        <AgendaDeportiva
+        <SportsSchedule
           atleta={atleta}
           usuarioActual={usuario}
-          rutinas={rutinasDelAtleta}
-          entrenamientos={entrenamientos.filter(
-            (item) => item.atletaId === atleta.id,
+          routines={rutinasDelAtleta}
+          workouts={workouts.filter(
+            (item) => item.athleteId === atleta.id,
           )}
-          modoCoach={usuario.rol === "entrenador"}
+          modoCoach={usuario.role === "coach"}
           onCreate={crearEntrenamiento}
           onUpdate={actualizarEntrenamiento}
           onDelete={eliminarEntrenamiento}
           onStart={comenzarEntrenamiento}
         />
-      ) : vistaAtleta === "actividades" && !entrenamientoActivo ? (
-        <HistorialActividades
+      ) : vistaAtleta === "activities" && !entrenamientoActivo ? (
+        <ActivityHistory
           atleta={atleta}
-          actividades={actividades.filter(
-            (item) => item.atletaId === atleta.id,
+          activities={activities.filter(
+            (item) => item.athleteId === atleta.id,
           )}
         />
       ) : vistaAtleta === "inicio" && !entrenamientoActivo ? (
         <HomeHoy
           atleta={atleta}
-          rutinas={rutinasDelAtleta}
-          entrenamientos={entrenamientos.filter(
-            (item) => item.atletaId === atleta.id,
+          routines={rutinasDelAtleta}
+          workouts={workouts.filter(
+            (item) => item.athleteId === atleta.id,
           )}
           onStart={comenzarEntrenamiento}
         />
       ) : (
         <ExperienciaAtleta
-          key={`${rutinaDeEntrenamiento.id}-${entrenamientoActivo?.id ?? "rutinas"}`}
+          key={`${rutinaDeEntrenamiento.id}-${entrenamientoActivo?.id ?? "routines"}`}
           atleta={atleta}
-          rutinas={rutinasDelAtleta}
+          routines={rutinasDelAtleta}
           rutina={rutinaDeEntrenamiento}
           entrenamientoInicial={entrenamientoActivo}
           onSelect={setRutinaId}

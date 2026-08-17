@@ -126,6 +126,11 @@ Los campos de relación (`athleteId`, `routineId`, `createdById`) se convierten 
 foreign keys y las estructuras de bloques se guardan como `jsonb`. Los timestamps
 de creación y actualización forman parte del contrato de agenda.
 
+Los estados persistidos son `scheduled`, `in-progress`, `completed` y
+`skipped`. Los orígenes son `routine` y `external`; las categorías externas son
+`running`, `swimming`, `cycling`, `sport`, `mobility` y `other`. La UI traduce
+estos códigos al español.
+
 La primera carga inserta únicamente los identificadores locales que no existen
 en Supabase y luego usa la base remota como fuente. Las mutaciones posteriores
 se persisten individualmente para evitar que una caché desactualizada sobrescriba
