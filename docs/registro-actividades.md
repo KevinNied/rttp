@@ -41,27 +41,28 @@ Al marcar una actividad externa como realizada se registra:
 - usuario que la marcó como realizada;
 - fecha y hora de finalización.
 
-## Persistencia local
+## Persistencia
 
-Durante el prototipo las actividades se guardan en `rttp-actividades-v1`.
-La interfaz evita duplicados usando el identificador del entrenamiento
-programado como clave de idempotencia.
+Supabase es la fuente principal y `rttp-actividades-v1` funciona como caché local
+y origen de la migración inicial. La interfaz y la base evitan duplicados usando
+el identificador del entrenamiento programado como clave de idempotencia.
 
-## Migración a Supabase
+## Modelo en Supabase
 
-El contrato actual puede separarse en:
+El contrato se separa en:
 
 - `workout_activities`: cabecera de cada actividad;
 - `workout_activity_sets`: detalle de series realizadas;
-- `routine_snapshots`: snapshot JSON de la rutina o columna `jsonb`;
+- `routine_snapshot`: snapshot de la rutina en una columna `jsonb`;
 - relación opcional con `scheduled_workouts`;
 - relación obligatoria con el perfil del atleta.
 
-La escritura de una sesión con rutina debe ejecutarse en una transacción o
-función RPC para crear la actividad y sus series de forma atómica. La
-restricción única sobre `scheduled_workout_id` mantendrá la idempotencia.
+La función RPC `save_workout_activity` crea la actividad y sus series de forma
+atómica. La restricción única sobre `scheduled_workout_id` mantiene la
+idempotencia.
 
-Row Level Security debe permitir:
+Mientras no existe autenticación, las políticas permiten acceso anónimo de forma
+temporal. Al incorporar Supabase Auth, Row Level Security deberá:
 
 - al atleta leer y crear sus propias actividades;
 - al coach leer actividades de atletas que tenga asignados;

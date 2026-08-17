@@ -106,6 +106,18 @@ import {
   rutinasIniciales,
   usuariosIniciales,
 } from "@/lib/rttp-data";
+import {
+  cargarDatosSupabase,
+  crearAtletaConRutina,
+  DatosPersistidos,
+  ejecutarMutacionSupabase,
+  MapeoUsuarios,
+  migrarDatosFaltantes,
+  MutacionSupabase,
+  NuevaMutacionSupabase,
+  remapearMutacionSupabase,
+} from "@/lib/rttp-supabase";
+import { supabaseConfigured } from "@/lib/supabase";
 
 type RegistroSerie = {
   peso: number;
@@ -121,9 +133,26 @@ const usersStorageKey = "rttp-usuarios-v1";
 const selectedAthleteStorageKey = "rttp-atleta-seleccionado-v1";
 const agendaStorageKey = "rttp-agenda-v1";
 const activitiesStorageKey = "rttp-actividades-v1";
+const supabaseMigrationStorageKey = "rttp-supabase-migrado-v1";
+const supabaseMigrationSourceStorageKey =
+  "rttp-supabase-origen-migracion-v1";
+const supabaseUserMappingStorageKey = "rttp-supabase-mapeo-usuarios-v1";
+const supabaseOutboxStorageKey = "rttp-supabase-pendientes-v1";
+const supabaseMigrationLock = "rttp-supabase-migration";
+const supabaseOutboxLock = "rttp-supabase-outbox";
 
 type PlantillaRutina = Omit<Rutina, "atletaId"> & {
   entrenadorId: number;
+};
+
+type OrigenMigracion = {
+  datosPersistidos: DatosPersistidos;
+  datosConSemillas: DatosPersistidos;
+  usarSemillas: boolean | null;
+  mutaciones: MutacionSupabase[];
+  usuarioId: string | null;
+  atletaId: string | null;
+  remapeoIniciado: boolean;
 };
 
 type VistaEntrenador = "resumen" | "atletas" | "rutinas";
@@ -216,6 +245,117 @@ function snapshotRutina(rutina: Rutina): Rutina {
       ejercicios: bloque.ejercicios.map((ejercicio) => ({ ...ejercicio })),
     })),
   };
+}
+
+function mensajeDeError(error: unknown) {
+  return error instanceof Error
+    ? error.message
+    : "Ocurrió un error inesperado al sincronizar los datos.";
+}
+
+function leerMutacionesPendientes() {
+  const guardadas = window.localStorage.getItem(supabaseOutboxStorageKey);
+  if (!guardadas) return [];
+  try {
+    return JSON.parse(guardadas) as MutacionSupabase[];
+  } catch {
+    window.localStorage.removeItem(supabaseOutboxStorageKey);
+    throw new Error(
+      "La cola local de sincronización estaba dañada y debió reiniciarse.",
+    );
+  }
+}
+
+function guardarMutacionesPendientes(mutaciones: MutacionSupabase[]) {
+  if (mutaciones.length === 0) {
+    window.localStorage.removeItem(supabaseOutboxStorageKey);
+    return;
+  }
+  window.localStorage.setItem(
+    supabaseOutboxStorageKey,
+    JSON.stringify(mutaciones),
+  );
+}
+
+function leerOrigenMigracion() {
+  const guardado = window.localStorage.getItem(
+    supabaseMigrationSourceStorageKey,
+  );
+  if (!guardado) return null;
+  try {
+    return JSON.parse(guardado) as OrigenMigracion;
+  } catch {
+    throw new Error(
+      "El respaldo local para migrar a Supabase está dañado.",
+    );
+  }
+}
+
+function guardarOrigenMigracion(origen: OrigenMigracion) {
+  window.localStorage.setItem(
+    supabaseMigrationSourceStorageKey,
+    JSON.stringify(origen),
+  );
+}
+
+function leerMapeoUsuarios() {
+  const guardado = window.localStorage.getItem(
+    supabaseUserMappingStorageKey,
+  );
+  if (!guardado) return {};
+  try {
+    return JSON.parse(guardado) as MapeoUsuarios;
+  } catch {
+    throw new Error("El mapeo local de perfiles está dañado.");
+  }
+}
+
+async function encolarMutacion(
+  mutacion: MutacionSupabase,
+  requiereRemapeo: boolean,
+) {
+  await navigator.locks.request(supabaseMigrationLock, async () => {
+    await navigator.locks.request(supabaseOutboxLock, () => {
+      const mutacionFinal =
+        requiereRemapeo &&
+        window.localStorage.getItem(supabaseMigrationStorageKey) === "true"
+          ? remapearMutacionSupabase(mutacion, leerMapeoUsuarios())
+          : mutacion;
+      guardarMutacionesPendientes([
+        ...leerMutacionesPendientes(),
+        mutacionFinal,
+      ]);
+    });
+  });
+}
+
+async function ejecutarMutacionesPendientes() {
+  await navigator.locks.request(supabaseMigrationLock, async () => {
+    await navigator.locks.request(supabaseOutboxLock, async () => {
+      if (!supabaseConfigured) {
+        throw new Error(
+          "Supabase no está configurado. Los cambios se mantienen solo en este navegador.",
+        );
+      }
+      if (
+        window.localStorage.getItem(supabaseMigrationStorageKey) !== "true"
+      ) {
+        throw new Error(
+          "La migración inicial está pendiente. Los cambios se sincronizarán al recuperar la conexión.",
+        );
+      }
+      while (true) {
+        const mutacion = leerMutacionesPendientes()[0];
+        if (!mutacion) return;
+        await ejecutarMutacionSupabase(mutacion);
+        guardarMutacionesPendientes(
+          leerMutacionesPendientes().filter(
+            (pendiente) => pendiente.id !== mutacion.id,
+          ),
+        );
+      }
+    });
+  });
 }
 
 function rutinaDesdePlantilla(
@@ -377,6 +517,7 @@ function AppShell({
   vistaPrevia,
   vistaEntrenador,
   vistaAtleta,
+  syncError,
   onClosePreview,
   onLogout,
   children,
@@ -385,6 +526,7 @@ function AppShell({
   vistaPrevia: boolean;
   vistaEntrenador: VistaEntrenador;
   vistaAtleta: VistaAtleta;
+  syncError: string | null;
   onClosePreview: () => void;
   onLogout: () => void;
   children: React.ReactNode;
@@ -591,6 +733,16 @@ function AppShell({
           !vistaPrevia && "lg:pl-64",
         )}
       >
+        {syncError && (
+          <div
+            role="alert"
+            className="relative z-20 mx-auto max-w-[1600px] px-4 pt-4 sm:px-6"
+          >
+            <p className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs text-amber-100">
+              No pudimos sincronizar con la base de datos. {syncError}
+            </p>
+          </div>
+        )}
         {children}
       </main>
     </div>
@@ -1574,14 +1726,16 @@ function DialogoNuevoAtleta({
   onCreate,
 }: {
   usuarios: Usuario[];
-  onCreate: (nombre: string, email: string) => void;
+  onCreate: (nombre: string, email: string) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [creando, setCreando] = useState(false);
 
   function cambiarApertura(siguiente: boolean) {
+    if (!siguiente && creando) return;
     setOpen(siguiente);
     if (siguiente) return;
     setNombre("");
@@ -1589,7 +1743,7 @@ function DialogoNuevoAtleta({
     setError("");
   }
 
-  function crear() {
+  async function crear() {
     const emailNormalizado = email.trim().toLowerCase();
     if (
       usuarios.some(
@@ -1599,7 +1753,13 @@ function DialogoNuevoAtleta({
       setError("Ya existe un usuario con ese email.");
       return;
     }
-    onCreate(nombre.trim(), emailNormalizado);
+    setCreando(true);
+    const errorCreacion = await onCreate(nombre.trim(), emailNormalizado);
+    setCreando(false);
+    if (errorCreacion) {
+      setError(errorCreacion);
+      return;
+    }
     setOpen(false);
   }
 
@@ -1663,10 +1823,10 @@ function DialogoNuevoAtleta({
             <Button
               type="button"
               onClick={crear}
-              disabled={!nombre.trim() || !email.trim()}
+              disabled={!nombre.trim() || !email.trim() || creando}
               className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
             >
-              Agregar alumno
+              {creando ? "Guardando..." : "Agregar alumno"}
               <ArrowRight />
             </Button>
           </DialogFooter>
@@ -1723,7 +1883,7 @@ function HomeEntrenador({
   onSaveAsTemplate: (rutina: Rutina) => void;
   onAssignTemplate: (plantillaId: string, atletaId: number) => void;
   onDeleteTemplate: (plantillaId: string) => void;
-  onCreateAtleta: (nombre: string, email: string) => void;
+  onCreateAtleta: (nombre: string, email: string) => Promise<string | null>;
   onDeleteRutina: (id: string) => void;
   onCreateEntrenamiento: (item: NuevoEntrenamientoProgramado) => void;
   onUpdateEntrenamiento: (item: EntrenamientoProgramado) => void;
@@ -3839,6 +3999,9 @@ export default function Home() {
     Record<string, RegistroSerie>
   >({});
   const [hidratado, setHidratado] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const colaPersistenciaRef = useRef<Promise<void>>(Promise.resolve());
+  const datosRemotosAplicadosRef = useRef(false);
   const usuario =
     usuarios.find((item) => item.id === usuarioId) ?? null;
   const atletasDelCoach = usuarios.filter(
@@ -3885,12 +4048,32 @@ export default function Home() {
         : "inicio";
 
   useEffect(() => {
+    let cancelado = false;
     const frame = window.requestAnimationFrame(() => {
+      void hidratar();
+    });
+    const reintentarPendientes = () => {
+      void hidratar();
+    };
+    window.addEventListener("online", reintentarPendientes);
+
+    async function hidratar() {
+      let datosRemotosAplicados = false;
       let usuariosDisponibles = usuariosIniciales;
+      let rutinasDisponibles = rutinasIniciales;
+      let plantillasDisponibles: PlantillaRutina[] = [];
+      let entrenamientosDisponibles: EntrenamientoProgramado[] = [];
+      let actividadesDisponibles: ActividadRealizada[] = [];
+      let usuariosPersistidos: Usuario[] = [];
+      let rutinasPersistidas: Rutina[] = [];
+      let plantillasPersistidas: PlantillaRutina[] = [];
+      let entrenamientosPersistidos: EntrenamientoProgramado[] = [];
+      let actividadesPersistidas: ActividadRealizada[] = [];
       const usuariosGuardados = window.localStorage.getItem(usersStorageKey);
       if (usuariosGuardados) {
         try {
           const persistidos = JSON.parse(usuariosGuardados) as Usuario[];
+          usuariosPersistidos = persistidos;
           usuariosDisponibles = [
             ...persistidos,
             ...usuariosIniciales.filter(
@@ -3901,7 +4084,6 @@ export default function Home() {
                 ),
             ),
           ];
-          setUsuarios(usuariosDisponibles);
         } catch {
           window.localStorage.removeItem(usersStorageKey);
         }
@@ -3912,13 +4094,14 @@ export default function Home() {
           const persistidas = JSON.parse(guardadas) as (Rutina & {
             dia?: string;
           })[];
-          setRutinas([
-            ...persistidas.map(normalizarRutina),
+          rutinasPersistidas = persistidas.map(normalizarRutina);
+          rutinasDisponibles = [
+            ...rutinasPersistidas,
             ...rutinasIniciales.filter(
               (semilla) =>
                 !persistidas.some((item) => item.id === semilla.id),
             ),
-          ]);
+          ];
         } catch {
           window.localStorage.removeItem(storageKey);
         }
@@ -3929,7 +4112,8 @@ export default function Home() {
           const persistidas = JSON.parse(plantillasGuardadas) as (PlantillaRutina & {
             dia?: string;
           })[];
-          setPlantillas(persistidas.map(normalizarPlantilla));
+          plantillasPersistidas = persistidas.map(normalizarPlantilla);
+          plantillasDisponibles = plantillasPersistidas;
         } catch {
           window.localStorage.removeItem(templatesStorageKey);
         }
@@ -3937,9 +4121,10 @@ export default function Home() {
       const agendaGuardada = window.localStorage.getItem(agendaStorageKey);
       if (agendaGuardada) {
         try {
-          setEntrenamientos(
-            JSON.parse(agendaGuardada) as EntrenamientoProgramado[],
-          );
+          entrenamientosDisponibles = JSON.parse(
+            agendaGuardada,
+          ) as EntrenamientoProgramado[];
+          entrenamientosPersistidos = entrenamientosDisponibles;
         } catch {
           window.localStorage.removeItem(agendaStorageKey);
         }
@@ -3949,19 +4134,151 @@ export default function Home() {
       );
       if (actividadesGuardadas) {
         try {
-          setActividades(
-            JSON.parse(actividadesGuardadas) as ActividadRealizada[],
-          );
+          actividadesDisponibles = JSON.parse(
+            actividadesGuardadas,
+          ) as ActividadRealizada[];
+          actividadesPersistidas = actividadesDisponibles;
         } catch {
           window.localStorage.removeItem(activitiesStorageKey);
         }
       }
+      const datosLocales = {
+        usuarios: usuariosDisponibles,
+        rutinas: rutinasDisponibles,
+        plantillas: plantillasDisponibles,
+        entrenamientos: entrenamientosDisponibles,
+        actividades: actividadesDisponibles,
+      };
+      const datosLocalesPersistidos = {
+        usuarios: usuariosPersistidos,
+        rutinas: rutinasPersistidas,
+        plantillas: plantillasPersistidas,
+        entrenamientos: entrenamientosPersistidos,
+        actividades: actividadesPersistidas,
+      };
+
+      let datosFinales = supabaseConfigured
+        ? datosLocalesPersistidos
+        : datosLocales;
+      try {
+        if (!supabaseConfigured) {
+          throw new Error(
+            "Supabase no está configurado. Los cambios se mantienen solo en este navegador.",
+          );
+        }
+        await navigator.locks.request(supabaseMigrationLock, async () => {
+          const estadoMigracion = window.localStorage.getItem(
+            supabaseMigrationStorageKey,
+          );
+          if (estadoMigracion === "true") {
+            window.localStorage.removeItem(
+              supabaseMigrationSourceStorageKey,
+            );
+            return;
+          }
+
+          let origen = leerOrigenMigracion();
+          if (!origen) {
+            origen = {
+              datosPersistidos: datosLocalesPersistidos,
+              datosConSemillas: datosLocales,
+              usarSemillas:
+                estadoMigracion === "seeds"
+                  ? true
+                  : estadoMigracion === "local"
+                    ? false
+                    : null,
+              mutaciones: [],
+              usuarioId: null,
+              atletaId: null,
+              remapeoIniciado: false,
+            };
+            guardarOrigenMigracion(origen);
+          }
+
+          const datosRemotosActuales = await cargarDatosSupabase();
+          if (origen.usarSemillas === null) {
+            origen = {
+              ...origen,
+              usarSemillas: Object.values(datosRemotosActuales).every(
+                (items) => items.length === 0,
+              ),
+            };
+            guardarOrigenMigracion(origen);
+            window.localStorage.setItem(
+              supabaseMigrationStorageKey,
+              origen.usarSemillas ? "seeds" : "local",
+            );
+          }
+
+          const mapeoUsuarios = await migrarDatosFaltantes(
+            origen.usarSemillas
+              ? origen.datosConSemillas
+              : origen.datosPersistidos,
+          );
+          window.localStorage.setItem(
+            supabaseUserMappingStorageKey,
+            JSON.stringify(mapeoUsuarios),
+          );
+          if (!origen.remapeoIniciado) {
+            origen = {
+              ...origen,
+              mutaciones: leerMutacionesPendientes(),
+              usuarioId: window.localStorage.getItem(sessionStorageKey),
+              atletaId: window.localStorage.getItem(
+                selectedAthleteStorageKey,
+              ),
+              remapeoIniciado: true,
+            };
+            guardarOrigenMigracion(origen);
+          }
+          await navigator.locks.request(supabaseOutboxLock, () => {
+            guardarMutacionesPendientes(
+              origen.mutaciones.map((mutacion) =>
+                remapearMutacionSupabase(mutacion, mapeoUsuarios),
+              ),
+            );
+          });
+
+          for (const [clave, idGuardado] of [
+            [sessionStorageKey, origen.usuarioId],
+            [selectedAthleteStorageKey, origen.atletaId],
+          ] as const) {
+            const idRemapeado = idGuardado
+              ? mapeoUsuarios[idGuardado]
+              : undefined;
+            if (idRemapeado !== undefined) {
+              window.localStorage.setItem(clave, String(idRemapeado));
+            }
+          }
+          window.localStorage.setItem(supabaseMigrationStorageKey, "true");
+          window.localStorage.removeItem(
+            supabaseMigrationSourceStorageKey,
+          );
+        });
+        await ejecutarMutacionesPendientes();
+        const datosRemotos = await cargarDatosSupabase();
+        datosFinales = datosRemotos;
+        datosRemotosAplicados = true;
+        if (!cancelado) setSyncError(null);
+      } catch (error) {
+        if (!cancelado) setSyncError(mensajeDeError(error));
+      }
+
+      if (cancelado) return;
+      setUsuarios(datosFinales.usuarios);
+      setRutinas(datosFinales.rutinas);
+      setPlantillas(datosFinales.plantillas);
+      setEntrenamientos(datosFinales.entrenamientos);
+      setActividades(datosFinales.actividades);
+      datosRemotosAplicadosRef.current = datosRemotosAplicados;
+
       const usuarioGuardado = Number(
         window.localStorage.getItem(sessionStorageKey),
       );
-      if (usuariosDisponibles.some((item) => item.id === usuarioGuardado)) {
+      if (datosFinales.usuarios.some((item) => item.id === usuarioGuardado)) {
         setUsuarioId(usuarioGuardado);
-        const usuarioInicial = usuariosDisponibles.find(
+        const usuarioInicial = datosFinales.usuarios.find(
           (item) => item.id === usuarioGuardado,
         );
         const atletaGuardado = Number(
@@ -3978,8 +4295,13 @@ export default function Home() {
         );
       }
       setHidratado(true);
-    });
-    return () => window.cancelAnimationFrame(frame);
+    }
+
+    return () => {
+      cancelado = true;
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("online", reintentarPendientes);
+    };
   }, [atletaRutaId]);
 
   useEffect(() => {
@@ -4008,12 +4330,29 @@ export default function Home() {
     hidratado,
   ]);
 
+  function persistir(mutacionNueva: NuevaMutacionSupabase) {
+    const mutacion: MutacionSupabase = {
+      ...mutacionNueva,
+      id: crypto.randomUUID(),
+    };
+    const requiereRemapeo = !datosRemotosAplicadosRef.current;
+    const trabajo = colaPersistenciaRef.current.then(async () => {
+      await encolarMutacion(mutacion, requiereRemapeo);
+      await ejecutarMutacionesPendientes();
+    });
+    colaPersistenciaRef.current = trabajo.catch(() => undefined);
+    void trabajo
+      .then(() => setSyncError(null))
+      .catch((error: unknown) => setSyncError(mensajeDeError(error)));
+  }
+
   function guardarRutina(rutinaGuardada: Rutina) {
     setRutinas((actuales) =>
       actuales.map((item) =>
         item.id === rutinaGuardada.id ? rutinaGuardada : item,
       ),
     );
+    persistir({ tipo: "guardar-rutinas", datos: [rutinaGuardada] });
   }
 
   function acceder(email: string) {
@@ -4049,6 +4388,7 @@ export default function Home() {
   function crearRutina(rutinaNueva: Rutina) {
     setRutinas((actuales) => [...actuales, rutinaNueva]);
     setRutinaId(rutinaNueva.id);
+    persistir({ tipo: "guardar-rutinas", datos: [rutinaNueva] });
   }
 
   function crearEntrenamiento(
@@ -4062,17 +4402,21 @@ export default function Home() {
       actualizadoEn: ahora,
     };
     setEntrenamientos((actuales) => [...actuales, creado]);
+    persistir({ tipo: "guardar-entrenamientos", datos: [creado] });
     return creado;
   }
 
   function actualizarEntrenamiento(item: EntrenamientoProgramado) {
+    const actualizado = {
+      ...item,
+      actualizadoEn: new Date().toISOString(),
+    };
     setEntrenamientos((actuales) =>
       actuales.map((actual) =>
-        actual.id === item.id
-          ? { ...item, actualizadoEn: new Date().toISOString() }
-          : actual,
+        actual.id === item.id ? actualizado : actual,
       ),
     );
+    persistir({ tipo: "guardar-entrenamientos", datos: [actualizado] });
     if (item.origen === "externo" && item.estado === "completado") {
       const actividad: ActividadRealizada = {
         id: idActividad(item.id),
@@ -4100,6 +4444,7 @@ export default function Home() {
           ? actuales
           : [...actuales, actividad],
       );
+      persistir({ tipo: "guardar-actividad", datos: actividad });
     }
   }
 
@@ -4142,6 +4487,7 @@ export default function Home() {
         ? actuales
         : [...actuales, actividad],
     );
+    persistir({ tipo: "guardar-actividad", datos: actividad });
   }
 
   function eliminarEntrenamiento(id: string) {
@@ -4156,6 +4502,7 @@ export default function Home() {
       ),
     );
     if (entrenamientoActivoId === id) setEntrenamientoActivoId(null);
+    persistir({ tipo: "eliminar-entrenamiento", entidadId: id });
   }
 
   function comenzarEntrenamiento(item: EntrenamientoProgramado) {
@@ -4168,14 +4515,13 @@ export default function Home() {
   function guardarComoPlantilla(rutina: Rutina) {
     if (!usuario || usuario.rol !== "entrenador") return;
     const id = idPlantilla(usuario.id);
-    setPlantillas((actuales) => [
-      ...actuales,
-      {
-        ...rutina,
-        id,
-        entrenadorId: usuario.id,
-      },
-    ]);
+    const plantilla = {
+      ...rutina,
+      id,
+      entrenadorId: usuario.id,
+    };
+    setPlantillas((actuales) => [...actuales, plantilla]);
+    persistir({ tipo: "guardar-plantillas", datos: [plantilla] });
   }
 
   function asignarPlantilla(plantillaId: string, atletaId: number) {
@@ -4185,6 +4531,7 @@ export default function Home() {
     if (!plantilla) return;
     const rutinaNueva = rutinaDesdePlantilla(plantilla, atletaId);
     setRutinas((actuales) => [...actuales, rutinaNueva]);
+    persistir({ tipo: "guardar-rutinas", datos: [rutinaNueva] });
     seleccionarAtleta(atletaId);
     setRutinaId(rutinaNueva.id);
     setRegistros({});
@@ -4197,27 +4544,24 @@ export default function Home() {
           plantilla.id !== plantillaId || plantilla.entrenadorId !== usuario?.id,
       ),
     );
+    persistir({ tipo: "eliminar-plantilla", entidadId: plantillaId });
   }
 
-  function crearAtleta(nombre: string, email: string) {
-    if (!usuario || usuario.rol !== "entrenador") return;
-    const id = Math.max(0, ...usuarios.map((item) => item.id)) + 1;
-    const timestamp = Date.now();
-    const nuevoAtleta: Usuario = {
-      id,
-      nombre,
-      email,
-      rol: "atleta",
-    };
-    const rutinaInicial: Rutina = {
-      id: `rutina-${id}-${timestamp}`,
-      atletaId: id,
+  async function crearAtleta(nombre: string, email: string) {
+    if (!usuario || usuario.rol !== "entrenador") {
+      return "Solo un entrenador puede agregar atletas.";
+    }
+    if (!supabaseConfigured) {
+      return "La base de datos no está configurada.";
+    }
+    const rutinaBase: Omit<Rutina, "atletaId"> = {
+      id: `rutina-${crypto.randomUUID()}`,
       titulo: "Nueva rutina",
       objetivo: "Entrenamiento personalizado",
       duracion: 60,
       bloques: [
         {
-          id: `bloque-${timestamp}`,
+          id: `bloque-${crypto.randomUUID()}`,
           nombre: "Bloque 1",
           tipo: "Personalizado",
           ejercicios: [],
@@ -4225,12 +4569,28 @@ export default function Home() {
       ],
     };
 
+    let id: number;
+    try {
+      id = await crearAtletaConRutina({
+        entrenadorId: usuario.id,
+        nombre,
+        email,
+        rutina: rutinaBase,
+      });
+    } catch (error) {
+      const mensaje = mensajeDeError(error);
+      setSyncError(mensaje);
+      return mensaje;
+    }
+
+    const nuevoAtleta: Usuario = { id, nombre, email, rol: "atleta" };
+    const rutinaInicial: Rutina = { ...rutinaBase, atletaId: id };
     setUsuarios((actuales) => [
       ...actuales.map((item) =>
         item.id === usuario.id
           ? {
               ...item,
-              atletaIds: [...(item.atletaIds ?? []), nuevoAtleta.id],
+              atletaIds: [...new Set([...(item.atletaIds ?? []), id])],
             }
           : item,
       ),
@@ -4240,6 +4600,8 @@ export default function Home() {
     setAtletaSeleccionadoId(id);
     setRutinaId(rutinaInicial.id);
     setRegistros({});
+    setSyncError(null);
+    return null;
   }
 
   function eliminarRutina(id: string) {
@@ -4265,6 +4627,7 @@ export default function Home() {
         ),
       ),
     );
+    persistir({ tipo: "eliminar-rutina", entidadId: id });
   }
 
   function salir() {
@@ -4307,6 +4670,7 @@ export default function Home() {
       vistaPrevia={vistaPrevia}
       vistaEntrenador={vistaEntrenador}
       vistaAtleta={vistaAtleta}
+      syncError={syncError}
       onClosePreview={() => setVistaPrevia(false)}
       onLogout={intentarSalir}
     >

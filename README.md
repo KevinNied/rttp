@@ -8,7 +8,7 @@ La prioridad es que el atleta siempre sepa qué hacer a continuación, pueda reg
 
 ### Requisitos
 
-- Node.js 20.9 o superior
+- Node.js 22 o superior
 - npm
 
 ### Desarrollo
@@ -30,15 +30,28 @@ npm run lint
 npm run build
 ```
 
-La versión actual usa datos locales y `localStorage`, por lo que no necesita variables de entorno ni una base de datos para ejecutarse. Cada entrenador mantiene su propia biblioteca de plantillas: al asignar una, RTTP crea una copia independiente para el atleta para que los pesos y detalles puedan personalizarse sin afectar la plantilla.
+La versión actual usa Supabase como fuente principal y conserva `localStorage`
+como caché y respaldo cuando la base no está disponible. Copiá `.env.example` a
+`.env.local` y configurá la URL y la publishable key del mismo proyecto de
+Supabase usado en local y producción. Nunca uses una `service_role` key en estas
+variables públicas.
+
+Antes del primer inicio, ejecutá
+[`supabase/migrations/20260817000000_initial_persistence.sql`](supabase/migrations/20260817000000_initial_persistence.sql)
+desde el SQL Editor de Supabase. La primera carga migra los registros existentes
+del navegador sin sobrescribir identificadores que ya existan remotamente.
+
+Mientras RTTP funciona sin Supabase Auth, el esquema permite temporalmente
+acceso anónimo a estas tablas. No debe considerarse un modelo de seguridad para
+una publicación abierta; las políticas deberán limitarse por usuario y relación
+coach-atleta al incorporar autenticación.
 
 La Agenda deportiva organiza rutinas y actividades externas por fecha. Su modelo
-está separado de las rutinas para preparar el futuro historial de sesiones y la
-migración a Supabase. La evolución funcional está documentada en
+está separado de las rutinas y persiste en Supabase. La evolución funcional está documentada en
 [`docs/agenda-deportiva.md`](docs/agenda-deportiva.md).
 
 Las rutinas completadas y las actividades externas realizadas se guardan como
-registros históricos independientes. El modelo y su futura persistencia están
+registros históricos independientes. El modelo y su persistencia están
 documentados en
 [`docs/registro-actividades.md`](docs/registro-actividades.md).
 
@@ -68,6 +81,6 @@ La versión publicada está disponible en:
 
 - Next.js, React, TypeScript y Tailwind CSS
 - shadcn/ui
-- Datos locales y `localStorage`
-- Supabase (PostgreSQL) planificado
+- Supabase (PostgreSQL)
+- `localStorage` como caché, sesión actual y migración inicial
 - Vercel

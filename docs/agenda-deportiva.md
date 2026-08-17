@@ -70,7 +70,8 @@ etapa.
   la misma rutina no comparten progreso.
 - La fecha se guarda como fecha local (`YYYY-MM-DD`) para evitar movimientos de
   día por zona horaria.
-- Los datos siguen en `localStorage` durante esta iteración.
+- Supabase es la fuente principal; `localStorage` mantiene una caché para poder
+  recuperar la experiencia si falla la sincronización.
 
 ## Actividad e historial
 
@@ -109,27 +110,30 @@ evoluciones posteriores.
 - Integraciones con Strava, Garmin y otros proveedores.
 - Tendencias de carga, recuperación y consistencia.
 
-## Preparación para Supabase
+## Persistencia en Supabase
 
-La implementación local debe mantener entidades normalizadas y evitar guardar
-la agenda dentro del objeto de usuario o rutina. Una futura base puede mapearse
-a tablas independientes:
+La implementación mantiene entidades normalizadas y evita guardar la agenda
+dentro del objeto de usuario o rutina. La base usa tablas independientes:
 
 - `profiles`
 - `routines`
+- `routine_templates`
 - `scheduled_workouts`
-- `workout_sessions`
-- `session_sets`
+- `workout_activities`
+- `workout_activity_sets`
 
-Los identificadores actuales son strings para facilitar la migración a UUID. Los
-campos de relación (`athleteId`, `routineId`, `createdById`) deben convertirse en
-foreign keys. Los timestamps de creación y actualización ya forman parte del
-contrato de agenda.
+Los campos de relación (`athleteId`, `routineId`, `createdById`) se convierten en
+foreign keys y las estructuras de bloques se guardan como `jsonb`. Los timestamps
+de creación y actualización forman parte del contrato de agenda.
 
-Al integrar Supabase será necesario:
+La primera carga inserta únicamente los identificadores locales que no existen
+en Supabase y luego usa la base remota como fuente. Las mutaciones posteriores
+se persisten individualmente para evitar que una caché desactualizada sobrescriba
+datos de otro navegador.
 
-- Row Level Security por atleta y relación coach-atleta.
-- Escrituras optimistas con manejo visible de errores.
+Queda pendiente al incorporar autenticación:
+
+- reemplazar las políticas anónimas temporales por Row Level Security por atleta
+  y relación coach-atleta;
 - Zona horaria declarada por usuario para eventos con hora.
-- Migración de datos locales solo si se decide conservar prototipos existentes.
 - Separar estado de UI, consultas y mutaciones del componente visual.
