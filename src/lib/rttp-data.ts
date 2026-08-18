@@ -110,14 +110,14 @@ export const initialUsers: User[] = [
   {
     id: 4,
     name: "Coach Test",
-    email: "testcoach@gmail.com",
+    email: "coach@test.com",
     role: "coach",
     athleteIds: [5],
   },
   {
     id: 5,
     name: "User Test",
-    email: "testuser@gmail.com",
+    email: "athlete@test.com",
     role: "athlete",
   },
 ];

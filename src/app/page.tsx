@@ -128,13 +128,8 @@ type TrainingSetRecord = {
   skipped: boolean;
 };
 
-const storageKey = "rttp-routines-v5";
-const templatesStorageKey = "rttp-templates-v2";
 const sessionStorageKey = "rttp-user-session-v2";
-const usersStorageKey = "rttp-users-v2";
 const selectedAthleteStorageKey = "rttp-selected-athlete-v2";
-const agendaStorageKey = "rttp-schedule-v2";
-const activitiesStorageKey = "rttp-activities-v2";
 const sidebarPreferenceStorageKey = "rttp-sidebar-compact-v1";
 const supabaseMigrationStorageKey = "rttp-supabase-migrated-v2";
 const supabaseMigrationSourceStorageKey =
@@ -224,167 +219,56 @@ function TextWithLinks({
   return <span className={className}>{parts}</span>;
 }
 
-const legacyPropertyNames: Record<string, string> = {
-  usuarios: "users",
-  rutinas: "routines",
-  plantillas: "templates",
-  entrenamientos: "workouts",
-  actividades: "activities",
-  nombre: "name",
-  rol: "role",
-  atletaIds: "athleteIds",
-  atletaId: "athleteId",
-  entrenadorId: "coachId",
-  aclaraciones: "instructions",
-  series: "sets",
-  repeticionesMin: "minReps",
-  repeticionesMax: "maxReps",
-  peso: "weight",
-  descanso: "restSeconds",
-  tipo: "type",
-  ejercicios: "exercises",
-  titulo: "title",
-  objetivo: "objective",
-  duracion: "durationMinutes",
-  bloques: "blocks",
-  fecha: "date",
-  hora: "time",
-  duracionMinutos: "durationMinutes",
-  estado: "status",
-  creadoPorId: "createdById",
-  notas: "notes",
-  creadoEn: "createdAt",
-  actualizadoEn: "updatedAt",
-  origen: "origin",
-  rutinaId: "routineId",
-  categoria: "category",
-  entrenamientoProgramadoId: "scheduledWorkoutId",
-  rutinaSnapshot: "routineSnapshot",
-  completadaEn: "completedAt",
-  esfuerzo: "effort",
-  registradaPorId: "recordedById",
-  pasoId: "stepId",
-  ejercicioId: "exerciseId",
-  ejercicioNombre: "exerciseName",
-  bloqueId: "blockId",
-  bloqueNombre: "blockName",
-  ronda: "round",
-  repeticiones: "reps",
-  omitida: "skipped",
-  datos: "data",
-  entidad: "entity",
-  entidadId: "entityId",
-  datosPersistidos: "persistedData",
-  datosConSemillas: "dataWithSeeds",
-  usarSemillas: "useSeeds",
-  mutaciones: "mutations",
-  usuarioId: "userId",
-  remapeoIniciado: "remappingStarted",
-};
-
-const legacyBusinessValues: Record<string, string> = {
-  entrenador: "coach",
-  atleta: "athlete",
-  programado: "scheduled",
-  "en-curso": "in-progress",
-  completado: "completed",
-  omitido: "skipped",
-  rutina: "routine",
-  externo: "external",
-  externa: "external",
-  natacion: "swimming",
-  ciclismo: "cycling",
-  deporte: "sport",
-  movilidad: "mobility",
-  otra: "other",
-  "Series consecutivas": "consecutive-sets",
-  Preparación: "preparation",
-  "Preparación específica": "specific-preparation",
-  Alternado: "alternating",
-  Cierre: "cooldown",
-  "Circuito · 2 vueltas": "circuit-2-rounds",
-  Personalizado: "custom",
-  "guardar-rutinas": "save-routines",
-  "eliminar-rutina": "delete-routine",
-  "guardar-plantillas": "save-templates",
-  "eliminar-plantilla": "delete-template",
-  "guardar-entrenamientos": "save-workouts",
-  "eliminar-entrenamiento": "delete-workout",
-  "guardar-actividad": "save-activity",
-  "eliminar-actividad": "delete-activity",
-};
-
-function translateLegacyStorageValue(
-  value: unknown,
-  propertyName?: string,
-): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item) =>
-      translateLegacyStorageValue(item, propertyName),
-    );
-  }
-  if (!value || typeof value !== "object") {
-    const isBusinessValue = ["role", "status", "origin", "category", "type"].includes(
-      propertyName ?? "",
-    );
-    return isBusinessValue && typeof value === "string"
-      ? (legacyBusinessValues[value] ?? value)
-      : value;
-  }
-  return Object.fromEntries(
-    Object.entries(value).map(([key, nestedValue]) => {
-      const translatedKey = legacyPropertyNames[key] ?? key;
-      return [
-        translatedKey,
-        translateLegacyStorageValue(nestedValue, translatedKey),
-      ];
-    }),
-  );
+function readSessionValue(key: string) {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage.getItem(key);
 }
 
-function migrateLegacyStorage() {
-  const migrations = [
-    [storageKey, ["rttp-routines-v4", "rttp-rutinas-v4"]],
-    [templatesStorageKey, ["rttp-templates-v1", "rttp-plantillas-v1"]],
-    [sessionStorageKey, ["rttp-usuario-v1"]],
-    [usersStorageKey, ["rttp-users-v1", "rttp-usuarios-v1"]],
-    [selectedAthleteStorageKey, ["rttp-atleta-seleccionado-v1"]],
-    [agendaStorageKey, ["rttp-agenda-v1"]],
-    [activitiesStorageKey, ["rttp-activities-v1", "rttp-actividades-v1"]],
-    [supabaseMigrationStorageKey, ["rttp-supabase-migrado-v1"]],
-    [
-      supabaseMigrationSourceStorageKey,
-      [
-        "rttp-supabase-origin-migracion-v1",
-        "rttp-supabase-origen-migracion-v1",
-      ],
-    ],
-    [
-      supabaseUserMappingStorageKey,
-      [
-        "rttp-supabase-mapeo-users-v1",
-        "rttp-supabase-mapeo-usuarios-v1",
-      ],
-    ],
-    [supabaseOutboxStorageKey, ["rttp-supabase-pendientes-v1"]],
-  ] as const;
+function writeSessionValue(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(key, value);
+}
 
-  for (const [currentKey, legacyKeys] of migrations) {
-    if (window.localStorage.getItem(currentKey) !== null) continue;
-    const legacyValue = legacyKeys
-      .map((key) => window.localStorage.getItem(key))
-      .find((value) => value !== null);
-    if (legacyValue === undefined) continue;
-    try {
-      window.localStorage.setItem(
-        currentKey,
-        JSON.stringify(
-          translateLegacyStorageValue(JSON.parse(legacyValue)),
-        ),
-      );
-    } catch {
-      window.localStorage.setItem(currentKey, legacyValue);
-    }
+function removeSessionValue(key: string) {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.removeItem(key);
+}
+
+function clearDeprecatedLocalStorage() {
+  if (typeof window === "undefined") return;
+  const keys = [
+    "rttp-routines-v5",
+    "rttp-routines-v4",
+    "rttp-rutinas-v4",
+    "rttp-templates-v2",
+    "rttp-templates-v1",
+    "rttp-plantillas-v1",
+    "rttp-user-session-v2",
+    "rttp-usuario-v1",
+    "rttp-users-v2",
+    "rttp-users-v1",
+    "rttp-usuarios-v1",
+    "rttp-selected-athlete-v2",
+    "rttp-atleta-seleccionado-v1",
+    "rttp-schedule-v2",
+    "rttp-agenda-v1",
+    "rttp-activities-v2",
+    "rttp-activities-v1",
+    "rttp-actividades-v1",
+    "rttp-sidebar-compact-v1",
+    "rttp-supabase-migrated-v2",
+    "rttp-supabase-migrado-v1",
+    "rttp-supabase-migration-source-v2",
+    "rttp-supabase-origin-migracion-v1",
+    "rttp-supabase-origen-migracion-v1",
+    "rttp-supabase-user-mapping-v2",
+    "rttp-supabase-mapeo-users-v1",
+    "rttp-supabase-mapeo-usuarios-v1",
+    "rttp-supabase-outbox-v2",
+    "rttp-supabase-pendientes-v1",
+  ] as const;
+  for (const key of keys) {
+    window.localStorage.removeItem(key);
   }
 }
 
@@ -445,30 +329,32 @@ function pasosDeRutina(rutina: Routine, sesionId = rutina.id) {
   });
 }
 
-function normalizeRoutine(
-  rutina: Routine & { dia?: string },
-): Routine {
-  return {
-    id: rutina.id,
-    athleteId: rutina.athleteId,
-    title: rutina.title,
-    objective: rutina.objective,
-    durationMinutes: rutina.durationMinutes,
-    blocks: rutina.blocks,
-  };
-}
+function normalizeUser(user: User): User {
+  if (
+    user.id === 4 ||
+    user.email === "testcoach@gmail.com" ||
+    user.email === "coach@test.com"
+  ) {
+    return {
+      ...user,
+      email: "coach@test.com",
+      role: "coach",
+    };
+  }
 
-function normalizeTemplate(
-  plantilla: RoutineTemplate & { dia?: string },
-): RoutineTemplate {
-  return {
-    id: plantilla.id,
-    title: plantilla.title,
-    objective: plantilla.objective,
-    durationMinutes: plantilla.durationMinutes,
-    blocks: plantilla.blocks,
-    coachId: plantilla.coachId,
-  };
+  if (
+    user.id === 5 ||
+    user.email === "testuser@gmail.com" ||
+    user.email === "athlete@test.com"
+  ) {
+    return {
+      ...user,
+      email: "athlete@test.com",
+      role: "athlete",
+    };
+  }
+
+  return user;
 }
 
 function snapshotRoutine(rutina: Routine): Routine {
@@ -488,59 +374,49 @@ function errorMessage(error: unknown) {
 }
 
 function readPendingMutations() {
-  const guardadas = window.localStorage.getItem(supabaseOutboxStorageKey);
+  const guardadas = readSessionValue(supabaseOutboxStorageKey);
   if (!guardadas) return [];
   try {
     return JSON.parse(guardadas) as SupabaseMutation[];
   } catch {
-    window.localStorage.removeItem(supabaseOutboxStorageKey);
+    removeSessionValue(supabaseOutboxStorageKey);
     throw new Error(
-      "La cola local de sincronización estaba dañada y debió reiniciarse.",
+      "La cola temporal de sincronización estaba dañada y debió reiniciarse.",
     );
   }
 }
 
 function savePendingMutations(mutations: SupabaseMutation[]) {
   if (mutations.length === 0) {
-    window.localStorage.removeItem(supabaseOutboxStorageKey);
+    removeSessionValue(supabaseOutboxStorageKey);
     return;
   }
-  window.localStorage.setItem(
-    supabaseOutboxStorageKey,
-    JSON.stringify(mutations),
-  );
+  writeSessionValue(supabaseOutboxStorageKey, JSON.stringify(mutations));
 }
 
 function readMigrationSource() {
-  const guardado = window.localStorage.getItem(
-    supabaseMigrationSourceStorageKey,
-  );
+  const guardado = readSessionValue(supabaseMigrationSourceStorageKey);
   if (!guardado) return null;
   try {
     return JSON.parse(guardado) as MigrationSource;
   } catch {
     throw new Error(
-      "El respaldo local para migrar a Supabase está dañado.",
+      "El respaldo temporal para migrar a Supabase está dañado.",
     );
   }
 }
 
 function saveMigrationSource(origin: MigrationSource) {
-  window.localStorage.setItem(
-    supabaseMigrationSourceStorageKey,
-    JSON.stringify(origin),
-  );
+  writeSessionValue(supabaseMigrationSourceStorageKey, JSON.stringify(origin));
 }
 
 function readUserMapping() {
-  const guardado = window.localStorage.getItem(
-    supabaseUserMappingStorageKey,
-  );
+  const guardado = readSessionValue(supabaseUserMappingStorageKey);
   if (!guardado) return {};
   try {
     return JSON.parse(guardado) as UserIdMapping;
   } catch {
-    throw new Error("El mapeo local de perfiles está dañado.");
+    throw new Error("El mapeo temporal de perfiles está dañado.");
   }
 }
 
@@ -552,7 +428,7 @@ async function enqueueMutation(
     await navigator.locks.request(supabaseOutboxLock, () => {
       const finalMutation =
         requiresRemapping &&
-        window.localStorage.getItem(supabaseMigrationStorageKey) === "true"
+        readSessionValue(supabaseMigrationStorageKey) === "true"
           ? remapSupabaseMutation(mutation, readUserMapping())
           : mutation;
       savePendingMutations([
@@ -568,12 +444,10 @@ async function executePendingMutations() {
     await navigator.locks.request(supabaseOutboxLock, async () => {
       if (!supabaseConfigured) {
         throw new Error(
-          "Supabase no está configurado. Los cambios se mantienen solo en este navegador.",
+          "Supabase no está configurado. Los cambios solo vivirán mientras esta pestaña siga abierta.",
         );
       }
-      if (
-        window.localStorage.getItem(supabaseMigrationStorageKey) !== "true"
-      ) {
+      if (readSessionValue(supabaseMigrationStorageKey) !== "true") {
         throw new Error(
           "La migración inicial está pendiente. Los cambios se sincronizarán al recuperar la conexión.",
         );
@@ -768,9 +642,7 @@ function AppShell({
   const esEntrenador = usuario.role === "coach";
   const [sidebarCompact, setSidebarCompact] = useState(() => {
     if (typeof window === "undefined") return false;
-    return (
-      window.localStorage.getItem(sidebarPreferenceStorageKey) === "true"
-    );
+    return readSessionValue(sidebarPreferenceStorageKey) === "true";
   });
   const encabezadoEntrenador =
     vistaEntrenador === "atletas"
@@ -843,10 +715,7 @@ function AppShell({
   const navegacion = esEntrenador ? navegacionCoach : navegacionAtleta;
 
   useEffect(() => {
-    window.localStorage.setItem(
-      sidebarPreferenceStorageKey,
-      String(sidebarCompact),
-    );
+    writeSessionValue(sidebarPreferenceStorageKey, String(sidebarCompact));
   }, [sidebarCompact]);
 
   return (
@@ -4693,91 +4562,18 @@ export default function Home() {
     window.addEventListener("online", retryPending);
 
     async function hydrate() {
-      migrateLegacyStorage();
+      clearDeprecatedLocalStorage();
       let remoteDataApplied = false;
-      let availableUsers = initialUsers;
-      let availableRoutines = initialRoutines;
-      let availableTemplates: RoutineTemplate[] = [];
-      let availableWorkouts: ScheduledWorkout[] = [];
-      let availableActivities: CompletedActivity[] = [];
-      let persistedUsers: User[] = [];
-      let persistedRoutines: Routine[] = [];
-      let persistedTemplates: RoutineTemplate[] = [];
-      let persistedWorkouts: ScheduledWorkout[] = [];
-      let persistedActivities: CompletedActivity[] = [];
-      const storedUsers = window.localStorage.getItem(usersStorageKey);
-      if (storedUsers) {
-        try {
-          const persistidos = JSON.parse(storedUsers) as User[];
-          persistedUsers = persistidos;
-          availableUsers = [
-            ...persistidos,
-            ...initialUsers.filter(
-              (seed) =>
-                !persistidos.some(
-                  (item) =>
-                    item.id === seed.id || item.email === seed.email,
-                ),
-            ),
-          ];
-        } catch {
-          window.localStorage.removeItem(usersStorageKey);
-        }
-      }
-      const guardadas = window.localStorage.getItem(storageKey);
-      if (guardadas) {
-        try {
-          const persistidas = JSON.parse(guardadas) as (Routine & {
-            dia?: string;
-          })[];
-          persistedRoutines = persistidas.map(normalizeRoutine);
-          availableRoutines = [
-            ...persistedRoutines,
-            ...initialRoutines.filter(
-              (seed) =>
-                !persistidas.some((item) => item.id === seed.id),
-            ),
-          ];
-        } catch {
-          window.localStorage.removeItem(storageKey);
-        }
-      }
-      const storedTemplates = window.localStorage.getItem(templatesStorageKey);
-      if (storedTemplates) {
-        try {
-          const persistidas = JSON.parse(storedTemplates) as (RoutineTemplate & {
-            dia?: string;
-          })[];
-          persistedTemplates = persistidas.map(normalizeTemplate);
-          availableTemplates = persistedTemplates;
-        } catch {
-          window.localStorage.removeItem(templatesStorageKey);
-        }
-      }
-      const storedSchedule = window.localStorage.getItem(agendaStorageKey);
-      if (storedSchedule) {
-        try {
-          availableWorkouts = JSON.parse(
-            storedSchedule,
-          ) as ScheduledWorkout[];
-          persistedWorkouts = availableWorkouts;
-        } catch {
-          window.localStorage.removeItem(agendaStorageKey);
-        }
-      }
-      const storedActivities = window.localStorage.getItem(
-        activitiesStorageKey,
-      );
-      if (storedActivities) {
-        try {
-          availableActivities = JSON.parse(
-            storedActivities,
-          ) as CompletedActivity[];
-          persistedActivities = availableActivities;
-        } catch {
-          window.localStorage.removeItem(activitiesStorageKey);
-        }
-      }
+      const availableUsers = initialUsers.map(normalizeUser);
+      const availableRoutines = initialRoutines;
+      const availableTemplates: RoutineTemplate[] = [];
+      const availableWorkouts: ScheduledWorkout[] = [];
+      const availableActivities: CompletedActivity[] = [];
+      const persistedUsers: User[] = [];
+      const persistedRoutines: Routine[] = [];
+      const persistedTemplates: RoutineTemplate[] = [];
+      const persistedWorkouts: ScheduledWorkout[] = [];
+      const persistedActivities: CompletedActivity[] = [];
       const localData = {
         users: availableUsers,
         routines: availableRoutines,
@@ -4793,23 +4589,17 @@ export default function Home() {
         activities: persistedActivities,
       };
 
-      let finalData = supabaseConfigured
-        ? persistedLocalData
-        : localData;
+      let finalData = localData;
       try {
         if (!supabaseConfigured) {
           throw new Error(
-            "Supabase no está configurado. Los cambios se mantienen solo en este navegador.",
+            "Supabase no está configurado. Los cambios solo vivirán mientras esta pestaña siga abierta.",
           );
         }
         await navigator.locks.request(supabaseMigrationLock, async () => {
-          const migrationStatus = window.localStorage.getItem(
-            supabaseMigrationStorageKey,
-          );
+          const migrationStatus = readSessionValue(supabaseMigrationStorageKey);
           if (migrationStatus === "true") {
-            window.localStorage.removeItem(
-              supabaseMigrationSourceStorageKey,
-            );
+            removeSessionValue(supabaseMigrationSourceStorageKey);
             return;
           }
 
@@ -4841,7 +4631,7 @@ export default function Home() {
               ),
             };
             saveMigrationSource(origin);
-            window.localStorage.setItem(
+            writeSessionValue(
               supabaseMigrationStorageKey,
               origin.useSeeds ? "seeds" : "local",
             );
@@ -4852,7 +4642,7 @@ export default function Home() {
               ? origin.dataWithSeeds
               : origin.persistedData,
           );
-          window.localStorage.setItem(
+          writeSessionValue(
             supabaseUserMappingStorageKey,
             JSON.stringify(userMapping),
           );
@@ -4860,10 +4650,8 @@ export default function Home() {
             origin = {
               ...origin,
               mutations: readPendingMutations(),
-              userId: window.localStorage.getItem(sessionStorageKey),
-              athleteId: window.localStorage.getItem(
-                selectedAthleteStorageKey,
-              ),
+              userId: readSessionValue(sessionStorageKey),
+              athleteId: readSessionValue(selectedAthleteStorageKey),
               remappingStarted: true,
             };
             saveMigrationSource(origin);
@@ -4884,17 +4672,18 @@ export default function Home() {
               ? userMapping[storedId]
               : undefined;
             if (remappedId !== undefined) {
-              window.localStorage.setItem(key, String(remappedId));
+              writeSessionValue(key, String(remappedId));
             }
           }
-          window.localStorage.setItem(supabaseMigrationStorageKey, "true");
-          window.localStorage.removeItem(
-            supabaseMigrationSourceStorageKey,
-          );
+          writeSessionValue(supabaseMigrationStorageKey, "true");
+          removeSessionValue(supabaseMigrationSourceStorageKey);
         });
         await executePendingMutations();
         const remoteData = await loadSupabaseData();
-        finalData = remoteData;
+        finalData = {
+          ...remoteData,
+          users: remoteData.users.map(normalizeUser),
+        };
         remoteDataApplied = true;
         if (!cancelled) setSyncError(null);
       } catch (error) {
@@ -4902,24 +4691,20 @@ export default function Home() {
       }
 
       if (cancelled) return;
-      setUsuarios(finalData.users);
+      setUsuarios(finalData.users.map(normalizeUser));
       setRutinas(finalData.routines);
       setPlantillas(finalData.templates);
       setEntrenamientos(finalData.workouts);
       setActividades(finalData.activities);
       remoteDataAppliedRef.current = remoteDataApplied;
 
-      const storedUserId = Number(
-        window.localStorage.getItem(sessionStorageKey),
-      );
+      const storedUserId = Number(readSessionValue(sessionStorageKey));
       if (finalData.users.some((item) => item.id === storedUserId)) {
         setUserId(storedUserId);
         const initialUser = finalData.users.find(
           (item) => item.id === storedUserId,
         );
-        const storedAthleteId = Number(
-          window.localStorage.getItem(selectedAthleteStorageKey),
-        );
+        const storedAthleteId = Number(readSessionValue(selectedAthleteStorageKey));
         setAtletaSeleccionadoId(
           initialUser?.role === "athlete"
             ? initialUser.id
@@ -4939,32 +4724,6 @@ export default function Home() {
       window.removeEventListener("online", retryPending);
     };
   }, [atletaRutaId]);
-
-  useEffect(() => {
-    if (hydrated) {
-      window.localStorage.setItem(storageKey, JSON.stringify(routines));
-      window.localStorage.setItem(usersStorageKey, JSON.stringify(users));
-      window.localStorage.setItem(
-        templatesStorageKey,
-        JSON.stringify(templates),
-      );
-      window.localStorage.setItem(
-        agendaStorageKey,
-        JSON.stringify(workouts),
-      );
-      window.localStorage.setItem(
-        activitiesStorageKey,
-        JSON.stringify(activities),
-      );
-    }
-  }, [
-    routines,
-    users,
-    templates,
-    workouts,
-    activities,
-    hydrated,
-  ]);
 
   function persist(newMutation: NewSupabaseMutation) {
     const mutation: SupabaseMutation = {
@@ -5006,17 +4765,14 @@ export default function Home() {
     setAtletaSeleccionadoId(athleteId);
     setRutinaId(primeraRutina?.id ?? initialRoutines[0].id);
     setVistaPrevia(false);
-    window.localStorage.setItem(
-      sessionStorageKey,
-      String(usuarioEncontrado.id),
-    );
+    writeSessionValue(sessionStorageKey, String(usuarioEncontrado.id));
     return true;
   }
 
   function seleccionarAtleta(id: number) {
     const primeraRutina = routines.find((item) => item.athleteId === id);
     setAtletaSeleccionadoId(id);
-    window.localStorage.setItem(selectedAthleteStorageKey, String(id));
+    writeSessionValue(selectedAthleteStorageKey, String(id));
     if (primeraRutina) setRutinaId(primeraRutina.id);
     setRegistros({});
   }
@@ -5305,7 +5061,8 @@ export default function Home() {
   }
 
   function salir() {
-    window.localStorage.removeItem(sessionStorageKey);
+    removeSessionValue(sessionStorageKey);
+    removeSessionValue(selectedAthleteStorageKey);
     setUserId(null);
     setVistaPrevia(false);
     setRegistros({});
