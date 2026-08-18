@@ -399,6 +399,10 @@ function cantidadEjercicios({ blocks }: Pick<Routine, "blocks">) {
   );
 }
 
+function rutinaTieneEjercicios(rutina: Pick<Routine, "blocks">) {
+  return cantidadEjercicios(rutina) > 0;
+}
+
 function repeticionesObjetivo(item: Exercise) {
   return item.minReps === item.maxReps
     ? `${item.minReps}`
@@ -1147,13 +1151,20 @@ function SelectorRutina({
               : "border-white/[0.08] bg-white/[0.025] hover:bg-white/[0.06]",
           )}
         >
-          <div
-            className={cn(
-              "truncate text-sm font-medium",
-              desktopVertical && "xl:text-base",
+          <div className="flex items-start justify-between gap-2">
+            <div
+              className={cn(
+                "truncate text-sm font-medium",
+                desktopVertical && "xl:text-base",
+              )}
+            >
+              {rutina.title}
+            </div>
+            {cantidadEjercicios(rutina) === 0 && (
+              <span className="shrink-0 rounded-full border border-amber-300/15 bg-amber-300/10 px-2 py-0.5 text-[9px] text-amber-100/80">
+                Vacía
+              </span>
             )}
-          >
-            {rutina.title}
           </div>
           <div
             className={cn(
@@ -2262,6 +2273,17 @@ function HomeEntrenador({
   const [guardadoVisible, setGuardadoVisible] = useState(false);
   const hayCambios =
     JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
+  const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
+  const rutinasSinEjercicios = rutinasPorAtleta.filter(
+    (item) => cantidadEjercicios(item) === 0,
+  );
+  const atletasConRutinasIncompletas = atletas.filter((atletaActual) =>
+    rutinasPorAtleta.some(
+      (rutinaActual) =>
+        rutinaActual.athleteId === atletaActual.id &&
+        cantidadEjercicios(rutinaActual) === 0,
+    ),
+  );
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },
@@ -2488,11 +2510,18 @@ function HomeEntrenador({
               sus espacios dedicados.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
               [atletas.length, "Atletas", "Gestioná sus perfiles"],
               [templates.length, "Plantillas propias", "Reutilizables"],
               [rutinasPorAtleta.length, "Planes asignados", "En todos tus atletas"],
+              [
+                rutinasSinEjercicios.length,
+                "Rutinas a revisar",
+                rutinasSinEjercicios.length === 0
+                  ? "Todo el contenido está cargado"
+                  : "Todavía les faltan ejercicios",
+              ],
             ].map(([cantidad, title, detalle]) => (
               <div
                 key={title as string}
@@ -2508,6 +2537,37 @@ function HomeEntrenador({
               </div>
             ))}
           </div>
+          <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <Link
+              href="/coach/athletes"
+              className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 transition-colors hover:bg-white/[0.04]"
+            >
+              <div className="text-sm font-medium">Seguí con tus atletas</div>
+              <p className="mt-1 text-xs leading-relaxed text-white/35">
+                Entrá directo a la planificación individual y revisá cargas,
+                agenda y actividades.
+              </p>
+              <div className="mt-4 inline-flex items-center gap-2 text-xs text-cyan-100">
+                Abrir atletas
+                <ArrowRight className="size-3.5" />
+              </div>
+            </Link>
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
+              <div className="text-sm font-medium">Rutinas para completar</div>
+              <p className="mt-1 text-xs leading-relaxed text-white/35">
+                {atletasConRutinasIncompletas.length === 0
+                  ? "No hay atletas con rutinas vacías. Todo el contenido base ya está cargado."
+                  : `${atletasConRutinasIncompletas.length} atleta${atletasConRutinasIncompletas.length === 1 ? "" : "s"} tiene${atletasConRutinasIncompletas.length === 1 ? "" : "n"} al menos una rutina sin ejercicios.`}
+              </p>
+              <Link
+                href="/coach/routines"
+                className="mt-4 inline-flex items-center gap-2 text-xs text-cyan-100"
+              >
+                Ir a plantillas y rutinas
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+          </div>
         </section>
       )}
 
@@ -2522,7 +2582,7 @@ function HomeEntrenador({
             </div>
             <DialogoNuevoAtleta users={users} onCreate={onCreateAtleta} />
           </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
             {atletas.map((item) => {
               const planes = rutinasPorAtleta.filter(
                 (rutinaActual) => rutinaActual.athleteId === item.id,
@@ -2532,15 +2592,32 @@ function HomeEntrenador({
                   total + cantidadEjercicios(rutinaActual),
                 0,
               );
+              const rutinasIncompletas = planes.filter(
+                (rutinaActual) => cantidadEjercicios(rutinaActual) === 0,
+              ).length;
 
               return (
                 <div
                   key={item.id}
-                  className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
+                  className="flex h-full flex-col rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
                 >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">{item.name}</div>
-                    <div className="truncate text-[10px] text-white/30">{item.email}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{item.name}</div>
+                        <div className="truncate text-[10px] text-white/30">{item.email}</div>
+                      </div>
+                      {rutinasIncompletas > 0 && (
+                        <Badge className="shrink-0 border-amber-300/15 bg-amber-300/10 text-[9px] text-amber-100/80">
+                          {rutinasIncompletas} sin completar
+                        </Badge>
+                      )}
+                    </div>
+                    {rutinasIncompletas > 0 && (
+                      <div className="mt-3 rounded-xl border border-amber-300/10 bg-amber-300/[0.05] px-3 py-2 text-[10px] text-amber-100/70">
+                        Revisá las rutinas vacías antes de asignar nuevas cargas.
+                      </div>
+                    )}
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <div className="rounded-xl bg-white/[0.035] px-3 py-2">
@@ -2583,6 +2660,12 @@ function HomeEntrenador({
           <Button
             variant="outline"
             onClick={() => onSaveAsTemplate(rutina)}
+            disabled={ejerciciosRutinaActiva === 0}
+            title={
+              ejerciciosRutinaActiva === 0
+                ? "Agregá al menos un ejercicio antes de guardarla como plantilla"
+                : "Guardar como plantilla"
+            }
             className="self-start shrink-0 rounded-full border-indigo-200/10 bg-indigo-300/[0.05] text-white hover:bg-indigo-300/10 hover:text-white xl:self-auto"
           >
             <Plus />
@@ -2777,7 +2860,7 @@ function HomeEntrenador({
                     {rutina.durationMinutes
                       ? ` · ${rutina.durationMinutes} min`
                       : ""}{" "}
-                    · {cantidadEjercicios(rutina)} ejercicios
+                    · {ejerciciosRutinaActiva} ejercicios
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -2852,6 +2935,12 @@ function HomeEntrenador({
                   </Dialog>
                 </div>
               </div>
+              {ejerciciosRutinaActiva === 0 && (
+                <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-100/75">
+                  Esta rutina todavía no tiene ejercicios. Sumá contenido antes de
+                  usarla como referencia o seguir avanzando con la planificación del atleta.
+                </div>
+              )}
             </CardHeader>
             <CardContent className="p-0">
               <DndContext
@@ -2987,6 +3076,8 @@ function HomeEntrenador({
 }
 
 function OverviewRutina({ rutina }: { rutina: Routine }) {
+  const ejercicios = cantidadEjercicios(rutina);
+
   return (
     <Dialog>
       <DialogTrigger
@@ -3016,87 +3107,104 @@ function OverviewRutina({ rutina }: { rutina: Routine }) {
           </DialogTitle>
           <DialogDescription className="text-white/40">
             {rutina.blocks.length} bloques conectados ·{" "}
-            {cantidadEjercicios(rutina)} ejercicios
+            {ejercicios} ejercicios
             {rutina.durationMinutes ? ` · ${rutina.durationMinutes} min` : ""}
           </DialogDescription>
         </DialogHeader>
 
         <div className="max-h-[calc(88vh-9rem)] overflow-y-auto px-4 py-6 md:px-8">
-          <div className="relative before:absolute before:bottom-5 before:left-[19px] before:top-5 before:w-px before:bg-gradient-to-b before:from-cyan-300/60 before:via-violet-400/45 before:to-blue-400/25 md:before:left-1/2">
-            {rutina.blocks.map((bloque, index) => (
-              <div
-                key={bloque.id}
-                className="relative mb-5 flex items-start gap-3 last:mb-0 md:grid md:grid-cols-[1fr_44px_1fr] md:gap-5"
-              >
-                <div
-                  className={cn(
-                    "relative z-10 grid size-10 shrink-0 place-items-center rounded-full border text-[10px] font-semibold text-black md:col-start-2 md:row-start-1",
-                    index % 2 === 0
-                      ? "border-cyan-100/40 bg-cyan-300 shadow-[0_0_24px_rgba(34,211,238,.18)]"
-                      : "border-violet-100/40 bg-violet-300 shadow-[0_0_24px_rgba(139,92,246,.18)]",
-                  )}
-                >
-                  {index + 1}
+          {ejercicios === 0 ? (
+            <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-white/[0.08] bg-white/[0.02] px-6 text-center">
+              <div>
+                <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-amber-300/[0.08] text-amber-100/70">
+                  <Dumbbell className="size-5" />
                 </div>
-
-                <div
-                  className={cn(
-                    "min-w-0 flex-1 rounded-2xl border p-4 md:row-start-1",
-                    index % 2 === 0
-                      ? "border-blue-300/15 bg-blue-400/[0.055] md:col-start-1"
-                      : "border-violet-300/15 bg-violet-400/[0.055] md:col-start-3",
-                  )}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="text-[9px] uppercase tracking-wider text-white/30">
-                        Bloque {index + 1}
-                      </div>
-                      <h3 className="mt-1 text-sm font-medium">
-                        {bloque.name}
-                      </h3>
-                    </div>
-                    <Badge className="border-white/10 bg-black/25 text-[8px] text-white/45">
-                      {rondasDelBloque(bloque)}{" "}
-                      {rondasDelBloque(bloque) === 1 ? "ronda" : "rondas"}
-                    </Badge>
-                  </div>
-
-                  <div className="mt-3 space-y-2 border-t border-white/[0.07] pt-3">
-                    {bloque.exercises.map((item) => (
-                      <div key={item.id} className="flex items-start gap-2">
-                        <span className="mt-1.5 size-1 shrink-0 rounded-full bg-white/30" />
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span className="truncate text-[11px] text-white/75">
-                              {item.name}
-                            </span>
-                            <span className="shrink-0 text-[9px] tabular-nums text-white/35">
-                              {item.sets}×{repeticionesObjetivo(item)}
-                              {item.weight > 0 ? ` · ${item.weight} kg` : ""}
-                              {item.restSeconds !== null
-                                ? ` · ${item.restSeconds} s`
-                                : ""}
-                            </span>
-                          </div>
-                          {item.instructions && (
-                            <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
-                              <TextWithLinks>{item.instructions}</TextWithLinks>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <h3 className="mt-4 text-lg font-medium">Rutina en preparación</h3>
+                <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-white/38">
+                  Tu entrenador todavía no cargó ejercicios en esta rutina. Cuando la complete,
+                  vas a poder revisar el detalle y arrancarla desde la app.
+                </p>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <>
+              <div className="relative before:absolute before:bottom-5 before:left-[19px] before:top-5 before:w-px before:bg-gradient-to-b before:from-cyan-300/60 before:via-violet-400/45 before:to-blue-400/25 md:before:left-1/2">
+                {rutina.blocks.map((bloque, index) => (
+                  <div
+                    key={bloque.id}
+                    className="relative mb-5 flex items-start gap-3 last:mb-0 md:grid md:grid-cols-[1fr_44px_1fr] md:gap-5"
+                  >
+                    <div
+                      className={cn(
+                        "relative z-10 grid size-10 shrink-0 place-items-center rounded-full border text-[10px] font-semibold text-black md:col-start-2 md:row-start-1",
+                        index % 2 === 0
+                          ? "border-cyan-100/40 bg-cyan-300 shadow-[0_0_24px_rgba(34,211,238,.18)]"
+                          : "border-violet-100/40 bg-violet-300 shadow-[0_0_24px_rgba(139,92,246,.18)]",
+                      )}
+                    >
+                      {index + 1}
+                    </div>
 
-          <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-4 py-2 text-[9px] uppercase tracking-[0.16em] text-white/35">
-            <Check className="size-3 text-cyan-200" />
-            Fin de la rutina
-          </div>
+                    <div
+                      className={cn(
+                        "min-w-0 flex-1 rounded-2xl border p-4 md:row-start-1",
+                        index % 2 === 0
+                          ? "border-blue-300/15 bg-blue-400/[0.055] md:col-start-1"
+                          : "border-violet-300/15 bg-violet-400/[0.055] md:col-start-3",
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-[9px] uppercase tracking-wider text-white/30">
+                            Bloque {index + 1}
+                          </div>
+                          <h3 className="mt-1 text-sm font-medium">
+                            {bloque.name}
+                          </h3>
+                        </div>
+                        <Badge className="border-white/10 bg-black/25 text-[8px] text-white/45">
+                          {rondasDelBloque(bloque)}{" "}
+                          {rondasDelBloque(bloque) === 1 ? "ronda" : "rondas"}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-3 space-y-2 border-t border-white/[0.07] pt-3">
+                        {bloque.exercises.map((item) => (
+                          <div key={item.id} className="flex items-start gap-2">
+                            <span className="mt-1.5 size-1 shrink-0 rounded-full bg-white/30" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-baseline justify-between gap-2">
+                                <span className="truncate text-[11px] text-white/75">
+                                  {item.name}
+                                </span>
+                                <span className="shrink-0 text-[9px] tabular-nums text-white/35">
+                                  {item.sets}×{repeticionesObjetivo(item)}
+                                  {item.weight > 0 ? ` · ${item.weight} kg` : ""}
+                                  {item.restSeconds !== null
+                                    ? ` · ${item.restSeconds} s`
+                                    : ""}
+                                </span>
+                              </div>
+                              {item.instructions && (
+                                <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
+                                  <TextWithLinks>{item.instructions}</TextWithLinks>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-4 py-2 text-[9px] uppercase tracking-[0.16em] text-white/35">
+                <Check className="size-3 text-cyan-200" />
+                Fin de la rutina
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
@@ -3118,6 +3226,9 @@ function HomeAtleta({
   progreso: number;
   onReset: () => void;
 }) {
+  const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
+  const rutinaIncompleta = !rutinaTieneEjercicios(rutina);
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-7 md:px-8 md:py-9 xl:px-10 xl:py-12">
       <div className="mb-5 flex items-center justify-between">
@@ -3166,7 +3277,7 @@ function HomeAtleta({
                 ...(rutina.durationMinutes
                   ? [[Clock3, `${rutina.durationMinutes} min`]]
                   : []),
-                [Dumbbell, `${cantidadEjercicios(rutina)} ejercicios`],
+                [Dumbbell, `${ejerciciosRutinaActiva} ejercicios`],
                 [LayoutGrid, `${rutina.blocks.length} bloques`],
               ].map(([Icon, value]) => {
                 const InfoIcon = Icon as typeof Clock3;
@@ -3184,11 +3295,22 @@ function HomeAtleta({
             <div className="mt-6 flex flex-col items-stretch gap-2 sm:items-start">
               <Button
                 onClick={onStart}
+                disabled={rutinaIncompleta}
                 className="h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100 sm:w-auto sm:px-8"
               >
-                {progreso ? "Continuar rutina" : "Comenzar rutina"}
+                {rutinaIncompleta
+                  ? "Rutina en preparación"
+                  : progreso
+                    ? "Continuar rutina"
+                    : "Comenzar rutina"}
                 <ArrowRight />
               </Button>
+              {rutinaIncompleta && (
+                <p className="max-w-md text-[11px] leading-relaxed text-amber-100/70 sm:pl-1">
+                  Tu entrenador todavía no cargó ejercicios en esta rutina. Podés
+                  revisar otra asignación o esperar a que la complete.
+                </p>
+              )}
               {progreso > 0 && (
                 <Dialog>
                   <DialogTrigger
@@ -3259,6 +3381,16 @@ function HomeHoy({
   const entrenamientosDeHoy = workouts
     .filter((item) => item.date === hoy && item.status !== "skipped")
     .sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
+  const proximoEntrenamiento = workouts
+    .filter(
+      (item) =>
+        item.date > hoy &&
+        item.status !== "skipped" &&
+        item.status !== "completed",
+    )
+    .sort((a, b) =>
+      `${a.date}${a.time ?? ""}`.localeCompare(`${b.date}${b.time ?? ""}`),
+    )[0];
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12">
@@ -3281,6 +3413,7 @@ function HomeHoy({
                 entrenamiento.origin === "routine"
                   ? routines.find((item) => item.id === entrenamiento.routineId) ?? null
                   : null;
+              const rutinaDisponible = rutina ? rutinaTieneEjercicios(rutina) : false;
               const categoryLabel =
                 entrenamiento.origin === "external"
                   ? activityCategories.find(
@@ -3353,6 +3486,14 @@ function HomeHoy({
                           {cantidadEjercicios(rutina)} ejercicios
                         </div>
                       )}
+                      {entrenamiento.origin === "routine" &&
+                        rutina &&
+                        !rutinaDisponible && (
+                          <div className="flex items-center gap-2 rounded-full border border-amber-300/12 bg-amber-300/[0.08] px-3 py-2 text-[10px] text-amber-100/75">
+                            <Dumbbell className="size-3" />
+                            Rutina en preparación
+                          </div>
+                        )}
                       {entrenamiento.origin === "external" && (
                         <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-3 py-2 text-[10px] text-white/55">
                           <Activity className="size-3 text-violet-200" />
@@ -3368,12 +3509,19 @@ function HomeHoy({
                             ? onStart(entrenamiento)
                             : onUpdate({ ...entrenamiento, status: "completed" })
                         }
+                        disabled={
+                          entrenamiento.origin === "routine" &&
+                          rutina !== null &&
+                          !rutinaDisponible
+                        }
                         className="mt-6 h-11 w-full rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 sm:w-auto sm:px-7"
                       >
                         {entrenamiento.origin === "routine"
-                          ? entrenamiento.status === "in-progress"
-                            ? "Continuar rutina"
-                            : "Comenzar rutina"
+                          ? !rutinaDisponible
+                            ? "Rutina en preparación"
+                            : entrenamiento.status === "in-progress"
+                              ? "Continuar rutina"
+                              : "Comenzar rutina"
                           : "Marcar como realizada"}
                         <ArrowRight />
                       </Button>
@@ -3428,21 +3576,51 @@ function HomeHoy({
             </div>
           </div>
 
-          <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 text-left md:p-6">
-            <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/55">
-              Inicio rápido
+          <div className="space-y-4">
+            {proximoEntrenamiento && (
+              <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 text-left md:p-6">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/55">
+                  Próximo turno
+                </div>
+                <h2 className="mt-2 text-lg font-medium text-white/90">
+                  {proximoEntrenamiento.origin === "routine"
+                    ? routines.find((item) => item.id === proximoEntrenamiento.routineId)?.title ??
+                      "Rutina agendada"
+                    : proximoEntrenamiento.title}
+                </h2>
+                <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
+                  {new Intl.DateTimeFormat("es-AR", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  }).format(new Date(`${proximoEntrenamiento.date}T12:00:00`))}
+                  {proximoEntrenamiento.time ? ` · ${proximoEntrenamiento.time}` : ""}
+                </p>
+                <Link
+                  href="/schedule"
+                  className="mt-5 inline-flex h-11 items-center gap-2 rounded-full border border-white/[0.1] px-5 text-xs font-medium text-white/75 transition-colors hover:border-cyan-200/30 hover:bg-white/[0.04] hover:text-white"
+                >
+                  Ver semana completa
+                  <ArrowRight className="size-3.5" />
+                </Link>
+              </div>
+            )}
+            <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 text-left md:p-6">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/55">
+                Inicio rápido
+              </div>
+              <h2 className="mt-2 text-lg font-medium text-white/90">¿Estás por entrenar?</h2>
+              <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
+                Si te surgió una sesión no planificada, abrí tus rutinas y arrancá en segundos.
+              </p>
+              <Link
+                href="/routines"
+                className="mt-5 inline-flex h-11 items-center gap-2 rounded-full border border-white/[0.1] px-5 text-xs font-medium text-white/75 transition-colors hover:border-cyan-200/30 hover:bg-white/[0.04] hover:text-white"
+              >
+                Ir a mis rutinas
+                <ArrowRight className="size-3.5" />
+              </Link>
             </div>
-            <h2 className="mt-2 text-lg font-medium text-white/90">¿Estás por entrenar?</h2>
-            <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
-              Si te surgió una sesión no planificada, abrí tus rutinas y arrancá en segundos.
-            </p>
-            <Link
-              href="/routines"
-              className="mt-5 inline-flex h-11 items-center gap-2 rounded-full border border-white/[0.1] px-5 text-xs font-medium text-white/75 transition-colors hover:border-cyan-200/30 hover:bg-white/[0.04] hover:text-white"
-            >
-              Ir a mis rutinas
-              <ArrowRight className="size-3.5" />
-            </Link>
           </div>
         </div>
       )}
@@ -4973,6 +5151,10 @@ export default function Home() {
 
   function comenzarEntrenamiento(item: ScheduledWorkout) {
     if (item.origin !== "routine") return;
+    const rutinaSeleccionada = routines.find(
+      (rutinaActual) => rutinaActual.id === item.routineId,
+    );
+    if (!rutinaSeleccionada || !rutinaTieneEjercicios(rutinaSeleccionada)) return;
     setRutinaId(item.routineId);
     actualizarEntrenamiento({ ...item, status: "in-progress" });
     setEntrenamientoActivoId(item.id);

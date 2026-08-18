@@ -75,6 +75,14 @@ function tituloEntrenamiento(
   );
 }
 
+function cantidadEjerciciosRutina(routine: Routine | null | undefined) {
+  if (!routine) return 0;
+  return routine.blocks.reduce(
+    (total, block) => total + block.exercises.length,
+    0,
+  );
+}
+
 function DialogoEntrenamiento({
   trigger,
   routines,
@@ -373,6 +381,12 @@ function TarjetaEntrenamiento({
     item.origin === "external" ? !omitido : editable;
   const puedeMarcarRealizada =
     item.origin === "external" && item.date <= localDate();
+  const rutina =
+    item.origin === "routine"
+      ? routines.find((actual) => actual.id === item.routineId)
+      : null;
+  const rutinaSinEjercicios =
+    item.origin === "routine" && cantidadEjerciciosRutina(rutina) === 0;
 
   return (
     <div
@@ -429,16 +443,26 @@ function TarjetaEntrenamiento({
           {item.notes}
         </p>
       )}
+      {rutinaSinEjercicios && (
+        <p className="mt-2 text-[9px] leading-relaxed text-amber-100/65">
+          Esta rutina todavia no tiene ejercicios cargados.
+        </p>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-1">
         {editable && (
           <>
             {!modoCoach && item.origin === "routine" && (
               <Button
                 size="sm"
+                disabled={rutinaSinEjercicios}
                 onClick={() => onStart(item)}
                 className="h-8 min-w-0 flex-1 rounded-full bg-cyan-300 px-2 text-[10px] text-indigo-950 hover:bg-cyan-200 sm:flex-none sm:px-3 lg:w-full lg:flex-none"
               >
-                {item.status === "in-progress" ? "Continuar" : "Comenzar"}
+                {rutinaSinEjercicios
+                  ? "Rutina en preparación"
+                  : item.status === "in-progress"
+                    ? "Continuar"
+                    : "Comenzar"}
                 <ArrowRight />
               </Button>
             )}
