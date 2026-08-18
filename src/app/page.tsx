@@ -52,7 +52,7 @@ import {
   X,
 } from "lucide-react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { BlobatarAvatar } from "@/components/blobatar-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -846,11 +846,11 @@ function AppShell({
             })}
           </nav>
           <div className="mt-auto flex items-center gap-3 rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.06] p-3.5">
-            <Avatar className="size-9 border border-violet-200/15">
-              <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[10px] text-white">
-                {usuario.name.slice(0, 1)}
-              </AvatarFallback>
-            </Avatar>
+            <BlobatarAvatar
+              name={usuario.email}
+              size="sm"
+              className="border border-violet-200/15"
+            />
             <div className="min-w-0">
               <div className="truncate text-sm">{usuario.name}</div>
               <div className="text-[10px] text-indigo-100/35">
@@ -2390,11 +2390,10 @@ function HomeEntrenador({
                   className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
                 >
                   <div className="flex items-center gap-3">
-                    <Avatar className="size-10">
-                      <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
-                        {item.name.slice(0, 1)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <BlobatarAvatar
+                      name={item.email}
+                      size="default"
+                    />
                     <div className="min-w-0">
                       <div className="truncate text-sm font-medium">{item.name}</div>
                       <div className="truncate text-[10px] text-white/30">{item.email}</div>
@@ -2984,11 +2983,11 @@ function HomeAtleta({
           <div className="text-xs text-white/40">Planes asignados</div>
           <h1 className="mt-0.5 text-2xl font-light">Todas tus rutinas</h1>
         </div>
-        <Avatar className="size-10 border border-violet-200/15">
-          <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
-            {atleta.name.slice(0, 1)}
-          </AvatarFallback>
-        </Avatar>
+        <BlobatarAvatar
+          name={atleta.email}
+          size="default"
+          className="border border-violet-200/15"
+        />
       </div>
 
       <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
@@ -3140,11 +3139,11 @@ function HomeHoy({
             {fechaLegible}
           </p>
         </div>
-        <Avatar className="size-11 border border-violet-200/15">
-          <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-xs text-white">
-            {atleta.name.slice(0, 1)}
-          </AvatarFallback>
-        </Avatar>
+        <BlobatarAvatar
+          name={atleta.email}
+          size="lg"
+          className="border border-violet-200/15"
+        />
       </div>
 
       {rutinasDeHoy.length > 0 ? (
