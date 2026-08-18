@@ -40,7 +40,7 @@ export type Routine = {
   athleteId: number;
   title: string;
   objective: string;
-  durationMinutes: number;
+  durationMinutes: number | null;
   blocks: Block[];
 };
 

@@ -14,7 +14,7 @@ create table public.routines (
   athlete_id bigint not null references public.profiles(id) on delete cascade,
   title text not null,
   objective text not null,
-  duration_minutes integer not null check (duration_minutes > 0),
+  duration_minutes integer check (duration_minutes > 0),
   blocks jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -27,7 +27,7 @@ create table public.routine_templates (
   coach_id bigint not null references public.profiles(id) on delete cascade,
   title text not null,
   objective text not null,
-  duration_minutes integer not null check (duration_minutes > 0),
+  duration_minutes integer check (duration_minutes > 0),
   blocks jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -41,7 +41,7 @@ create table public.scheduled_workouts (
   athlete_id bigint not null references public.profiles(id) on delete cascade,
   workout_date date not null,
   workout_time time,
-  duration_minutes integer not null check (duration_minutes > 0),
+  duration_minutes integer check (duration_minutes > 0),
   status text not null check (
     status in ('scheduled', 'in-progress', 'completed', 'skipped')
   ),
@@ -80,7 +80,7 @@ create table public.workout_activities (
   routine_snapshot jsonb,
   activity_date date not null,
   completed_at timestamptz not null,
-  duration_minutes integer not null check (duration_minutes > 0),
+  duration_minutes integer check (duration_minutes > 0),
   effort integer check (effort is null or effort between 1 and 5),
   feedback text not null default '',
   notes text not null default '',

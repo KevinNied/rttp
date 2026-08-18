@@ -14,7 +14,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { CompletedActivity } from "@/lib/rttp-activity";
 import { activityCategories } from "@/lib/rttp-agenda";
-import { User } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
 type FiltroActividad = "todas" | "routines" | "externas";
@@ -88,15 +87,17 @@ function DetalleActividad({
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
-            <Clock3 className="size-3.5 text-cyan-200/65" />
-            <div className="mt-2 text-lg font-light">
-              {actividad.durationMinutes}
+          {actividad.durationMinutes && (
+            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
+              <Clock3 className="size-3.5 text-cyan-200/65" />
+              <div className="mt-2 text-lg font-light">
+                {actividad.durationMinutes}
+              </div>
+              <div className="text-[9px] uppercase tracking-wider text-white/25">
+                Minutos
+              </div>
             </div>
-            <div className="text-[9px] uppercase tracking-wider text-white/25">
-              Minutos
-            </div>
-          </div>
+          )}
           {actividad.type === "routine" && (
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
               <ListChecks className="size-3.5 text-violet-200/65" />
@@ -197,11 +198,9 @@ function DetalleActividad({
 }
 
 export function ActivityHistory({
-  atleta,
   activities,
   embedded = false,
 }: {
-  atleta: User;
   activities: CompletedActivity[];
   embedded?: boolean;
 }) {
@@ -227,7 +226,7 @@ export function ActivityHistory({
     visibles.find((actividad) => actividad.id === seleccionadaId) ??
     visibles[0];
   const minutos = activities.reduce(
-    (total, actividad) => total + actividad.durationMinutes,
+    (total, actividad) => total + (actividad.durationMinutes ?? 0),
     0,
   );
 
@@ -250,17 +249,19 @@ export function ActivityHistory({
           : "mx-auto max-w-[1400px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12",
       )}
     >
-      <div className="mb-6">
-        <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
-          {embedded ? `Actividad de ${atleta.name}` : "Tu recorrido"}
+      {!embedded && (
+        <div className="mb-6">
+          <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
+            Tu recorrido
+          </div>
+          <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
+            Actividades realizadas
+          </h1>
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/35 md:text-sm">
+            Revisá sesiones de RTTP y entrenamientos realizados fuera de la app.
+          </p>
         </div>
-        <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
-          Actividades realizadas
-        </h1>
-        <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/35 md:text-sm">
-          Revisá sesiones de RTTP y entrenamientos realizados fuera de la app.
-        </p>
-      </div>
+      )}
 
       {activities.length === 0 ? (
         <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-white/[0.09] bg-white/[0.02] px-6 text-center">
@@ -279,7 +280,9 @@ export function ActivityHistory({
           <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
             {[
               [activities.length, "Actividades"],
-              [minutos, "Minutos"],
+              ...(activities.some((actividad) => actividad.durationMinutes)
+                ? [[minutos, "Minutos"]]
+                : []),
               [
                 activities.filter((actividad) => actividad.type === "routine")
                   .length,
@@ -363,9 +366,11 @@ export function ActivityHistory({
                         {fechaActividad(actividad.date)}
                       </span>
                     </span>
-                    <span className="text-[9px] text-white/25">
-                      {actividad.durationMinutes} min
-                    </span>
+                    {actividad.durationMinutes && (
+                      <span className="text-[9px] text-white/25">
+                        {actividad.durationMinutes} min
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>

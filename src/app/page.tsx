@@ -50,7 +50,6 @@ import {
   Trophy,
   Users,
   X,
-  Zap,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -157,6 +156,61 @@ type MigrationSource = {
 
 type CoachView = "resumen" | "atletas" | "routines";
 type AthleteView = "inicio" | "agenda" | "routines" | "activities";
+
+function TextWithLinks({
+  children,
+  className,
+}: {
+  children: string;
+  className?: string;
+}) {
+  const urlPattern = /\b(?:https?:\/\/|www\.)[^\s<]+/gi;
+  const parts: React.ReactNode[] = [];
+  let cursor = 0;
+
+  for (const match of children.matchAll(urlPattern)) {
+    const start = match.index;
+    let url = match[0];
+    let trailing = "";
+
+    while (/[.,!?;:]$/.test(url)) {
+      trailing = `${url.at(-1)}${trailing}`;
+      url = url.slice(0, -1);
+    }
+    while (
+      url.endsWith(")") &&
+      (url.match(/\)/g)?.length ?? 0) > (url.match(/\(/g)?.length ?? 0)
+    ) {
+      trailing = `)${trailing}`;
+      url = url.slice(0, -1);
+    }
+
+    parts.push(children.slice(cursor, start));
+    const href = url.startsWith("www.") ? `https://${url}` : url;
+    parts.push(
+      <a
+        key={`${start}-${url}`}
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (!window.confirm(`¿Querés abrir este enlace?\n\n${href}`)) {
+            event.preventDefault();
+          }
+        }}
+        className="font-medium text-cyan-200 underline decoration-cyan-200/35 underline-offset-2 transition-colors hover:text-cyan-100"
+      >
+        {url}
+      </a>,
+    );
+    parts.push(trailing);
+    cursor = start + match[0].length;
+  }
+
+  parts.push(children.slice(cursor));
+  return <span className={className}>{parts}</span>;
+}
 
 const legacyPropertyNames: Record<string, string> = {
   usuarios: "users",
@@ -319,18 +373,6 @@ function migrateLegacyStorage() {
       window.localStorage.setItem(currentKey, legacyValue);
     }
   }
-}
-
-function totalSeries(rutina: Routine) {
-  return rutina.blocks.reduce(
-    (total, bloque) =>
-      total +
-      bloque.exercises.reduce(
-        (subtotal, item) => subtotal + item.sets,
-        0,
-      ),
-    0,
-  );
 }
 
 function blockTypeLabel(type: Block["type"]) {
@@ -866,17 +908,6 @@ function AppShell({
           </nav>
         )}
         <div className="flex items-center gap-2">
-          {vistaPrevia && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClosePreview}
-              className="rounded-full text-white/55 hover:bg-white/[0.07] hover:text-white"
-            >
-              <ArrowLeft />
-              Volver a editar
-            </Button>
-          )}
           {!vistaPrevia && (
             <div
               className={cn(
@@ -916,6 +947,19 @@ function AppShell({
             <p className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs text-amber-100">
               No pudimos sincronizar con la base de datos. {syncError}
             </p>
+          </div>
+        )}
+        {vistaPrevia && (
+          <div className="mx-auto max-w-[1600px] px-4 pt-6 sm:px-6 lg:px-10">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClosePreview}
+              className="-ml-3 rounded-full text-white/55 hover:bg-white/[0.07] hover:text-white"
+            >
+              <ArrowLeft />
+              Volver a editar
+            </Button>
           </div>
         )}
         {children}
@@ -970,7 +1014,7 @@ function SelectorRutina({
               desktopVertical && "xl:mt-2 xl:text-xs",
             )}
           >
-            {cantidadEjercicios(rutina)} ejercicios · {totalSeries(rutina)} series
+            {cantidadEjercicios(rutina)} ejercicios
           </div>
         </button>
       ))}
@@ -1034,8 +1078,8 @@ function FilaEjercicio({
               onUpdate({ ...item, instructions: event.target.value })
             }
             aria-label={`Aclaraciones de ${item.name}`}
-            placeholder="Agregar aclaraciones"
-            className="mt-1 h-6 border-0 bg-transparent p-0 text-[10px] text-violet-100/55 shadow-none placeholder:text-white/20 focus-visible:ring-0 xl:text-xs"
+            placeholder="+ Aclaración opcional"
+            className="mt-1 h-5 rounded-none border-0 bg-transparent p-0 text-[10px] text-violet-100/55 shadow-none placeholder:text-white/20 focus-visible:ring-0 dark:bg-transparent xl:text-xs"
           />
         </div>
       </div>
@@ -1067,36 +1111,51 @@ function FilaEjercicio({
           </Button>
         </div>
         <div className="space-y-1">
-          <select
-            value={
-              item.minReps === item.maxReps
-                ? "fijas"
-                : "rango"
-            }
-            onChange={(event) => {
-              if (event.target.value === "fijas") {
-                onUpdate({
-                  ...item,
-                  maxReps: item.minReps,
-                });
-              } else {
-                onUpdate({
-                  ...item,
-                  maxReps: Math.max(
-                    item.minReps + 1,
-                    item.maxReps,
-                  ),
-                });
-              }
-            }}
-            aria-label={`Tipo de reps de ${item.name}`}
-            className="h-8 rounded-lg border border-white/10 bg-black/25 px-2 text-[10px] text-white outline-none focus:border-cyan-300/40"
+          <div
+            role="group"
+            aria-label={`Tipo de repeticiones de ${item.name}`}
+            className="grid h-8 w-32 grid-cols-2 rounded-lg border border-white/10 bg-black/25 p-0.5"
           >
-            <option value="fijas">Reps. fijas</option>
-            <option value="rango">Rango</option>
-          </select>
+            {(["fijas", "rango"] as const).map((tipo) => {
+              const seleccionado =
+                tipo === "fijas"
+                  ? item.minReps === item.maxReps
+                  : item.minReps !== item.maxReps;
+              return (
+                <button
+                  key={tipo}
+                  type="button"
+                  aria-pressed={seleccionado}
+                  onClick={() => {
+                    if (tipo === "fijas") {
+                      onUpdate({
+                        ...item,
+                        maxReps: item.minReps,
+                      });
+                      return;
+                    }
+                    onUpdate({
+                      ...item,
+                      maxReps: Math.max(
+                        item.minReps + 1,
+                        item.maxReps,
+                      ),
+                    });
+                  }}
+                  className={cn(
+                    "rounded-md text-[9px] transition-colors",
+                    seleccionado
+                      ? "bg-white/10 text-white shadow-sm"
+                      : "text-white/35 hover:text-white/65",
+                  )}
+                >
+                  {tipo === "fijas" ? "Fijas" : "Rango"}
+                </button>
+              );
+            })}
+          </div>
           {item.minReps === item.maxReps ? (
-            <label className="block w-28 text-center">
+            <label className="block w-32 text-center">
               <Input
                 type="number"
                 inputMode="numeric"
@@ -1228,12 +1287,14 @@ function BloqueEditor({
   index,
   abierto,
   onToggle,
+  addExercise,
   children,
 }: {
   bloque: Block;
   index: number;
   abierto: boolean;
   onToggle: () => void;
+  addExercise: React.ReactNode;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -1296,21 +1357,7 @@ function BloqueEditor({
         >
           <div className="py-1">
             {children}
-            {bloque.exercises.length === 0 && (
-              <div className="m-3 rounded-2xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] p-6 text-center">
-                <div className="mx-auto grid size-10 place-items-center rounded-xl bg-cyan-300/10 text-cyan-200/70">
-                  <GripVertical className="size-4" />
-                </div>
-                <div className="mt-3 text-xs text-white/55">
-                  Este bloque está listo
-                </div>
-                <div className="mx-auto mt-1 max-w-xs text-[10px] leading-relaxed text-white/30">
-                  Agregá el primer ejercicio con el botón superior. Después
-                  podés arrastrarlo para ordenar la rutina o moverlo a otro
-                  bloque.
-                </div>
-              </div>
-            )}
+            <div className="m-3">{addExercise}</div>
           </div>
         </SortableContext>
       )}
@@ -1320,9 +1367,13 @@ function BloqueEditor({
 
 function DialogoEjercicio({
   blocks,
+  trigger,
+  initialBlockId,
   onAdd,
 }: {
   blocks: Block[];
+  trigger: React.ReactElement;
+  initialBlockId: string;
   onAdd: (item: Exercise, blockId: string, nuevoBloque?: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -1337,7 +1388,7 @@ function DialogoEjercicio({
   const [weight, setPeso] = useState("0");
   const [restSeconds, setDescanso] = useState("");
   const [instructions, setAclaraciones] = useState("");
-  const [blockId, setBloqueId] = useState(blocks?.[0]?.id ?? "nuevo");
+  const [blockId, setBloqueId] = useState(initialBlockId);
   const [nuevoBloque, setNuevoBloque] = useState("");
 
   function cambiarApertura(siguiente: boolean) {
@@ -1352,12 +1403,12 @@ function DialogoEjercicio({
     setPeso("0");
     setDescanso("");
     setAclaraciones("");
-    setBloqueId(blocks?.[0]?.id ?? "nuevo");
+    setBloqueId(initialBlockId);
     setNuevoBloque("");
   }
 
   function agregar() {
-    if (!name.trim() || (blockId === "nuevo" && !nuevoBloque.trim())) return;
+    if (!name.trim()) return;
     onAdd(
       {
         id: `${name.toLowerCase().replace(/\W+/g, "-")}-${Date.now()}`,
@@ -1382,25 +1433,22 @@ function DialogoEjercicio({
         instructions: instructions.trim(),
       },
       blockId,
-      nuevoBloque.trim(),
+      nuevoBloque.trim() || `Bloque ${blocks.length + 1}`,
     );
   }
 
   return (
     <Dialog open={open} onOpenChange={cambiarApertura}>
-      <DialogTrigger
-        render={
-          <Button className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200" />
-        }
-      >
-        <Plus />
-        Agregar ejercicio
-      </DialogTrigger>
+      <DialogTrigger render={trigger} />
       <DialogContent className="border-violet-200/15 bg-[#111217] text-white">
         <DialogHeader>
-          <DialogTitle>Nuevo ejercicio</DialogTitle>
+          <DialogTitle>
+            {initialBlockId === "nuevo" ? "Nuevo bloque" : "Nuevo ejercicio"}
+          </DialogTitle>
           <DialogDescription className="text-indigo-100/45">
-            Elegí un bloque existente o creá uno nuevo.
+            {initialBlockId === "nuevo"
+              ? "Creá el bloque junto con su primer ejercicio."
+              : `Se agregará a ${blocks.find((block) => block.id === initialBlockId)?.name ?? "este bloque"}.`}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -1413,30 +1461,15 @@ function DialogoEjercicio({
               className="border-white/10 bg-black/35"
             />
           </label>
-          <label className="block space-y-2">
-            <span className="text-xs text-indigo-100/55">Bloque</span>
-            <select
-              value={blockId}
-              onChange={(event) => setBloqueId(event.target.value)}
-              className="h-9 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
-            >
-              {blocks.map((bloque) => (
-                <option key={bloque.id} value={bloque.id}>
-                  {bloque.name}
-                </option>
-              ))}
-              <option value="nuevo">+ Crear bloque nuevo</option>
-            </select>
-          </label>
           {blockId === "nuevo" && (
             <label className="block space-y-2">
               <span className="text-xs text-indigo-100/55">
-                Nombre del nuevo bloque
+                Nombre del nuevo bloque (opcional)
               </span>
               <Input
                 value={nuevoBloque}
                 onChange={(event) => setNuevoBloque(event.target.value)}
-                placeholder="Ej. Potencia"
+                placeholder={`Bloque ${blocks.length + 1}`}
                 className="border-white/10 bg-black/35"
               />
             </label>
@@ -1559,10 +1592,7 @@ function DialogoEjercicio({
             render={
               <Button
                 onClick={agregar}
-                disabled={
-                  !name.trim() ||
-                  (blockId === "nuevo" && !nuevoBloque.trim())
-                }
+                disabled={!name.trim()}
                 className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
               />
             }
@@ -1604,7 +1634,9 @@ function DialogoNuevaRutina({
       athleteId: atleta.id,
       title: title.trim(),
       objective: objective.trim() || "Entrenamiento personalizado",
-      durationMinutes: Math.max(1, Number(durationMinutes) || 60),
+      durationMinutes: durationMinutes.trim()
+        ? Math.max(1, Number(durationMinutes))
+        : null,
       blocks: [
         {
           id: `bloque-${timestamp}`,
@@ -1720,7 +1752,9 @@ function DialogoDetallesRutina({
   const [open, setOpen] = useState(false);
   const [title, setTitulo] = useState(rutina.title);
   const [objective, setObjetivo] = useState(rutina.objective);
-  const [durationMinutes, setDuracion] = useState(String(rutina.durationMinutes));
+  const [durationMinutes, setDuracion] = useState(
+    String(rutina.durationMinutes ?? ""),
+  );
 
   function cambiarApertura(siguiente: boolean) {
     setOpen(siguiente);
@@ -1729,7 +1763,7 @@ function DialogoDetallesRutina({
     setObjetivo(
       rutina.objective === "Entrenamiento personalizado" ? "" : rutina.objective,
     );
-    setDuracion(String(rutina.durationMinutes));
+    setDuracion(String(rutina.durationMinutes ?? ""));
   }
 
   function guardar() {
@@ -1738,7 +1772,9 @@ function DialogoDetallesRutina({
       ...rutina,
       title: title.trim(),
       objective: objective.trim() || "Entrenamiento personalizado",
-      durationMinutes: Math.max(1, Number(durationMinutes) || 60),
+      durationMinutes: durationMinutes.trim()
+        ? Math.max(1, Number(durationMinutes))
+        : null,
     });
     setOpen(false);
   }
@@ -2434,8 +2470,10 @@ function HomeEntrenador({
                   </Badge>
                 </div>
                 <div className="mt-2 text-[10px] text-white/30">
-                  {cantidadEjercicios(plantilla)} ejercicios ·{" "}
-                  {plantilla.durationMinutes} min
+                  {cantidadEjercicios(plantilla)} ejercicios
+                  {plantilla.durationMinutes
+                    ? ` · ${plantilla.durationMinutes} min`
+                    : ""}
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-2">
                   <DialogoAsignarPlantilla
@@ -2522,21 +2560,6 @@ function HomeEntrenador({
             </h2>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="hidden items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-3 py-2 xl:flex">
-              <Avatar className="size-8">
-                <AvatarFallback className="bg-gradient-to-br from-violet-500 to-cyan-400 text-[10px] text-white">
-                  {atleta.name.slice(0, 1)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <div className="max-w-32 truncate text-xs font-medium">
-                  {atleta.name}
-                </div>
-                <div className="text-[9px] text-white/30">
-                  {routines.length} planes · {cantidadEjercicios(rutina)} ejercicios
-                </div>
-              </div>
-            </div>
             {seccionDetalle === "routines" && (
               <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
             )}
@@ -2608,40 +2631,33 @@ function HomeEntrenador({
                     {rutina.title}
                   </div>
                   <p className="mt-1 text-[11px] text-indigo-100/35 xl:text-xs">
-                    {rutina.objective} · {rutina.durationMinutes} min ·{" "}
-                    {totalSeries(rutina)} series
+                    <TextWithLinks>{rutina.objective}</TextWithLinks>
+                    {rutina.durationMinutes
+                      ? ` · ${rutina.durationMinutes} min`
+                      : ""}{" "}
+                    · {cantidadEjercicios(rutina)} ejercicios
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div
-                    className={cn(
-                      "hidden text-[10px] sm:block",
-                      hayCambios ? "text-amber-200/70" : "text-cyan-200/55",
-                    )}
-                  >
-                    {hayCambios
-                      ? "Cambios sin guardar"
-                      : guardadoVisible
-                        ? "Cambios guardados"
-                        : "Guardado"}
-                  </div>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  {!hayCambios && (
+                    <div className="flex items-center gap-1 text-[10px] text-cyan-200/55">
+                      <Check className="size-3" />
+                      {guardadoVisible ? "Cambios guardados" : "Guardado"}
+                    </div>
+                  )}
                   <DialogoDetallesRutina
                         rutina={rutina}
                         onUpdate={setRutina}
                   />
-                  <Button
-                    onClick={guardar}
-                    disabled={!hayCambios}
-                    className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110 disabled:bg-white/[0.06] disabled:text-white/25 disabled:shadow-none"
-                  >
-                    <Check />
-                    Guardar
-                  </Button>
-                  <DialogoEjercicio
-                    key={rutina.id}
-                    blocks={rutina.blocks}
-                    onAdd={agregarEjercicio}
-                  />
+                  {hayCambios && (
+                    <Button
+                      onClick={guardar}
+                      className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110"
+                    >
+                      <Check />
+                      Guardar cambios
+                    </Button>
+                  )}
                   <Dialog>
                     <DialogTrigger
                       disabled={routines.length <= 1}
@@ -2712,6 +2728,22 @@ function HomeEntrenador({
                         actual === bloque.id ? null : bloque.id,
                       )
                     }
+                    addExercise={
+                      <DialogoEjercicio
+                        blocks={rutina.blocks}
+                        initialBlockId={bloque.id}
+                        trigger={
+                          <button
+                            type="button"
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] px-4 py-3 text-xs text-cyan-100/55 transition-colors hover:border-cyan-200/30 hover:bg-cyan-300/[0.06] hover:text-cyan-100"
+                          >
+                            <Plus className="size-3.5" />
+                            Sumar ejercicio
+                          </button>
+                        }
+                        onAdd={agregarEjercicio}
+                      />
+                    }
                   >
                     {bloque.exercises.map((item) => (
                       <FilaEjercicio
@@ -2726,6 +2758,22 @@ function HomeEntrenador({
                     ))}
                   </BloqueEditor>
                 ))}
+                <div className="border-t border-white/[0.06] p-3">
+                  <DialogoEjercicio
+                    blocks={rutina.blocks}
+                    initialBlockId="nuevo"
+                    trigger={
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-200/15 bg-violet-300/[0.025] px-4 py-4 text-xs text-violet-100/55 transition-colors hover:border-violet-200/30 hover:bg-violet-300/[0.06] hover:text-violet-100"
+                      >
+                        <Plus className="size-3.5" />
+                        Crear bloque
+                      </button>
+                    }
+                    onAdd={agregarEjercicio}
+                  />
+                </div>
               </DndContext>
             </CardContent>
           </Card>
@@ -2748,7 +2796,6 @@ function HomeEntrenador({
         {seccionDetalle === "activities" && (
         <ActivityHistory
           embedded
-          atleta={atleta}
           activities={activities}
         />
         )}
@@ -2825,8 +2872,9 @@ function OverviewRutina({ rutina }: { rutina: Routine }) {
             {rutina.title}
           </DialogTitle>
           <DialogDescription className="text-white/40">
-            {rutina.blocks.length} bloques conectados · {totalSeries(rutina)}{" "}
-            series · {rutina.durationMinutes} min
+            {rutina.blocks.length} bloques conectados ·{" "}
+            {cantidadEjercicios(rutina)} ejercicios
+            {rutina.durationMinutes ? ` · ${rutina.durationMinutes} min` : ""}
           </DialogDescription>
         </DialogHeader>
 
@@ -2890,7 +2938,7 @@ function OverviewRutina({ rutina }: { rutina: Routine }) {
                           </div>
                           {item.instructions && (
                             <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
-                              {item.instructions}
+                              <TextWithLinks>{item.instructions}</TextWithLinks>
                             </div>
                           )}
                         </div>
@@ -2975,12 +3023,14 @@ function HomeAtleta({
               {rutina.title}
             </h2>
             <p className="mt-2 text-xs text-indigo-100/40">
-              {rutina.objective}
+              <TextWithLinks>{rutina.objective}</TextWithLinks>
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
               {[
-                [Clock3, `${rutina.durationMinutes} min`],
-                [Zap, `${totalSeries(rutina)} series`],
+                ...(rutina.durationMinutes
+                  ? [[Clock3, `${rutina.durationMinutes} min`]]
+                  : []),
+                [Dumbbell, `${cantidadEjercicios(rutina)} ejercicios`],
                 [LayoutGrid, `${rutina.blocks.length} bloques`],
               ].map(([Icon, value]) => {
                 const InfoIcon = Icon as typeof Clock3;
@@ -3129,7 +3179,7 @@ function HomeHoy({
                         {rutina.title}
                       </h2>
                       <p className="mt-2 text-xs leading-relaxed text-white/35">
-                        {rutina.objective}
+                        <TextWithLinks>{rutina.objective}</TextWithLinks>
                       </p>
                     </div>
                     {completed && (
@@ -3141,13 +3191,15 @@ function HomeHoy({
                   </div>
 
                   <div className="mt-5 flex flex-wrap gap-2">
+                    {entrenamiento.durationMinutes && (
+                      <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-3 py-2 text-[10px] text-white/55">
+                        <Clock3 className="size-3 text-cyan-200" />
+                        {entrenamiento.durationMinutes} min
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-3 py-2 text-[10px] text-white/55">
-                      <Clock3 className="size-3 text-cyan-200" />
-                      {entrenamiento.durationMinutes} min
-                    </div>
-                    <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-3 py-2 text-[10px] text-white/55">
-                      <Zap className="size-3 text-violet-200" />
-                      {totalSeries(rutina)} series
+                      <Dumbbell className="size-3 text-violet-200" />
+                      {cantidadEjercicios(rutina)} ejercicios
                     </div>
                   </div>
 
@@ -3609,7 +3661,7 @@ function WorkoutMode({
                         </div>
                         {item.instructions && (
                           <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
-                            {item.instructions}
+                            <TextWithLinks>{item.instructions}</TextWithLinks>
                           </div>
                         )}
                       </div>
@@ -3787,7 +3839,7 @@ function WorkoutMode({
                     Aclaraciones
                   </span>
                   <span className="mt-1 text-[11px] leading-relaxed text-violet-100/70">
-                    {paso.instructions}
+                    <TextWithLinks>{paso.instructions}</TextWithLinks>
                   </span>
                 </div>
               )}
@@ -4735,7 +4787,7 @@ export default function Home() {
       id: `rutina-${crypto.randomUUID()}`,
       title: "Nueva rutina",
       objective: "Entrenamiento personalizado",
-      durationMinutes: 60,
+      durationMinutes: null,
       blocks: [
         {
           id: `bloque-${crypto.randomUUID()}`,
@@ -4905,7 +4957,6 @@ export default function Home() {
         />
       ) : vistaAtleta === "activities" && !entrenamientoActivo ? (
         <ActivityHistory
-          atleta={atleta}
           activities={activities.filter(
             (item) => item.athleteId === atleta.id,
           )}

@@ -12,6 +12,7 @@ import {
   Dumbbell,
   Pencil,
   Plus,
+  RotateCcw,
   SkipForward,
   Trash2,
 } from "lucide-react";
@@ -45,6 +46,17 @@ import { cn } from "@/lib/utils";
 
 const nombresDias = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
+function EtiquetaAccion({ children }: { children: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-white px-2 py-1 text-[10px] font-medium text-slate-950 opacity-0 shadow-lg transition-opacity group-hover/action:opacity-100 group-focus-visible/action:opacity-100 group-active/action:opacity-100"
+    >
+      {children}
+    </span>
+  );
+}
+
 function etiquetaFecha(date: string, formato: "corta" | "larga" = "corta") {
   return new Intl.DateTimeFormat("es-AR", {
     day: "numeric",
@@ -71,6 +83,8 @@ function DialogoEntrenamiento({
   fechaInicial,
   rutinaInicialId,
   item,
+  openInitially = false,
+  onDismiss,
   onCreate,
   onUpdate,
 }: {
@@ -81,10 +95,12 @@ function DialogoEntrenamiento({
   fechaInicial: string;
   rutinaInicialId?: string;
   item?: ScheduledWorkout;
+  openInitially?: boolean;
+  onDismiss?: () => void;
   onCreate: (item: NewScheduledWorkout) => void;
   onUpdate: (item: ScheduledWorkout) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(openInitially);
   const [origin, setOrigen] = useState<"routine" | "external">(
     item?.origin ?? "routine",
   );
@@ -106,14 +122,17 @@ function DialogoEntrenamiento({
       item?.durationMinutes ??
         routines.find((rutina) => rutina.id === rutinaInicialId)?.durationMinutes ??
         routines[0]?.durationMinutes ??
-        60,
+        "",
     ),
   );
   const [notes, setNotas] = useState(item?.notes ?? "");
 
   function cambiarApertura(siguiente: boolean) {
     setOpen(siguiente);
-    if (!siguiente) return;
+    if (!siguiente) {
+      onDismiss?.();
+      return;
+    }
     setOrigen(item?.origin ?? "routine");
     setRutinaId(
       item?.origin === "routine"
@@ -129,7 +148,7 @@ function DialogoEntrenamiento({
         item?.durationMinutes ??
           routines.find((rutina) => rutina.id === rutinaInicialId)?.durationMinutes ??
           routines[0]?.durationMinutes ??
-          60,
+          "",
       ),
     );
     setNotas(item?.notes ?? "");
@@ -140,7 +159,9 @@ function DialogoEntrenamiento({
       athleteId: atleta.id,
       date,
       time: time || null,
-      durationMinutes: Math.max(1, Number(durationMinutes) || 60),
+      durationMinutes: durationMinutes.trim()
+        ? Math.max(1, Number(durationMinutes))
+        : null,
       status: item?.status ?? ("scheduled" as const),
       createdById: item?.createdById ?? usuarioActual.id,
       notes: notes.trim(),
@@ -173,6 +194,7 @@ function DialogoEntrenamiento({
       onCreate(siguiente);
     }
     setOpen(false);
+    onDismiss?.();
   }
 
   const valido =
@@ -222,7 +244,7 @@ function DialogoEntrenamiento({
                   const id = event.target.value;
                   setRutinaId(id);
                   const rutina = routines.find((actual) => actual.id === id);
-                  if (rutina) setDuracion(String(rutina.durationMinutes));
+                  if (rutina) setDuracion(String(rutina.durationMinutes ?? ""));
                 }}
                 className="h-10 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
               >
@@ -370,8 +392,12 @@ function TarjetaEntrenamiento({
           <div className="mt-1.5 flex items-center gap-1.5 text-[9px] text-white/35">
             {item.time && <span>{item.time}</span>}
             {item.time && <span>·</span>}
-            <Clock3 className="size-2.5 shrink-0" />
-            <span>{item.durationMinutes} min</span>
+            {item.durationMinutes && (
+              <>
+                <Clock3 className="size-2.5 shrink-0" />
+                <span>{item.durationMinutes} min</span>
+              </>
+            )}
           </div>
         </div>
         {completado ? (
@@ -428,9 +454,10 @@ function TarjetaEntrenamiento({
                   size="icon-sm"
                   variant="ghost"
                   aria-label="Editar entrenamiento"
-                  className="rounded-full text-white/35 hover:bg-white/[0.06] hover:text-white"
+                  className="group/action relative rounded-full text-white/35 hover:bg-white/[0.06] hover:text-white"
                 >
                   <Pencil />
+                  <EtiquetaAccion>Editar</EtiquetaAccion>
                 </Button>
               }
               item={item}
@@ -446,11 +473,24 @@ function TarjetaEntrenamiento({
               variant="ghost"
               aria-label="Omitir entrenamiento"
               onClick={() => onUpdate({ ...item, status: "skipped" })}
-              className="rounded-full text-white/30 hover:bg-orange-300/10 hover:text-orange-200"
+              className="group/action relative rounded-full text-white/30 hover:bg-orange-300/10 hover:text-orange-200"
             >
               <SkipForward />
+              <EtiquetaAccion>Omitir</EtiquetaAccion>
             </Button>
           </>
+        )}
+        {omitido && (
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Restaurar entrenamiento omitido"
+            onClick={() => onUpdate({ ...item, status: "scheduled" })}
+            className="group/action relative rounded-full text-white/30 hover:bg-cyan-300/10 hover:text-cyan-200"
+          >
+            <RotateCcw />
+            <EtiquetaAccion>Restaurar</EtiquetaAccion>
+          </Button>
         )}
         <Dialog>
           <DialogTrigger
@@ -459,12 +499,13 @@ function TarjetaEntrenamiento({
                 size="icon-sm"
                 variant="ghost"
                 aria-label="Eliminar entrenamiento"
-                className="rounded-full text-white/30 hover:bg-red-300/10 hover:text-red-200"
-              />
+                className="group/action relative rounded-full text-white/30 hover:bg-red-300/10 hover:text-red-200"
+              >
+                <Trash2 />
+                <EtiquetaAccion>Eliminar</EtiquetaAccion>
+              </Button>
             }
-          >
-            <Trash2 />
-          </DialogTrigger>
+          />
           <DialogContent className="border-white/10 bg-[#111217] text-white">
             <DialogHeader>
               <DialogTitle>¿Eliminar este entrenamiento?</DialogTitle>
@@ -524,6 +565,10 @@ export function SportsSchedule({
   const hoy = localDate();
   const [semana, setSemana] = useState(startOfWeek(hoy));
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoy);
+  const [dropDraft, setDropDraft] = useState<{
+    routineId: string;
+    date: string;
+  } | null>(null);
   const dias = Array.from({ length: 7 }, (_, index) => addDays(semana, index));
   const entrenamientosDeSemana = workouts
     .filter((item) => dias.includes(item.date))
@@ -533,6 +578,15 @@ export function SportsSchedule({
     const item = workouts.find((actual) => actual.id === id);
     if (!item || item.status === "completed" || item.status === "skipped") return;
     onUpdate({ ...item, date });
+  }
+
+  function soltarEnDia(event: React.DragEvent, date: string) {
+    const routineId = event.dataTransfer.getData("application/x-rttp-routine");
+    if (routineId) {
+      setDropDraft({ routineId, date });
+      return;
+    }
+    moverEntrenamiento(event.dataTransfer.getData("text/plain"), date);
   }
 
   const propsTarjeta = {
@@ -545,6 +599,30 @@ export function SportsSchedule({
     onStart,
   };
 
+  function dialogoProgramar(className?: string) {
+    return (
+      <DialogoEntrenamiento
+        trigger={
+          <Button
+            className={cn(
+              "rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200",
+              className,
+            )}
+          >
+            <CalendarPlus />
+            Programar entrenamiento
+          </Button>
+        }
+        routines={routines}
+        atleta={atleta}
+        usuarioActual={usuarioActual}
+        fechaInicial={fechaSeleccionada}
+        onCreate={onCreate}
+        onUpdate={onUpdate}
+      />
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -553,33 +631,30 @@ export function SportsSchedule({
           : "mx-auto max-w-[1600px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12",
       )}
     >
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
-            {modoCoach ? `Planificación de ${atleta.name}` : "Tu semana deportiva"}
+      {!embedded && (
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
+              {modoCoach
+                ? `Planificación de ${atleta.name}`
+                : "Tu semana deportiva"}
+            </div>
+            <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
+              Agenda deportiva
+            </h1>
+            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/35 md:text-sm">
+              Organizá rutinas y actividades externas en un mismo lugar.
+            </p>
           </div>
-          <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
-            Agenda deportiva
-          </h1>
-          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/35 md:text-sm">
-            Organizá rutinas y actividades externas en un mismo lugar.
-          </p>
+          {dialogoProgramar("self-start sm:ml-auto sm:self-auto")}
         </div>
-        <DialogoEntrenamiento
-          trigger={
-            <Button className="self-start rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 sm:self-auto">
-              <CalendarPlus />
-              Programar entrenamiento
-            </Button>
-          }
-          routines={routines}
-          atleta={atleta}
-          usuarioActual={usuarioActual}
-          fechaInicial={fechaSeleccionada}
-          onCreate={onCreate}
-          onUpdate={onUpdate}
-        />
-      </div>
+      )}
+
+      {embedded && (
+        <div className="mb-4 xl:hidden">
+          {dialogoProgramar("w-full sm:w-auto")}
+        </div>
+      )}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
         <section className="overflow-hidden rounded-3xl border border-white/[0.07] bg-[#0d0e13]/75">
@@ -706,12 +781,7 @@ export function SportsSchedule({
                 <div
                   key={dia}
                   onDragOver={(event) => event.preventDefault()}
-                  onDrop={(event) =>
-                    moverEntrenamiento(
-                      event.dataTransfer.getData("text/plain"),
-                      dia,
-                    )
-                  }
+                  onDrop={(event) => soltarEnDia(event, dia)}
                   className={cn("min-w-0 p-2", dia === hoy && "bg-cyan-300/[0.025]")}
                 >
                   <button
@@ -750,25 +820,43 @@ export function SportsSchedule({
             <div>
               <div className="text-sm font-medium">Rutinas disponibles</div>
               <div className="mt-1 text-[10px] text-white/25">
-                Programalas cuando quieras.
+                <span className="hidden xl:inline">
+                  Arrastralas a un día o programalas.
+                </span>
+                <span className="xl:hidden">Programalas cuando quieras.</span>
               </div>
             </div>
             <Dumbbell className="size-4 text-cyan-200/50" />
           </div>
+          {embedded && (
+            <div className="mt-4 hidden xl:block">
+              {dialogoProgramar("w-full")}
+            </div>
+          )}
           <div className="mt-4 space-y-2">
             {routines.map((rutina) => (
               <Card
                 key={rutina.id}
-                className="border-white/[0.07] bg-white/[0.025] text-white shadow-none"
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.setData(
+                    "application/x-rttp-routine",
+                    rutina.id,
+                  );
+                  event.dataTransfer.effectAllowed = "copy";
+                }}
+                className="border-white/[0.07] bg-white/[0.025] text-white shadow-none xl:cursor-grab xl:active:cursor-grabbing"
               >
                 <CardContent className="p-3">
                   <div className="truncate text-xs font-medium">
                     {rutina.title}
                   </div>
-                  <div className="mt-1 flex items-center gap-1 text-[9px] text-white/25">
-                    <Clock3 className="size-3" />
-                    {rutina.durationMinutes} min
-                  </div>
+                  {rutina.durationMinutes && (
+                    <div className="mt-1 flex items-center gap-1 text-[9px] text-white/25">
+                      <Clock3 className="size-3" />
+                      {rutina.durationMinutes} min
+                    </div>
+                  )}
                   <DialogoEntrenamiento
                     trigger={
                       <Button
@@ -794,6 +882,20 @@ export function SportsSchedule({
           </div>
         </aside>
       </div>
+      {dropDraft && (
+        <DialogoEntrenamiento
+          openInitially
+          trigger={<button type="button" className="hidden" />}
+          routines={routines}
+          atleta={atleta}
+          usuarioActual={usuarioActual}
+          fechaInicial={dropDraft.date}
+          rutinaInicialId={dropDraft.routineId}
+          onDismiss={() => setDropDraft(null)}
+          onCreate={onCreate}
+          onUpdate={onUpdate}
+        />
+      )}
     </div>
   );
 }

@@ -50,7 +50,7 @@ type RoutineRow = {
   athlete_id: number;
   title: string;
   objective: string;
-  duration_minutes: number;
+  duration_minutes: number | null;
   blocks: Block[];
 };
 
@@ -59,7 +59,7 @@ type TemplateRow = {
   coach_id: number;
   title: string;
   objective: string;
-  duration_minutes: number;
+  duration_minutes: number | null;
   blocks: Block[];
 };
 
@@ -68,7 +68,7 @@ type ScheduledWorkoutRow = {
   athlete_id: number;
   workout_date: string;
   workout_time: string | null;
-  duration_minutes: number;
+  duration_minutes: number | null;
   status: WorkoutStatus;
   created_by_id: number;
   notes: string;
@@ -91,7 +91,7 @@ type ActivityRow = {
   routine_snapshot: Routine | null;
   activity_date: string;
   completed_at: string;
-  duration_minutes: number;
+  duration_minutes: number | null;
   effort: number | null;
   feedback: string;
   notes: string;

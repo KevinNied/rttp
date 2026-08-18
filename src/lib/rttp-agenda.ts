@@ -17,7 +17,7 @@ type WorkoutBase = {
   athleteId: number;
   date: string;
   time: string | null;
-  durationMinutes: number;
+  durationMinutes: number | null;
   status: WorkoutStatus;
   createdById: number;
   notes: string;

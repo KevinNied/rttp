@@ -24,7 +24,7 @@ export type CompletedActivity = {
   routineSnapshot: Routine | null;
   date: string;
   completedAt: string;
-  durationMinutes: number;
+  durationMinutes: number | null;
   effort: number | null;
   feedback: string;
   notes: string;
