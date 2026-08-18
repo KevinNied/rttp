@@ -772,6 +772,60 @@ function AppShell({
       : vistaAtleta === "routines"
         ? ["Rutinas", "Todos tus planes asignados"]
         : ["Inicio", "Tu entrenamiento de hoy"];
+  const navegacionCoach = [
+    {
+      icon: LayoutGrid,
+      label: "Resumen",
+      description: "Vista general",
+      href: "/coach",
+      view: "resumen" as const,
+    },
+    {
+      icon: Users,
+      label: "Atletas",
+      description: "Gestioná tus alumnos",
+      href: "/coach/athletes",
+      view: "atletas" as const,
+    },
+    {
+      icon: ListChecks,
+      label: "Rutinas",
+      description: "Plantillas y planes",
+      href: "/coach/routines",
+      view: "routines" as const,
+    },
+  ];
+  const navegacionAtleta = [
+    {
+      icon: House,
+      label: "Inicio",
+      description: "Tu entrenamiento de hoy",
+      href: "/",
+      view: "inicio" as const,
+    },
+    {
+      icon: CalendarDays,
+      label: "Agenda",
+      description: "Organizá tu semana",
+      href: "/schedule",
+      view: "agenda" as const,
+    },
+    {
+      icon: Dumbbell,
+      label: "Rutinas",
+      description: "Todos tus planes",
+      href: "/routines",
+      view: "routines" as const,
+    },
+    {
+      icon: Activity,
+      label: "Progreso",
+      description: "Tu historial deportivo",
+      href: "/activities",
+      view: "activities" as const,
+    },
+  ];
+  const navegacion = esEntrenador ? navegacionCoach : navegacionAtleta;
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -829,63 +883,21 @@ function AppShell({
             {esEntrenador ? "Workspace" : "Entrenamiento"}
           </div>
           <nav className="mt-3 space-y-1.5">
-            {(esEntrenador
-              ? [
-                  [LayoutGrid, "Resumen", "Vista general", "/coach", "resumen"],
-                  [
-                    Users,
-                    "Atletas",
-                    "Gestioná tus alumnos",
-                    "/coach/athletes",
-                    "atletas",
-                  ],
-                  [
-                    ListChecks,
-                    "Rutinas",
-                    "Plantillas y planes",
-                    "/coach/routines",
-                    "routines",
-                  ],
-                ]
-              : [
-                  [House, "Inicio", "Tu entrenamiento de hoy", "/", "inicio"],
-                  [
-                    CalendarDays,
-                    "Agenda",
-                    "Organizá tu semana",
-                    "/schedule",
-                    "agenda",
-                  ],
-                  [
-                    Dumbbell,
-                    "Rutinas",
-                    "Todos tus planes",
-                    "/routines",
-                    "routines",
-                  ],
-                  [
-                    Activity,
-                    "Actividades",
-                    "Tu historial deportivo",
-                    "/activities",
-                    "activities",
-                  ],
-                ]
-            ).map(([Icon, label, description, href, vista]) => {
-              const NavIcon = Icon as typeof LayoutGrid;
+            {navegacion.map((item) => {
+              const NavIcon = item.icon;
               return (
                 <Link
-                  key={label as string}
-                  href={href as string}
-                  title={label as string}
+                  key={item.label}
+                  href={item.href}
+                  title={item.label}
                   className={cn(
                     "group flex w-full rounded-2xl transition-colors",
                     sidebarCompact
                       ? "justify-center px-0 py-3"
                       : "items-center gap-3 px-3 py-3.5",
                     (esEntrenador
-                      ? vista === vistaEntrenador
-                      : vista === vistaAtleta)
+                      ? item.view === vistaEntrenador
+                      : item.view === vistaAtleta)
                       ? "bg-indigo-300/10 text-white"
                       : "text-indigo-100/45 hover:bg-indigo-300/[0.07] hover:text-white/80",
                   )}
@@ -895,9 +907,9 @@ function AppShell({
                   </span>
                   {!sidebarCompact && (
                     <span className="min-w-0">
-                      <span className="block text-sm font-medium">{label as string}</span>
+                      <span className="block text-sm font-medium">{item.label}</span>
                       <span className="mt-0.5 block text-[10px] text-white/25 transition-colors group-hover:text-white/40">
-                        {description as string}
+                        {item.description}
                       </span>
                     </span>
                   )}
@@ -949,13 +961,35 @@ function AppShell({
 
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-40 flex h-18 items-center justify-between border-b border-white/[0.07] bg-[#07080b]/88 px-4 backdrop-blur-xl lg:px-8",
+          "fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/[0.07] bg-[#07080b]/88 px-4 backdrop-blur-xl lg:h-18 lg:px-8",
           !vistaPrevia &&
             (sidebarCompact ? "lg:left-24 lg:hidden" : "lg:left-64 lg:hidden"),
         )}
       >
-        <div className={cn(!vistaPrevia && "lg:hidden")}>
-          <Logo />
+        <div className="flex items-center gap-3">
+          <div className={cn(!vistaPrevia && "hidden lg:block")}>
+            <Logo />
+          </div>
+          <div className="flex items-center gap-3 lg:hidden">
+            <Image
+              src="/rttp-mark-v2.png"
+              alt=""
+              width={28}
+              height={28}
+              unoptimized
+              className="size-7 object-contain drop-shadow-[0_0_10px_rgba(99,102,241,.18)]"
+            />
+            {!vistaPrevia && (
+              <div className="min-w-0">
+                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/85">
+                  RTTP
+                </div>
+                <div className="truncate text-[11px] text-white/40">
+                  {encabezado[0]}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         {!vistaPrevia && (
           <div className="hidden lg:block">
@@ -966,33 +1000,6 @@ function AppShell({
               {encabezado[1]}
             </div>
           </div>
-        )}
-        {!esEntrenador && !vistaPrevia && (
-          <nav className="flex items-center gap-1 lg:hidden">
-            {[
-              [House, "Inicio", "/", "inicio"],
-              [CalendarDays, "Agenda", "/schedule", "agenda"],
-              [Dumbbell, "Rutinas", "/routines", "routines"],
-              [Activity, "Actividades", "/activities", "activities"],
-            ].map(([Icon, label, href, vista]) => {
-              const NavIcon = Icon as typeof Dumbbell;
-              return (
-                <Link
-                  key={label as string}
-                  href={href as string}
-                  aria-label={label as string}
-                  className={cn(
-                    "grid size-9 place-items-center rounded-full transition-colors",
-                    vista === vistaAtleta
-                      ? "bg-cyan-300/10 text-cyan-100"
-                      : "text-white/30 hover:bg-white/[0.06] hover:text-white/70",
-                  )}
-                >
-                  <NavIcon className="size-4" />
-                </Link>
-              );
-            })}
-          </nav>
         )}
         <div className="flex items-center gap-2">
           {!vistaPrevia && (
@@ -1022,9 +1029,10 @@ function AppShell({
 
       <main
         className={cn(
-          "relative min-h-screen pt-18",
+          "relative min-h-screen pt-16 lg:pt-18",
           !vistaPrevia &&
             (sidebarCompact ? "lg:pl-24 lg:pt-0" : "lg:pl-64 lg:pt-0"),
+          !vistaPrevia && !esEntrenador && "pb-24 lg:pb-0",
         )}
       >
         {syncError && (
@@ -1052,6 +1060,43 @@ function AppShell({
         )}
         {children}
       </main>
+      {!esEntrenador && !vistaPrevia && (
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-[#07080b]/96 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 backdrop-blur-xl lg:hidden">
+          <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-[1.35rem] border border-white/[0.06] bg-white/[0.03] p-1.5 shadow-[0_-18px_45px_rgba(4,8,18,.35)]">
+            {navegacionAtleta.map((item) => {
+              const NavIcon = item.icon;
+              const activo = item.view === vistaAtleta;
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  aria-label={item.label}
+                  className={cn(
+                    "flex min-w-0 flex-col items-center gap-1 rounded-2xl px-2 py-2 text-center transition-colors",
+                    activo
+                      ? "bg-cyan-300/12 text-cyan-100"
+                      : "text-white/35 hover:bg-white/[0.06] hover:text-white/80",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "grid size-8 place-items-center rounded-full border transition-colors",
+                      activo
+                        ? "border-cyan-200/20 bg-cyan-300/12"
+                        : "border-white/[0.06] bg-white/[0.03]",
+                    )}
+                  >
+                    <NavIcon className="size-4" />
+                  </span>
+                  <span className="truncate text-[10px] font-medium leading-none">
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </div>
   );
 }
