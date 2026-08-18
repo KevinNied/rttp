@@ -369,6 +369,10 @@ function TarjetaEntrenamiento({
   const completado = item.status === "completed";
   const omitido = item.status === "skipped";
   const editable = !completado && !omitido;
+  const puedeEditar =
+    item.origin === "external" ? !omitido : editable;
+  const puedeMarcarRealizada =
+    item.origin === "external" && item.date <= localDate();
 
   return (
     <div
@@ -438,7 +442,7 @@ function TarjetaEntrenamiento({
                 <ArrowRight />
               </Button>
             )}
-            {item.origin === "external" && (
+            {item.origin === "external" && puedeMarcarRealizada && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -479,6 +483,28 @@ function TarjetaEntrenamiento({
               <EtiquetaAccion>Omitir</EtiquetaAccion>
             </Button>
           </>
+        )}
+        {!editable && puedeEditar && (
+          <DialogoEntrenamiento
+            trigger={
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label="Editar entrenamiento"
+                className="group/action relative rounded-full text-white/35 hover:bg-white/[0.06] hover:text-white"
+              >
+                <Pencil />
+                <EtiquetaAccion>Editar</EtiquetaAccion>
+              </Button>
+            }
+            item={item}
+            routines={routines}
+            atleta={atleta}
+            usuarioActual={usuarioActual}
+            fechaInicial={item.date}
+            onCreate={() => undefined}
+            onUpdate={onUpdate}
+          />
         )}
         {omitido && (
           <Button

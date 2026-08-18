@@ -1,17 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import {
   Activity,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Clock3,
   Dumbbell,
   Flame,
   ListChecks,
 } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
 import { CompletedActivity } from "@/lib/rttp-activity";
 import { activityCategories } from "@/lib/rttp-agenda";
 import { cn } from "@/lib/utils";
@@ -27,15 +27,12 @@ function fechaActividad(date: string) {
   }).format(new Date(`${date}T12:00:00`));
 }
 
-function DetalleActividad({
-  actividad,
-}: {
-  actividad: CompletedActivity;
-}) {
-  const seriesCompletadas = actividad.sets.filter(
-    (serie) => !serie.skipped,
-  ).length;
-  const blocks = actividad.sets.reduce<
+function categoriaActividad(category: CompletedActivity["category"]) {
+  return activityCategories.find((item) => item.value === category)?.label ?? null;
+}
+
+function agruparBloques(actividad: CompletedActivity) {
+  return actividad.sets.reduce<
     {
       id: string;
       name: string;
@@ -56,144 +53,178 @@ function DetalleActividad({
       },
     ];
   }, []);
+}
+
+function resumenActividad(actividad: CompletedActivity) {
+  const seriesCompletadas = actividad.sets.filter((serie) => !serie.skipped).length;
+  const bloques = agruparBloques(actividad);
+
+  return {
+    bloques,
+    seriesCompletadas,
+    resumen:
+      actividad.type === "routine"
+        ? [
+            `${seriesCompletadas} series`,
+            `${bloques.length} ${bloques.length === 1 ? "bloque" : "bloques"}`,
+          ]
+        : [categoriaActividad(actividad.category) ?? "Actividad externa"],
+  };
+}
+
+function ActivityChip({
+  icon,
+  label,
+}: {
+  icon: ReactNode;
+  label: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.04] px-2.5 py-1 text-[10px] text-white/45">
+      <span className="text-white/35">{icon}</span>
+      {label}
+    </span>
+  );
+}
+
+function ActivityCopy({
+  title,
+  body,
+  tone = "default",
+}: {
+  title: string;
+  body: string;
+  tone?: "default" | "accent";
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-3.5",
+        tone === "accent"
+          ? "border-cyan-200/10 bg-cyan-300/[0.04]"
+          : "border-white/[0.07] bg-white/[0.025]",
+      )}
+    >
+      <div
+        className={cn(
+          "text-[9px] uppercase tracking-wider",
+          tone === "accent" ? "text-cyan-100/35" : "text-white/25",
+        )}
+      >
+        {title}
+      </div>
+      <p className="mt-2 text-xs leading-relaxed text-white/58">{body}</p>
+    </div>
+  );
+}
+
+function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
+  const { bloques, seriesCompletadas } = resumenActividad(actividad);
 
   return (
-    <Card
-      id="detalle-actividad"
-      className="border-white/[0.08] bg-[#101116] text-white shadow-[0_24px_70px_rgba(0,0,0,.3)]"
-    >
-      <CardContent className="p-5 md:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <div className="text-[10px] capitalize text-cyan-100/50">
-              {fechaActividad(actividad.date)}
-            </div>
-            <h2 className="mt-2 text-2xl font-light tracking-[-0.03em]">
-              {actividad.title}
-            </h2>
-            {actividad.category && (
-              <div className="mt-2 text-[9px] uppercase tracking-[0.14em] text-violet-200/40">
-                {
-                  activityCategories.find(
-                    (category) => category.value === actividad.category,
-                  )?.label
-                }
-              </div>
-            )}
-          </div>
-          <span className="grid size-9 shrink-0 place-items-center rounded-2xl bg-emerald-300/10 text-emerald-300">
-            <CheckCircle2 className="size-4" />
-          </span>
-        </div>
-
-        <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {actividad.durationMinutes && (
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
-              <Clock3 className="size-3.5 text-cyan-200/65" />
-              <div className="mt-2 text-lg font-light">
-                {actividad.durationMinutes}
-              </div>
-              <div className="text-[9px] uppercase tracking-wider text-white/25">
-                Minutos
-              </div>
-            </div>
-          )}
-          {actividad.type === "routine" && (
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
-              <ListChecks className="size-3.5 text-violet-200/65" />
-              <div className="mt-2 text-lg font-light">{seriesCompletadas}</div>
-              <div className="text-[9px] uppercase tracking-wider text-white/25">
-                Series
-              </div>
-            </div>
-          )}
-          {actividad.effort && (
-            <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
-              <Flame className="size-3.5 text-orange-200/65" />
-              <div className="mt-2 text-lg font-light">
-                {actividad.effort}/5
-              </div>
-              <div className="text-[9px] uppercase tracking-wider text-white/25">
-                Esfuerzo
-              </div>
-            </div>
-          )}
-        </div>
-
-        {actividad.notes && (
-          <div className="mt-5 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+    <div className="space-y-3">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {actividad.durationMinutes && (
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
+            <div className="text-lg font-light">{actividad.durationMinutes}</div>
             <div className="text-[9px] uppercase tracking-wider text-white/25">
-              Notas
+              Minutos
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-white/55">
-              {actividad.notes}
-            </p>
           </div>
         )}
-
-        {actividad.feedback && (
-          <div className="mt-3 rounded-2xl border border-cyan-200/10 bg-cyan-300/[0.04] p-4">
-            <div className="text-[9px] uppercase tracking-wider text-cyan-100/35">
-              Feedback del atleta
+        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
+          <div className="text-lg font-light">{seriesCompletadas}</div>
+          <div className="text-[9px] uppercase tracking-wider text-white/25">
+            Series
+          </div>
+        </div>
+        {actividad.effort && (
+          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
+            <div className="text-lg font-light">{actividad.effort}/5</div>
+            <div className="text-[9px] uppercase tracking-wider text-white/25">
+              Esfuerzo
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-white/60">
-              {actividad.feedback}
-            </p>
           </div>
         )}
+      </div>
 
-        {blocks.length > 0 && (
-          <div className="mt-6">
-            <div className="mb-3 text-xs font-medium text-white/65">
-              Detalle de la sesión
-            </div>
-            <div className="space-y-3">
-              {blocks.map((bloque) => (
-                <div
-                  key={bloque.id}
-                  className="overflow-hidden rounded-2xl border border-white/[0.07]"
-                >
-                  <div className="border-b border-white/[0.06] bg-white/[0.025] px-3 py-2.5 text-[10px] font-medium text-white/55">
-                    {bloque.name}
-                  </div>
-                  <div className="divide-y divide-white/[0.05]">
-                    {bloque.sets.map((serie) => (
-                      <div
-                        key={serie.stepId}
-                        className="flex items-center justify-between gap-3 px-3 py-2.5"
-                      >
-                        <div className="min-w-0">
-                          <div className="truncate text-[11px] text-white/70">
-                            {serie.exerciseName}
-                          </div>
-                          <div className="mt-0.5 text-[9px] text-white/25">
-                            Serie {serie.round}
-                          </div>
-                        </div>
-                        <div
-                          className={cn(
-                            "shrink-0 text-right text-[10px]",
-                            serie.skipped
-                              ? "text-orange-200/45"
-                              : "text-cyan-100/55",
-                          )}
-                        >
-                          {serie.skipped
-                            ? "Omitida"
-                            : `${serie.reps} reps${
-                                serie.weight > 0 ? ` · ${serie.weight} kg` : ""
-                              }`}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+      {actividad.notes && <ActivityCopy title="Notas" body={actividad.notes} />}
+      {actividad.feedback && (
+        <ActivityCopy
+          title="Feedback del atleta"
+          body={actividad.feedback}
+          tone="accent"
+        />
+      )}
+
+      {bloques.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-medium text-white/60">Detalle de la sesión</div>
+          {bloques.map((bloque, index) => (
+            <div
+              key={bloque.id}
+              className="overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]"
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
+                <div className="text-[11px] font-medium text-white/70">{bloque.name}</div>
+                <div className="text-[9px] uppercase tracking-wider text-white/25">
+                  {bloque.sets.length} {bloque.sets.length === 1 ? "serie" : "series"}
                 </div>
-              ))}
+              </div>
+              <div className="divide-y divide-white/[0.05]">
+                {bloque.sets.map((serie) => (
+                  <div
+                    key={serie.stepId}
+                    className="flex items-center justify-between gap-3 px-3 py-2.5"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-[11px] text-white/70">
+                        {serie.exerciseName}
+                      </div>
+                      <div className="mt-0.5 text-[9px] text-white/25">
+                        Bloque {index + 1} · Serie {serie.round}
+                      </div>
+                    </div>
+                    <div
+                      className={cn(
+                        "shrink-0 text-right text-[10px]",
+                        serie.skipped ? "text-orange-200/45" : "text-cyan-100/55",
+                      )}
+                    >
+                      {serie.skipped
+                        ? "Omitida"
+                        : `${serie.reps} reps${
+                            serie.weight > 0 ? ` · ${serie.weight} kg` : ""
+                          }`}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DetalleExterno({ actividad }: { actividad: CompletedActivity }) {
+  const tieneDetalle = Boolean(actividad.notes || actividad.feedback);
+
+  return (
+    <div className="space-y-3">
+      {actividad.notes && <ActivityCopy title="Notas" body={actividad.notes} />}
+      {actividad.feedback && (
+        <ActivityCopy
+          title="Feedback del atleta"
+          body={actividad.feedback}
+          tone="accent"
+        />
+      )}
+      {!tieneDetalle && (
+        <div className="text-xs text-white/35">Sin detalles adicionales para esta actividad.</div>
+      )}
+    </div>
   );
 }
 
@@ -205,12 +236,11 @@ export function ActivityHistory({
   embedded?: boolean;
 }) {
   const [filtro, setFiltro] = useState<FiltroActividad>("todas");
+  const [expandidaId, setExpandidaId] = useState("");
   const ordenadas = useMemo(
     () =>
       [...activities].sort((a, b) =>
-        `${b.date}${b.completedAt}`.localeCompare(
-          `${a.date}${a.completedAt}`,
-        ),
+        `${b.date}${b.completedAt}`.localeCompare(`${a.date}${a.completedAt}`),
       ),
     [activities],
   );
@@ -219,34 +249,17 @@ export function ActivityHistory({
     if (filtro === "externas") return actividad.type === "external";
     return true;
   });
-  const [seleccionadaId, setSeleccionadaId] = useState(
-    ordenadas[0]?.id ?? "",
-  );
-  const seleccionada =
-    visibles.find((actividad) => actividad.id === seleccionadaId) ??
-    visibles[0];
   const minutos = activities.reduce(
     (total, actividad) => total + (actividad.durationMinutes ?? 0),
     0,
   );
-
-  function seleccionar(id: string) {
-    setSeleccionadaId(id);
-    if (window.innerWidth < 1024) {
-      window.requestAnimationFrame(() =>
-        document
-          .getElementById("detalle-actividad")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      );
-    }
-  }
 
   return (
     <div
       className={cn(
         embedded
           ? ""
-          : "mx-auto max-w-[1400px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12",
+          : "mx-auto max-w-[1100px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12",
       )}
     >
       {!embedded && (
@@ -258,7 +271,7 @@ export function ActivityHistory({
             Actividades realizadas
           </h1>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/35 md:text-sm">
-            Revisá sesiones de RTTP y entrenamientos realizados fuera de la app.
+            Abrí solo la actividad que quieras revisar para mantener el historial más ágil.
           </p>
         </div>
       )}
@@ -267,9 +280,7 @@ export function ActivityHistory({
         <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-white/[0.09] bg-white/[0.02] px-6 text-center">
           <div>
             <Activity className="mx-auto size-6 text-white/20" />
-            <h2 className="mt-3 text-sm font-medium">
-              Todavía no hay actividades
-            </h2>
+            <h2 className="mt-3 text-sm font-medium">Todavía no hay actividades</h2>
             <p className="mt-2 text-xs text-white/30">
               Cuando completes una rutina o actividad aparecerá acá.
             </p>
@@ -277,26 +288,25 @@ export function ActivityHistory({
         </div>
       ) : (
         <>
-          <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {[
               [activities.length, "Actividades"],
               ...(activities.some((actividad) => actividad.durationMinutes)
                 ? [[minutos, "Minutos"]]
                 : []),
               [
-                activities.filter((actividad) => actividad.type === "routine")
-                  .length,
+                activities.filter((actividad) => actividad.type === "routine").length,
                 "Rutinas RTTP",
               ],
             ].map(([valor, label], index) => (
               <div
                 key={label as string}
                 className={cn(
-                  "rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4",
+                  "rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3.5",
                   index === 2 && "col-span-2 sm:col-span-1",
                 )}
               >
-                <div className="text-2xl font-light">{valor as number}</div>
+                <div className="text-xl font-light md:text-2xl">{valor as number}</div>
                 <div className="mt-1 text-[9px] uppercase tracking-wider text-white/30">
                   {label as string}
                 </div>
@@ -330,55 +340,129 @@ export function ActivityHistory({
               No hay actividades en esta categoría.
             </div>
           ) : (
-            <div className="grid items-start gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
-              <div className="space-y-2">
-                {visibles.map((actividad) => (
-                  <button
+            <div className="space-y-3">
+              {visibles.map((actividad) => {
+                const expandida = expandidaId === actividad.id;
+                const categoria = categoriaActividad(actividad.category);
+                const { resumen, seriesCompletadas } = resumenActividad(actividad);
+
+                return (
+                  <div
                     key={actividad.id}
-                    onClick={() => seleccionar(actividad.id)}
                     className={cn(
-                      "flex w-full items-center gap-3 rounded-2xl border p-3.5 text-left transition-colors",
-                      seleccionada?.id === actividad.id
-                        ? "border-cyan-200/20 bg-cyan-300/[0.07]"
-                        : "border-white/[0.07] bg-white/[0.025] hover:bg-white/[0.05]",
+                      "overflow-hidden rounded-3xl border transition-colors",
+                      expandida
+                        ? "border-cyan-200/20 bg-cyan-300/[0.05]"
+                        : "border-white/[0.07] bg-white/[0.025] hover:bg-white/[0.04]",
                     )}
                   >
-                    <span
-                      className={cn(
-                        "grid size-9 shrink-0 place-items-center rounded-xl",
-                        actividad.type === "routine"
-                          ? "bg-cyan-300/10 text-cyan-200"
-                          : "bg-violet-300/10 text-violet-200",
-                      )}
+                    <button
+                      onClick={() =>
+                        setExpandidaId((actual) =>
+                          actual === actividad.id ? "" : actividad.id,
+                        )
+                      }
+                      className="w-full px-3.5 py-3.5 text-left md:px-4"
+                      aria-expanded={expandida}
                     >
-                      {actividad.type === "routine" ? (
-                        <Dumbbell className="size-4" />
-                      ) : (
-                        <Activity className="size-4" />
-                      )}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-medium text-white/75">
-                        {actividad.title}
-                      </span>
-                      <span className="mt-1 flex items-center gap-1.5 text-[9px] capitalize text-white/25">
-                        <CalendarDays className="size-3" />
-                        {fechaActividad(actividad.date)}
-                      </span>
-                    </span>
-                    {actividad.durationMinutes && (
-                      <span className="text-[9px] text-white/25">
-                        {actividad.durationMinutes} min
-                      </span>
+                      <div className="flex items-start gap-3">
+                        <span
+                          className={cn(
+                            "mt-0.5 grid size-10 shrink-0 place-items-center rounded-2xl",
+                            actividad.type === "routine"
+                              ? "bg-cyan-300/10 text-cyan-200"
+                              : "bg-violet-300/10 text-violet-200",
+                          )}
+                        >
+                          {actividad.type === "routine" ? (
+                            <Dumbbell className="size-4" />
+                          ) : (
+                            <Activity className="size-4" />
+                          )}
+                        </span>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-sm font-medium text-white/80">
+                                {actividad.title}
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/30">
+                                <span className="inline-flex items-center gap-1.5 capitalize">
+                                  <CalendarDays className="size-3" />
+                                  {fechaActividad(actividad.date)}
+                                </span>
+                                <span className="inline-flex items-center gap-1.5 text-white/25">
+                                  <CheckCircle2 className="size-3" />
+                                  {actividad.type === "routine"
+                                    ? "Rutina completada"
+                                    : "Actividad externa"}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 pl-2">
+                              <span className="hidden text-[10px] text-white/25 sm:inline">
+                                {expandida ? "Ocultar" : "Ver detalle"}
+                              </span>
+                              <ChevronDown
+                                className={cn(
+                                  "size-4 shrink-0 text-white/35 transition-transform",
+                                  expandida && "rotate-180",
+                                )}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {actividad.durationMinutes && (
+                              <ActivityChip
+                                icon={<Clock3 className="size-3" />}
+                                label={`${actividad.durationMinutes} min`}
+                              />
+                            )}
+                            {actividad.effort && (
+                              <ActivityChip
+                                icon={<Flame className="size-3" />}
+                                label={`Esfuerzo ${actividad.effort}/5`}
+                              />
+                            )}
+                            {actividad.type === "routine" ? (
+                              <>
+                                <ActivityChip
+                                  icon={<ListChecks className="size-3" />}
+                                  label={`${seriesCompletadas} series`}
+                                />
+                                {resumen[1] && (
+                                  <ActivityChip
+                                    icon={<Dumbbell className="size-3" />}
+                                    label={resumen[1]}
+                                  />
+                                )}
+                              </>
+                            ) : categoria ? (
+                              <ActivityChip
+                                icon={<Activity className="size-3" />}
+                                label={categoria}
+                              />
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+
+                    {expandida && (
+                      <div className="border-t border-white/[0.07] px-3.5 pb-3.5 pt-0 md:px-4 md:pb-4">
+                        {actividad.type === "routine" ? (
+                          <DetalleRutina actividad={actividad} />
+                        ) : (
+                          <DetalleExterno actividad={actividad} />
+                        )}
+                      </div>
                     )}
-                  </button>
-                ))}
-              </div>
-              <div className="scroll-mt-24 lg:sticky lg:top-24">
-                {seleccionada && (
-                  <DetalleActividad actividad={seleccionada} />
-                )}
-              </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </>
