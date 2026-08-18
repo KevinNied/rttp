@@ -133,6 +133,7 @@ const usersStorageKey = "rttp-users-v2";
 const selectedAthleteStorageKey = "rttp-selected-athlete-v2";
 const agendaStorageKey = "rttp-schedule-v2";
 const activitiesStorageKey = "rttp-activities-v2";
+const sidebarPreferenceStorageKey = "rttp-sidebar-compact-v1";
 const supabaseMigrationStorageKey = "rttp-supabase-migrated-v2";
 const supabaseMigrationSourceStorageKey =
   "rttp-supabase-migration-source-v2";
@@ -750,6 +751,12 @@ function AppShell({
   children: React.ReactNode;
 }) {
   const esEntrenador = usuario.role === "coach";
+  const [sidebarCompact, setSidebarCompact] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      window.localStorage.getItem(sidebarPreferenceStorageKey) === "true"
+    );
+  });
   const encabezadoEntrenador =
     vistaEntrenador === "atletas"
       ? ["Atletas", "Perfiles y planificación individual"]
@@ -766,13 +773,59 @@ function AppShell({
         ? ["Rutinas", "Todos tus planes asignados"]
         : ["Inicio", "Tu entrenamiento de hoy"];
 
+  useEffect(() => {
+    window.localStorage.setItem(
+      sidebarPreferenceStorageKey,
+      String(sidebarCompact),
+    );
+  }, [sidebarCompact]);
+
   return (
     <div className="min-h-screen bg-[#07080b] text-white selection:bg-cyan-300 selection:text-black">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(34,211,238,.14),transparent_32%),radial-gradient(circle_at_10%_70%,rgba(124,58,237,.15),transparent_35%)]" />
       {!vistaPrevia && (
-        <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-white/[0.07] bg-[#0a0b0f]/92 px-5 py-7 backdrop-blur-xl lg:flex">
-          <Logo />
-          <div className="mt-10 px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/25">
+        <aside
+          className={cn(
+            "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/[0.07] bg-[#0a0b0f]/92 py-7 backdrop-blur-xl lg:flex",
+            sidebarCompact ? "w-24 px-3" : "w-64 px-5",
+          )}
+        >
+          <div
+            className={cn(
+              "flex items-start",
+              sidebarCompact ? "justify-center" : "justify-between gap-3",
+            )}
+          >
+            <div className={cn(sidebarCompact && "sr-only")}>
+              <Logo />
+            </div>
+            {sidebarCompact && (
+              <div className="flex size-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.02] text-sm font-semibold text-white/80">
+                R
+              </div>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={
+                sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
+              }
+              title={
+                sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
+              }
+              onClick={() => setSidebarCompact((current) => !current)}
+              className="hidden rounded-full text-white/45 hover:bg-white/[0.06] hover:text-white lg:inline-flex"
+            >
+              {sidebarCompact ? <Plus className="size-4" /> : <Minus className="size-4" />}
+            </Button>
+          </div>
+          <div
+            className={cn(
+              "mt-10 text-[10px] font-medium uppercase tracking-[0.18em] text-white/25",
+              sidebarCompact ? "text-center" : "px-3",
+            )}
+          >
             {esEntrenador ? "Workspace" : "Entrenamiento"}
           </div>
           <nav className="mt-3 space-y-1.5">
@@ -824,8 +877,12 @@ function AppShell({
                 <Link
                   key={label as string}
                   href={href as string}
+                  title={label as string}
                   className={cn(
-                    "group flex w-full items-center gap-3 rounded-2xl px-3 py-3.5 transition-colors",
+                    "group flex w-full rounded-2xl transition-colors",
+                    sidebarCompact
+                      ? "justify-center px-0 py-3"
+                      : "items-center gap-3 px-3 py-3.5",
                     (esEntrenador
                       ? vista === vistaEntrenador
                       : vista === vistaAtleta)
@@ -836,28 +893,56 @@ function AppShell({
                   <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-white/[0.06] bg-white/[0.035]">
                     <NavIcon className="size-4" />
                   </span>
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium">{label as string}</span>
-                    <span className="mt-0.5 block text-[10px] text-white/25 transition-colors group-hover:text-white/40">
-                      {description as string}
+                  {!sidebarCompact && (
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium">{label as string}</span>
+                      <span className="mt-0.5 block text-[10px] text-white/25 transition-colors group-hover:text-white/40">
+                        {description as string}
+                      </span>
                     </span>
-                  </span>
+                  )}
                 </Link>
               );
             })}
           </nav>
-          <div className="mt-auto flex items-center gap-3 rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.06] p-3.5">
-            <BlobatarAvatar
-              name={usuario.email}
-              size="sm"
-              className="border border-violet-200/15"
-            />
-            <div className="min-w-0">
-              <div className="truncate text-sm">{usuario.name}</div>
-              <div className="text-[10px] text-indigo-100/35">
-                {esEntrenador ? "Entrenador" : "Atleta"}
-              </div>
+          <div
+            className={cn(
+              "mt-auto rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.06] p-3.5",
+              sidebarCompact && "px-2.5",
+            )}
+          >
+            <div
+              className={cn(
+                "flex items-center",
+                sidebarCompact ? "justify-center" : "gap-3",
+              )}
+            >
+              <BlobatarAvatar
+                name={usuario.email}
+                size="sm"
+              />
+              {!sidebarCompact && (
+                <div className="min-w-0">
+                  <div className="truncate text-sm">{usuario.name}</div>
+                  <div className="text-[10px] text-indigo-100/35">
+                    {esEntrenador ? "Entrenador" : "Atleta"}
+                  </div>
+                </div>
+              )}
             </div>
+            <Button
+              variant="ghost"
+              onClick={onLogout}
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
+              className={cn(
+                "mt-3 h-9 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 text-xs text-white/55 hover:bg-white/[0.07] hover:text-white",
+                sidebarCompact ? "w-full justify-center" : "w-full justify-between",
+              )}
+            >
+              {!sidebarCompact && <span>Cerrar sesión</span>}
+              <LogOut className="size-4" />
+            </Button>
           </div>
         </aside>
       )}
@@ -865,7 +950,8 @@ function AppShell({
       <header
         className={cn(
           "fixed inset-x-0 top-0 z-40 flex h-18 items-center justify-between border-b border-white/[0.07] bg-[#07080b]/88 px-4 backdrop-blur-xl lg:px-8",
-          !vistaPrevia && "lg:left-64",
+          !vistaPrevia &&
+            (sidebarCompact ? "lg:left-24 lg:hidden" : "lg:left-64 lg:hidden"),
         )}
       >
         <div className={cn(!vistaPrevia && "lg:hidden")}>
@@ -937,7 +1023,8 @@ function AppShell({
       <main
         className={cn(
           "relative min-h-screen pt-18",
-          !vistaPrevia && "lg:pl-64",
+          !vistaPrevia &&
+            (sidebarCompact ? "lg:pl-24 lg:pt-0" : "lg:pl-64 lg:pt-0"),
         )}
       >
         {syncError && (
@@ -2390,15 +2477,9 @@ function HomeEntrenador({
                   key={item.id}
                   className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
                 >
-                  <div className="flex items-center gap-3">
-                    <BlobatarAvatar
-                      name={item.email}
-                      size="default"
-                    />
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">{item.name}</div>
-                      <div className="truncate text-[10px] text-white/30">{item.email}</div>
-                    </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">{item.name}</div>
+                    <div className="truncate text-[10px] text-white/30">{item.email}</div>
                   </div>
                   <div className="mt-4 grid grid-cols-2 gap-2">
                     <div className="rounded-xl bg-white/[0.035] px-3 py-2">
@@ -2961,7 +3042,6 @@ function OverviewRutina({ rutina }: { rutina: Routine }) {
 }
 
 function HomeAtleta({
-  atleta,
   routines,
   rutina,
   onSelect,
@@ -2969,7 +3049,6 @@ function HomeAtleta({
   progreso,
   onReset,
 }: {
-  atleta: User;
   routines: Routine[];
   rutina: Routine;
   onSelect: (id: string) => void;
@@ -2984,11 +3063,6 @@ function HomeAtleta({
           <div className="text-xs text-white/40">Planes asignados</div>
           <h1 className="mt-0.5 text-2xl font-light">Todas tus rutinas</h1>
         </div>
-        <BlobatarAvatar
-          name={atleta.email}
-          size="default"
-          className="border border-violet-200/15"
-        />
       </div>
 
       <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
@@ -3134,11 +3208,6 @@ function HomeHoy({
           </h1>
           <p className="mt-2 text-xs capitalize text-white/30">{fechaLegible}</p>
         </div>
-        <BlobatarAvatar
-          name={atleta.email}
-          size="lg"
-          className="border border-violet-200/15"
-        />
       </div>
 
       {entrenamientosDeHoy.length > 0 ? (
@@ -4264,7 +4333,6 @@ function ExperienciaAtleta({
 
   return (
     <HomeAtleta
-      atleta={atleta}
       routines={routines}
       rutina={rutina}
       onSelect={(id) => {

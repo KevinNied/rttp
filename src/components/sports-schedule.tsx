@@ -654,7 +654,7 @@ export function SportsSchedule({
       className={cn(
         embedded
           ? ""
-          : "mx-auto max-w-[1600px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12",
+          : "mx-auto max-w-[1760px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12",
       )}
     >
       {!embedded && (
@@ -682,7 +682,7 @@ export function SportsSchedule({
         </div>
       )}
 
-      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_232px] 2xl:grid-cols-[minmax(0,1fr)_220px]">
         <section className="overflow-hidden rounded-3xl border border-white/[0.07] bg-[#0d0e13]/75">
           <div className="flex items-center justify-between border-b border-white/[0.06] p-4">
             <div>
@@ -798,7 +798,7 @@ export function SportsSchedule({
             </div>
           </div>
 
-          <div className="hidden min-h-[440px] grid-cols-7 divide-x divide-white/[0.05] lg:grid">
+          <div className="hidden min-h-[460px] grid-cols-7 divide-x divide-white/[0.05] lg:grid">
             {dias.map((dia, index) => {
               const items = entrenamientosDeSemana.filter(
                 (item) => item.date === dia,
@@ -826,7 +826,7 @@ export function SportsSchedule({
                       {new Date(`${dia}T12:00:00`).getDate()}
                     </span>
                   </button>
-                  <div className="space-y-2">
+                  <div className="space-y-2 px-0.5">
                     {items.map((item) => (
                       <TarjetaEntrenamiento
                         key={item.id}
@@ -874,7 +874,7 @@ export function SportsSchedule({
                 className="border-white/[0.07] bg-white/[0.025] text-white shadow-none xl:cursor-grab xl:active:cursor-grabbing"
               >
                 <CardContent className="p-3">
-                  <div className="truncate text-xs font-medium">
+                  <div className="line-clamp-2 text-xs font-medium leading-snug">
                     {rutina.title}
                   </div>
                   {rutina.durationMinutes && (

@@ -27,9 +27,9 @@ export function BlobatarAvatar({
   return (
     <div
       className={cn(
-        "relative flex shrink-0 rounded-full select-none overflow-hidden ring-2 ring-background",
+        "relative inline-flex shrink-0 items-center justify-center select-none",
         sizeMap[size],
-        className
+        className,
       )}
     >
       <Blobatar name={name} animate={animate} />
