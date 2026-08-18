@@ -1,8 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
   closestCenter,
@@ -628,6 +626,7 @@ function AppShell({
   syncError,
   onClosePreview,
   onLogout,
+  navigate,
   children,
 }: {
   usuario: User;
@@ -637,6 +636,7 @@ function AppShell({
   syncError: string | null;
   onClosePreview: () => void;
   onLogout: () => void;
+  navigate: (path: string) => void;
   children: React.ReactNode;
 }) {
   const esEntrenador = usuario.role === "coach";
@@ -781,10 +781,11 @@ function AppShell({
             {navegacion.map((item) => {
               const NavIcon = item.icon;
               return (
-                <Link
+                <button
                   key={item.label}
-                  href={item.href}
+                  type="button"
                   title={item.label}
+                  onClick={() => navigate(item.href)}
                   className={cn(
                     "group flex w-full rounded-2xl transition-colors",
                     sidebarCompact
@@ -808,7 +809,7 @@ function AppShell({
                       </span>
                     </span>
                   )}
-                </Link>
+                </button>
               );
             })}
           </nav>
@@ -962,10 +963,11 @@ function AppShell({
               const NavIcon = item.icon;
               const activo = item.view === vistaAtleta;
               return (
-                <Link
+                <button
                   key={item.label}
-                  href={item.href}
+                  type="button"
                   aria-label={item.label}
+                  onClick={() => navigate(item.href)}
                   className={cn(
                     "flex min-w-0 flex-col items-center gap-1 rounded-2xl px-2 py-2 text-center transition-colors",
                     activo
@@ -986,7 +988,7 @@ function AppShell({
                   <span className="truncate text-[10px] font-medium leading-none">
                     {item.label}
                   </span>
-                </Link>
+                </button>
               );
             })}
           </div>
@@ -2109,6 +2111,7 @@ function HomeEntrenador({
   onDeleteEntrenamiento,
   onDirtyChange,
   verComoAtleta,
+  navigate,
 }: {
   entrenador: User;
   users: User[];
@@ -2136,6 +2139,7 @@ function HomeEntrenador({
   onDeleteEntrenamiento: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;
   verComoAtleta: () => void;
+  navigate: (path: string) => void;
 }) {
   const [rutina, setRutina] = useState(rutinaGuardada);
   const [seccionDetalle, setSeccionDetalle] = useState<
@@ -2413,9 +2417,10 @@ function HomeEntrenador({
             ))}
           </div>
           <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-            <Link
-              href="/coach/athletes"
-              className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 transition-colors hover:bg-white/[0.04]"
+            <button
+              type="button"
+              onClick={() => navigate("/coach/athletes")}
+              className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 text-left transition-colors hover:bg-white/[0.04]"
             >
               <div className="text-sm font-medium">Seguí con tus atletas</div>
               <p className="mt-1 text-xs leading-relaxed text-white/35">
@@ -2426,7 +2431,7 @@ function HomeEntrenador({
                 Abrir atletas
                 <ArrowRight className="size-3.5" />
               </div>
-            </Link>
+            </button>
             <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
               <div className="text-sm font-medium">Rutinas para completar</div>
               <p className="mt-1 text-xs leading-relaxed text-white/35">
@@ -2434,13 +2439,14 @@ function HomeEntrenador({
                   ? "No hay atletas con rutinas vacías. Todo el contenido base ya está cargado."
                   : `${atletasConRutinasIncompletas.length} atleta${atletasConRutinasIncompletas.length === 1 ? "" : "s"} tiene${atletasConRutinasIncompletas.length === 1 ? "" : "n"} al menos una rutina sin ejercicios.`}
               </p>
-              <Link
-                href="/coach/routines"
+              <button
+                type="button"
+                onClick={() => navigate("/coach/routines")}
                 className="mt-4 inline-flex items-center gap-2 text-xs text-cyan-100"
               >
                 Ir a plantillas y rutinas
                 <ArrowRight className="size-3.5" />
-              </Link>
+              </button>
             </div>
           </div>
         </section>
@@ -2511,14 +2517,17 @@ function HomeEntrenador({
                       </div>
                     </div>
                   </div>
-                  <Link
-                    href={`/coach/athletes/${item.id}`}
-                    onClick={() => onSelectAtleta(item.id)}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectAtleta(item.id);
+                      navigate(`/coach/athletes/${item.id}`);
+                    }}
                     className="mt-4 flex h-9 items-center justify-center gap-2 rounded-full bg-cyan-300 text-xs font-medium text-indigo-950 transition-colors hover:bg-cyan-200"
                   >
                     Ver planificación
                     <ArrowRight className="size-3.5" />
-                  </Link>
+                  </button>
                 </div>
               );
             })}
@@ -2648,13 +2657,14 @@ function HomeEntrenador({
         <section id="routines-entrenador" className="scroll-mt-24">
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-            <Link
-              href="/coach/athletes"
+            <button
+              type="button"
+              onClick={() => navigate("/coach/athletes")}
               className="mb-3 inline-flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white"
             >
               <ArrowLeft className="size-3.5" />
               Todos los atletas
-            </Link>
+            </button>
             <div className={pageEyebrowClassName}>
               Planificación de {atleta.name}
             </div>
@@ -3257,12 +3267,14 @@ function HomeHoy({
   workouts,
   onStart,
   onUpdate,
+  navigate,
 }: {
   atleta: User;
   routines: Routine[];
   workouts: ScheduledWorkout[];
   onStart: (item: ScheduledWorkout) => void;
   onUpdate: (item: ScheduledWorkout) => void;
+  navigate: (path: string) => void;
 }) {
   const hoy = localDate();
   const fechaLegible = new Intl.DateTimeFormat("es-AR", {
@@ -3437,13 +3449,14 @@ function HomeHoy({
                   Entrá a tus rutinas y empezá una al instante sin depender de la agenda.
                 </p>
               </div>
-              <Link
-                href="/routines"
+              <button
+                type="button"
+                onClick={() => navigate("/routines")}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/[0.1] px-5 text-xs font-medium text-white/75 transition-colors hover:border-cyan-200/30 hover:bg-white/[0.04] hover:text-white"
               >
                 Ir a mis rutinas
                 <ArrowRight className="size-3.5" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -3458,13 +3471,14 @@ function HomeHoy({
               <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-white/35">
                 Podés descansar, revisar tu semana o programar una rutina desde la agenda.
               </p>
-              <Link
-                href="/schedule"
+              <button
+                type="button"
+                onClick={() => navigate("/schedule")}
                 className="mt-5 inline-flex h-10 items-center gap-2 rounded-full bg-cyan-300 px-5 text-xs font-medium text-indigo-950 transition-colors hover:bg-cyan-200"
               >
                 Ver agenda
                 <ArrowRight className="size-3.5" />
-              </Link>
+              </button>
             </div>
           </div>
 
@@ -3488,13 +3502,14 @@ function HomeHoy({
                   }).format(new Date(`${proximoEntrenamiento.date}T12:00:00`))}
                   {proximoEntrenamiento.time ? ` · ${proximoEntrenamiento.time}` : ""}
                 </p>
-                <Link
-                  href="/schedule"
+                <button
+                  type="button"
+                  onClick={() => navigate("/schedule")}
                   className="mt-5 inline-flex h-11 items-center gap-2 rounded-full border border-white/[0.1] px-5 text-xs font-medium text-white/75 transition-colors hover:border-cyan-200/30 hover:bg-white/[0.04] hover:text-white"
                 >
                   Ver semana completa
                   <ArrowRight className="size-3.5" />
-                </Link>
+                </button>
               </div>
             )}
             <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 text-left md:p-6">
@@ -3505,13 +3520,14 @@ function HomeHoy({
               <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
                 Si te surgió una sesión no planificada, abrí tus rutinas y arrancá en segundos.
               </p>
-              <Link
-                href="/routines"
+              <button
+                type="button"
+                onClick={() => navigate("/routines")}
                 className="mt-5 inline-flex h-11 items-center gap-2 rounded-full border border-white/[0.1] px-5 text-xs font-medium text-white/75 transition-colors hover:border-cyan-200/30 hover:bg-white/[0.04] hover:text-white"
               >
                 Ir a mis rutinas
                 <ArrowRight className="size-3.5" />
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -4480,7 +4496,9 @@ function ExperienciaAtleta({
 }
 
 export default function Home() {
-  const pathname = usePathname();
+  const [pathname, setPathname] = useState(() =>
+    typeof window !== "undefined" ? window.location.pathname : "/",
+  );
   const [users, setUsuarios] = useState<User[]>(initialUsers);
   const [routines, setRutinas] = useState<Routine[]>(initialRoutines);
   const [templates, setPlantillas] = useState<RoutineTemplate[]>([]);
@@ -4547,6 +4565,19 @@ export default function Home() {
       : pathname === "/routines"
         ? "routines"
         : "inicio";
+
+  function navigate(path: string) {
+    window.history.pushState(null, "", path);
+    setPathname(path);
+  }
+
+  useEffect(() => {
+    function onPopState() {
+      setPathname(window.location.pathname);
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -5101,6 +5132,7 @@ export default function Home() {
       syncError={syncError}
       onClosePreview={() => setVistaPrevia(false)}
       onLogout={intentarSalir}
+      navigate={navigate}
     >
       {!mostrandoAtleta ? (
         <HomeEntrenador
@@ -5139,6 +5171,7 @@ export default function Home() {
           onDeleteEntrenamiento={eliminarEntrenamiento}
           onDirtyChange={setEditorDirty}
           verComoAtleta={() => setVistaPrevia(true)}
+          navigate={navigate}
         />
       ) : vistaAtleta === "agenda" && !entrenamientoActivo ? (
         <SportsSchedule
@@ -5171,6 +5204,7 @@ export default function Home() {
           )}
           onStart={comenzarEntrenamiento}
           onUpdate={actualizarEntrenamiento}
+          navigate={navigate}
         />
       ) : (
         <ExperienciaAtleta
