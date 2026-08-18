@@ -20,6 +20,21 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "RTTP - Return To The Prime",
   description: "La plataforma de entrenamiento para atletas y entrenadores.",
+  applicationName: "RTTP",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icon.png", sizes: "768x768", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "768x768", type: "image/png" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "RTTP",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -10,6 +10,7 @@ import {
   Dumbbell,
   Flame,
   ListChecks,
+  Trash2,
 } from "lucide-react";
 
 import { CompletedActivity } from "@/lib/rttp-activity";
@@ -231,9 +232,11 @@ function DetalleExterno({ actividad }: { actividad: CompletedActivity }) {
 export function ActivityHistory({
   activities,
   embedded = false,
+  onDeleteActivity,
 }: {
   activities: CompletedActivity[];
   embedded?: boolean;
+  onDeleteActivity?: (activity: CompletedActivity) => void;
 }) {
   const [filtro, setFiltro] = useState<FiltroActividad>("todas");
   const [expandidaId, setExpandidaId] = useState("");
@@ -457,6 +460,18 @@ export function ActivityHistory({
                           <DetalleRutina actividad={actividad} />
                         ) : (
                           <DetalleExterno actividad={actividad} />
+                        )}
+                        {actividad.type === "external" && onDeleteActivity && (
+                          <div className="mt-4 flex justify-end border-t border-white/[0.06] pt-4">
+                            <button
+                              type="button"
+                              onClick={() => onDeleteActivity(actividad)}
+                              className="inline-flex h-9 items-center gap-2 rounded-full border border-red-300/15 bg-red-300/10 px-3.5 text-[11px] font-medium text-red-100/85 transition-colors hover:bg-red-300/15 hover:text-red-50"
+                            >
+                              <Trash2 className="size-3.5" />
+                              Eliminar actividad
+                            </button>
+                          </div>
                         )}
                       </div>
                     )}

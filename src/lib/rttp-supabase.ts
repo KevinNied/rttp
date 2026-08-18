@@ -32,7 +32,8 @@ export type NewSupabaseMutation =
       data: ScheduledWorkout[];
     }
   | { type: "delete-workout"; entityId: string }
-  | { type: "save-activity"; data: CompletedActivity };
+  | { type: "save-activity"; data: CompletedActivity }
+  | { type: "delete-activity"; entityId: string };
 
 export type SupabaseMutation = NewSupabaseMutation & { id: string };
 export type UserIdMapping = Record<string, number>;
@@ -391,6 +392,20 @@ export async function saveActivity(activityData: CompletedActivity) {
   assertQuery("No se pudo guardar la actividad", error);
 }
 
+export async function deleteActivityFromSupabase(id: string) {
+  const { error: setsError } = await getSupabaseClient()
+    .from("workout_activity_sets")
+    .delete()
+    .eq("activity_id", id);
+  assertQuery("No se pudieron eliminar las series de la actividad", setsError);
+
+  const { error } = await getSupabaseClient()
+    .from("workout_activities")
+    .delete()
+    .eq("id", id);
+  assertQuery("No se pudo eliminar la actividad", error);
+}
+
 function remapId(id: number, mapping: UserIdMapping) {
   return mapping[String(id)] ?? id;
 }
@@ -480,6 +495,8 @@ export async function executeSupabaseMutation(mutation: SupabaseMutation) {
       return deleteScheduledWorkoutFromSupabase(mutation.entityId);
     case "save-activity":
       return saveActivity(mutation.data);
+    case "delete-activity":
+      return deleteActivityFromSupabase(mutation.entityId);
   }
 }
 

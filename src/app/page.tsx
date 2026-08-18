@@ -30,6 +30,8 @@ import {
   Check,
   CheckCircle2,
   ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   Clock3,
   CalendarDays,
   LogOut,
@@ -301,6 +303,7 @@ const legacyBusinessValues: Record<string, string> = {
   "guardar-entrenamientos": "save-workouts",
   "eliminar-entrenamiento": "delete-workout",
   "guardar-actividad": "save-activity",
+  "eliminar-actividad": "delete-activity",
 };
 
 function translateLegacyStorageValue(
@@ -804,18 +807,18 @@ function AppShell({
       view: "inicio" as const,
     },
     {
-      icon: CalendarDays,
-      label: "Agenda",
-      description: "Organizá tu semana",
-      href: "/schedule",
-      view: "agenda" as const,
-    },
-    {
       icon: Dumbbell,
       label: "Rutinas",
       description: "Todos tus planes",
       href: "/routines",
       view: "routines" as const,
+    },
+    {
+      icon: CalendarDays,
+      label: "Agenda",
+      description: "Organizá tu semana",
+      href: "/schedule",
+      view: "agenda" as const,
     },
     {
       icon: Activity,
@@ -846,17 +849,24 @@ function AppShell({
         >
           <div
             className={cn(
-              "flex items-start",
-              sidebarCompact ? "justify-center" : "justify-between gap-3",
+              "flex",
+              sidebarCompact
+                ? "flex-col items-center gap-3"
+                : "items-start justify-between gap-3",
             )}
           >
-            <div className={cn(sidebarCompact && "sr-only")}>
+            <div className={cn(sidebarCompact && "hidden")}>
               <Logo />
             </div>
             {sidebarCompact && (
-              <div className="flex size-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.02] text-sm font-semibold text-white/80">
-                R
-              </div>
+              <Image
+                src="/rttp-mark-v2.png"
+                alt="RTTP"
+                width={40}
+                height={40}
+                unoptimized
+                className="size-10 object-contain drop-shadow-[0_0_12px_rgba(99,102,241,.18)]"
+              />
             )}
             <Button
               type="button"
@@ -869,19 +879,23 @@ function AppShell({
                 sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
               }
               onClick={() => setSidebarCompact((current) => !current)}
-              className="hidden rounded-full text-white/45 hover:bg-white/[0.06] hover:text-white lg:inline-flex"
+              className={cn(
+                "hidden border border-white/[0.08] bg-white/[0.03] text-white/45 hover:bg-white/[0.06] hover:text-white lg:inline-flex",
+                sidebarCompact ? "rounded-xl" : "rounded-xl",
+              )}
             >
-              {sidebarCompact ? <Plus className="size-4" /> : <Minus className="size-4" />}
+              {sidebarCompact ? (
+                <ChevronsRight className="size-4" />
+              ) : (
+                <ChevronsLeft className="size-4" />
+              )}
             </Button>
           </div>
-          <div
-            className={cn(
-              "mt-10 text-[10px] font-medium uppercase tracking-[0.18em] text-white/25",
-              sidebarCompact ? "text-center" : "px-3",
-            )}
-          >
-            {esEntrenador ? "Workspace" : "Entrenamiento"}
-          </div>
+          {!sidebarCompact && (
+            <div className="mt-10 px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/25">
+              {esEntrenador ? "Workspace" : "Entrenamiento"}
+            </div>
+          )}
           <nav className="mt-3 space-y-1.5">
             {navegacion.map((item) => {
               const NavIcon = item.icon;
@@ -931,7 +945,7 @@ function AppShell({
             >
               <BlobatarAvatar
                 name={usuario.email}
-                size="sm"
+                size={sidebarCompact ? "sm" : "lg"}
               />
               {!sidebarCompact && (
                 <div className="min-w-0">
@@ -2205,6 +2219,7 @@ function HomeEntrenador({
   onCreateEntrenamiento,
   onUpdateEntrenamiento,
   onDeleteEntrenamiento,
+  onDeleteActivity,
   onDirtyChange,
   verComoAtleta,
 }: {
@@ -2232,6 +2247,7 @@ function HomeEntrenador({
   onCreateEntrenamiento: (item: NewScheduledWorkout) => void;
   onUpdateEntrenamiento: (item: ScheduledWorkout) => void;
   onDeleteEntrenamiento: (id: string) => void;
+  onDeleteActivity: (activity: CompletedActivity) => void;
   onDirtyChange: (dirty: boolean) => void;
   verComoAtleta: () => void;
 }) {
@@ -2923,6 +2939,7 @@ function HomeEntrenador({
         <ActivityHistory
           embedded
           activities={activities}
+          onDeleteActivity={onDeleteActivity}
         />
         )}
         </section>
@@ -4920,6 +4937,40 @@ export default function Home() {
     persist({ type: "delete-workout", entityId: id });
   }
 
+  function eliminarActividad(actividad: CompletedActivity) {
+    if (
+      !window.confirm(
+        actividad.type === "external"
+          ? `¿Querés eliminar "${actividad.title}" del historial?\n\nTambién la vamos a quitar de la agenda para que no quede como actividad completada.`
+          : `¿Querés eliminar "${actividad.title}" del historial?`,
+      )
+    ) {
+      return;
+    }
+
+    setActividades((actuales) =>
+      actuales.filter((item) => item.id !== actividad.id),
+    );
+    persist({ type: "delete-activity", entityId: actividad.id });
+
+    if (actividad.type !== "external") return;
+
+    setEntrenamientos((actuales) =>
+      actuales.filter((item) => item.id !== actividad.scheduledWorkoutId),
+    );
+    setRegistros((actuales) =>
+      Object.fromEntries(
+        Object.entries(actuales).filter(
+          ([key]) => !key.startsWith(`${actividad.scheduledWorkoutId}-`),
+        ),
+      ),
+    );
+    if (entrenamientoActivoId === actividad.scheduledWorkoutId) {
+      setEntrenamientoActivoId(null);
+    }
+    persist({ type: "delete-workout", entityId: actividad.scheduledWorkoutId });
+  }
+
   function comenzarEntrenamiento(item: ScheduledWorkout) {
     if (item.origin !== "routine") return;
     setRutinaId(item.routineId);
@@ -5124,6 +5175,7 @@ export default function Home() {
           onCreateEntrenamiento={crearEntrenamiento}
           onUpdateEntrenamiento={actualizarEntrenamiento}
           onDeleteEntrenamiento={eliminarEntrenamiento}
+          onDeleteActivity={eliminarActividad}
           onDirtyChange={setEditorDirty}
           verComoAtleta={() => setVistaPrevia(true)}
         />
@@ -5146,6 +5198,7 @@ export default function Home() {
           activities={activities.filter(
             (item) => item.athleteId === atleta.id,
           )}
+          onDeleteActivity={eliminarActividad}
         />
       ) : vistaAtleta === "inicio" && !entrenamientoActivo ? (
         <HomeHoy
