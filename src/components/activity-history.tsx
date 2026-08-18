@@ -262,7 +262,7 @@ export function ActivityHistory({
       className={cn(
         embedded
           ? ""
-          : "mx-auto max-w-[1100px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12",
+          : "mx-auto max-w-[1760px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12",
       )}
     >
       {!embedded && (

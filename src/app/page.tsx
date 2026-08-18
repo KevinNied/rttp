@@ -143,6 +143,14 @@ const supabaseUserMappingStorageKey = "rttp-supabase-user-mapping-v2";
 const supabaseOutboxStorageKey = "rttp-supabase-outbox-v2";
 const supabaseMigrationLock = "rttp-supabase-migration";
 const supabaseOutboxLock = "rttp-supabase-outbox";
+const desktopPageShellClassName =
+  "mx-auto max-w-[1760px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12";
+const pageEyebrowClassName =
+  "mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60";
+const pageTitleClassName =
+  "text-3xl font-light tracking-[-0.035em] md:text-4xl";
+const pageDescriptionClassName =
+  "mt-2 max-w-2xl text-xs leading-relaxed text-white/35 md:text-sm";
 
 type RoutineTemplate = Omit<Routine, "athleteId"> & {
   coachId: number;
@@ -1056,7 +1064,7 @@ function AppShell({
         {syncError && (
           <div
             role="alert"
-            className="relative z-20 mx-auto max-w-[1600px] px-4 pt-4 sm:px-6"
+            className="relative z-20 mx-auto max-w-[1760px] px-4 pt-4 sm:px-6 lg:px-10"
           >
             <p className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs text-amber-100">
               No pudimos sincronizar con la base de datos. {syncError}
@@ -1064,7 +1072,7 @@ function AppShell({
           </div>
         )}
         {vistaPrevia && (
-          <div className="mx-auto max-w-[1600px] px-4 pt-6 sm:px-6 lg:px-10">
+          <div className="mx-auto max-w-[1760px] px-4 pt-6 sm:px-6 lg:px-10">
             <Button
               variant="ghost"
               size="sm"
@@ -2494,18 +2502,18 @@ function HomeEntrenador({
   return (
     <div
       id="inicio-entrenador"
-      className="mx-auto max-w-[1600px] scroll-mt-24 px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12"
+      className={cn(desktopPageShellClassName, "scroll-mt-24")}
     >
       {vista === "resumen" && (
         <section>
           <div className="mb-8">
-            <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
+            <div className={pageEyebrowClassName}>
               Workspace de entrenamiento
             </div>
-            <h1 className="max-w-2xl text-3xl font-light tracking-[-0.035em] md:text-4xl xl:max-w-none xl:whitespace-nowrap xl:text-5xl">
+            <h1 className={pageTitleClassName}>
               Planificá el progreso de tus atletas
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/35 xl:max-w-none xl:whitespace-nowrap xl:text-base">
+            <p className={pageDescriptionClassName}>
               Organizá atletas, reutilizá plantillas y personalizá cada plan desde
               sus espacios dedicados.
             </p>
@@ -2572,17 +2580,20 @@ function HomeEntrenador({
       )}
 
       {vista === "atletas" && !detalleAtleta && (
-        <section className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/70 p-4 md:p-5 xl:p-6">
-          <div className="mb-5 flex items-end justify-between gap-4">
+        <section>
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="text-sm font-medium">Tus atletas</div>
-              <div className="mt-1 text-xs text-white/30">
-                Revisá la carga y accedé a la planificación individual.
-              </div>
+              <div className={pageEyebrowClassName}>Tus atletas</div>
+              <h1 className={pageTitleClassName}>Seguimiento individual</h1>
+              <p className={pageDescriptionClassName}>
+                Revisá la carga, detectá rutinas incompletas y entrá rápido a la
+                planificación de cada atleta.
+              </p>
             </div>
             <DialogoNuevoAtleta users={users} onCreate={onCreateAtleta} />
           </div>
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
+          <div className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/70 p-4 md:p-5 xl:p-6">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
             {atletas.map((item) => {
               const planes = rutinasPorAtleta.filter(
                 (rutinaActual) => rutinaActual.athleteId === item.id,
@@ -2644,20 +2655,22 @@ function HomeEntrenador({
                 </div>
               );
             })}
+            </div>
           </div>
         </section>
       )}
 
       {vista === "routines" && (
-        <section className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/70 p-4 md:p-5 xl:p-6">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="min-w-0">
-            <div className="text-sm font-medium">Biblioteca de plantillas</div>
-          <div className="mt-1 text-xs leading-relaxed text-white/30 xl:whitespace-nowrap">
+        <section>
+          <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="min-w-0">
+            <div className={pageEyebrowClassName}>Biblioteca de plantillas</div>
+            <h1 className={pageTitleClassName}>Rutinas reutilizables</h1>
+            <p className={pageDescriptionClassName}>
               Guardá la rutina abierta como plantilla para reutilizar su estructura y pesos base. Cada asignación crea una copia independiente para el atleta.
+            </p>
             </div>
-          </div>
-          <Button
+            <Button
             variant="outline"
             onClick={() => onSaveAsTemplate(rutina)}
             disabled={ejerciciosRutinaActiva === 0}
@@ -2667,105 +2680,107 @@ function HomeEntrenador({
                 : "Guardar como plantilla"
             }
             className="self-start shrink-0 rounded-full border-indigo-200/10 bg-indigo-300/[0.05] text-white hover:bg-indigo-300/10 hover:text-white xl:self-auto"
-          >
+            >
             <Plus />
             Guardar como plantilla
-          </Button>
-        </div>
-        {templates.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5 text-xs text-white/35">
-            Todavía no tenés plantillas. Personalizá una rutina y guardala acá
-            para asignarla rápidamente.
+            </Button>
           </div>
-        ) : (
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {templates.map((plantilla) => (
-              <div
-                key={plantilla.id}
-                className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-medium">
-                      {plantilla.title}
+          <div className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/70 p-4 md:p-5 xl:p-6">
+            {templates.length === 0 ? (
+            <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5 text-xs text-white/35">
+              Todavía no tenés plantillas. Personalizá una rutina y guardala acá
+              para asignarla rápidamente.
+            </div>
+            ) : (
+            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {templates.map((plantilla) => (
+                <div
+                  key={plantilla.id}
+                  className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-medium">
+                        {plantilla.title}
+                      </div>
                     </div>
+                    <Badge className="shrink-0 border-white/[0.08] bg-white/[0.04] text-[9px] text-white/45">
+                      Plantilla
+                    </Badge>
                   </div>
-                  <Badge className="shrink-0 border-white/[0.08] bg-white/[0.04] text-[9px] text-white/45">
-                    Plantilla
-                  </Badge>
-                </div>
-                <div className="mt-2 text-[10px] text-white/30">
-                  {cantidadEjercicios(plantilla)} ejercicios
-                  {plantilla.durationMinutes
-                    ? ` · ${plantilla.durationMinutes} min`
-                    : ""}
-                </div>
-                <div className="mt-4 flex items-center justify-between gap-2">
-                  <DialogoAsignarPlantilla
-                    plantilla={plantilla}
-                    atletas={atletas}
-                    onAssign={(athleteId) =>
-                      navegar(() => onAssignTemplate(plantilla.id, athleteId))
-                    }
-                  />
-                  <Dialog>
-                    <DialogTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Eliminar plantilla ${plantilla.title}`}
-                          className="rounded-full text-white/35 hover:bg-red-400/10 hover:text-red-200"
-                        />
+                  <div className="mt-2 text-[10px] text-white/30">
+                    {cantidadEjercicios(plantilla)} ejercicios
+                    {plantilla.durationMinutes
+                      ? ` · ${plantilla.durationMinutes} min`
+                      : ""}
+                  </div>
+                  <div className="mt-4 flex items-center justify-between gap-2">
+                    <DialogoAsignarPlantilla
+                      plantilla={plantilla}
+                      atletas={atletas}
+                      onAssign={(athleteId) =>
+                        navegar(() => onAssignTemplate(plantilla.id, athleteId))
                       }
-                    >
-                      <Trash2 />
-                    </DialogTrigger>
-                    <DialogContent className="border-white/10 bg-[#111217] text-white">
-                      <DialogHeader>
-                        <DialogTitle>
-                          ¿Eliminar “{plantilla.title}”?
-                        </DialogTitle>
-                        <DialogDescription className="text-white/40">
-                          La plantilla dejará de estar disponible para nuevas
-                          asignaciones. Las rutinas que ya asignaste no se
-                          modificarán.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <DialogClose
-                          render={
-                            <Button variant="ghost" className="text-white/50" />
-                          }
-                        >
-                          Cancelar
-                        </DialogClose>
-                        <DialogClose
-                          render={
-                            <Button
-                              variant="destructive"
-                              onClick={() => onDeleteTemplate(plantilla.id)}
-                              className="bg-red-500 text-white hover:bg-red-400"
-                            />
-                          }
-                        >
-                          Eliminar plantilla
-                        </DialogClose>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                    />
+                    <Dialog>
+                      <DialogTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Eliminar plantilla ${plantilla.title}`}
+                            className="rounded-full text-white/35 hover:bg-red-400/10 hover:text-red-200"
+                          />
+                        }
+                      >
+                        <Trash2 />
+                      </DialogTrigger>
+                      <DialogContent className="border-white/10 bg-[#111217] text-white">
+                        <DialogHeader>
+                          <DialogTitle>
+                            ¿Eliminar “{plantilla.title}”?
+                          </DialogTitle>
+                          <DialogDescription className="text-white/40">
+                            La plantilla dejará de estar disponible para nuevas
+                            asignaciones. Las rutinas que ya asignaste no se
+                            modificarán.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <DialogClose
+                            render={
+                              <Button variant="ghost" className="text-white/50" />
+                            }
+                          >
+                            Cancelar
+                          </DialogClose>
+                          <DialogClose
+                            render={
+                              <Button
+                                variant="destructive"
+                                onClick={() => onDeleteTemplate(plantilla.id)}
+                                className="bg-red-500 text-white hover:bg-red-400"
+                              />
+                            }
+                          >
+                            Eliminar plantilla
+                          </DialogClose>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            )}
           </div>
-        )}
         </section>
       )}
 
       {detalleAtleta && (
         <section id="routines-entrenador" className="scroll-mt-24">
-        <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
+          <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
             <Link
               href="/coach/athletes"
               className="mb-3 inline-flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white"
@@ -2773,18 +2788,25 @@ function HomeEntrenador({
               <ArrowLeft className="size-3.5" />
               Todos los atletas
             </Link>
-            <div className="mb-1 text-[10px] uppercase tracking-[0.18em] text-cyan-200/60">
+            <div className={pageEyebrowClassName}>
               Planificación de {atleta.name}
             </div>
-            <h2 className="text-2xl font-light tracking-tight md:text-3xl">
+            <h1 className={pageTitleClassName}>
               {seccionDetalle === "routines"
                 ? "Plan de entrenamiento"
                 : seccionDetalle === "agenda"
                   ? "Agenda deportiva"
                   : "Actividades realizadas"}
-            </h2>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+            </h1>
+            <p className={pageDescriptionClassName}>
+              {seccionDetalle === "routines"
+                ? "Armá bloques, completá ejercicios y ajustá la estructura antes de asignar nuevas cargas."
+                : seccionDetalle === "agenda"
+                  ? "Programá sesiones internas y externas para darle contexto semanal al plan del atleta."
+                  : "Revisá lo que ya completó y corregí registros externos incluso después de realizarlos."}
+            </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
             {seccionDetalle === "routines" && (
               <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
             )}
@@ -2795,8 +2817,8 @@ function HomeEntrenador({
               Vista atleta
               <ArrowRight />
             </Button>
+            </div>
           </div>
-        </div>
 
         <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1 sm:w-fit">
           {[
@@ -3230,11 +3252,15 @@ function HomeAtleta({
   const rutinaIncompleta = !rutinaTieneEjercicios(rutina);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-7 md:px-8 md:py-9 xl:px-10 xl:py-12">
+    <div className={desktopPageShellClassName}>
       <div className="mb-5 flex items-center justify-between">
         <div>
-          <div className="text-xs text-white/40">Planes asignados</div>
-          <h1 className="mt-0.5 text-2xl font-light">Todas tus rutinas</h1>
+          <div className={pageEyebrowClassName}>Planes asignados</div>
+          <h1 className={pageTitleClassName}>Todas tus rutinas</h1>
+          <p className={pageDescriptionClassName}>
+            Revisá tus planes, detectá cuáles todavía están en preparación y empezá
+            solo cuando la rutina ya tenga el contenido cargado.
+          </p>
         </div>
       </div>
 
@@ -3393,14 +3419,14 @@ function HomeHoy({
     )[0];
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12">
+    <div className={desktopPageShellClassName}>
       <div className="mb-7 flex items-center justify-between gap-4">
         <div>
-          <div className="text-xs text-white/40">Hola, {atleta.name}</div>
-          <h1 className="mt-1 text-3xl font-light tracking-[-0.035em] md:text-4xl">
-            Tu entrenamiento de hoy
-          </h1>
-          <p className="mt-2 text-xs capitalize text-white/30">{fechaLegible}</p>
+          <div className={pageEyebrowClassName}>Tu día</div>
+          <h1 className={pageTitleClassName}>Tu entrenamiento de hoy</h1>
+          <p className={pageDescriptionClassName}>
+            Hola, {atleta.name}. {fechaLegible}
+          </p>
         </div>
       </div>
 
@@ -3893,7 +3919,7 @@ function WorkoutMode({
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-4.5rem)] max-w-7xl flex-col overflow-hidden px-4 py-3 md:px-8 md:py-5 xl:px-10">
+    <div className="mx-auto flex h-[calc(100dvh-4.5rem)] max-w-[1760px] flex-col overflow-hidden px-4 py-3 md:px-8 md:py-5 xl:px-10">
       <div>
         <div className="mb-4 flex items-center justify-between">
           <Button
