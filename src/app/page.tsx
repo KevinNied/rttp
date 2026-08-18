@@ -2107,7 +2107,6 @@ function HomeEntrenador({
   onCreateEntrenamiento,
   onUpdateEntrenamiento,
   onDeleteEntrenamiento,
-  onDeleteActivity,
   onDirtyChange,
   verComoAtleta,
 }: {
@@ -2135,7 +2134,6 @@ function HomeEntrenador({
   onCreateEntrenamiento: (item: NewScheduledWorkout) => void;
   onUpdateEntrenamiento: (item: ScheduledWorkout) => void;
   onDeleteEntrenamiento: (id: string) => void;
-  onDeleteActivity: (activity: CompletedActivity) => void;
   onDirtyChange: (dirty: boolean) => void;
   verComoAtleta: () => void;
 }) {
@@ -2919,7 +2917,6 @@ function HomeEntrenador({
         <ActivityHistory
           embedded
           activities={activities}
-          onDeleteActivity={onDeleteActivity}
         />
         )}
         </section>
@@ -5140,7 +5137,6 @@ export default function Home() {
           onCreateEntrenamiento={crearEntrenamiento}
           onUpdateEntrenamiento={actualizarEntrenamiento}
           onDeleteEntrenamiento={eliminarEntrenamiento}
-          onDeleteActivity={eliminarActividad}
           onDirtyChange={setEditorDirty}
           verComoAtleta={() => setVistaPrevia(true)}
         />
@@ -5164,6 +5160,7 @@ export default function Home() {
             (item) => item.athleteId === atleta.id,
           )}
           onDeleteActivity={eliminarActividad}
+          canDeleteExternalActivities={usuario.role !== "coach"}
         />
       ) : vistaAtleta === "inicio" && !entrenamientoActivo ? (
         <HomeHoy

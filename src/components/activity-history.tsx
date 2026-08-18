@@ -233,10 +233,12 @@ export function ActivityHistory({
   activities,
   embedded = false,
   onDeleteActivity,
+  canDeleteExternalActivities = false,
 }: {
   activities: CompletedActivity[];
   embedded?: boolean;
   onDeleteActivity?: (activity: CompletedActivity) => void;
+  canDeleteExternalActivities?: boolean;
 }) {
   const [filtro, setFiltro] = useState<FiltroActividad>("todas");
   const [expandidaId, setExpandidaId] = useState("");
@@ -461,7 +463,9 @@ export function ActivityHistory({
                         ) : (
                           <DetalleExterno actividad={actividad} />
                         )}
-                        {actividad.type === "external" && onDeleteActivity && (
+                        {actividad.type === "external" &&
+                          canDeleteExternalActivities &&
+                          onDeleteActivity && (
                           <div className="mt-4 flex justify-end border-t border-white/[0.06] pt-4">
                             <button
                               type="button"
