@@ -732,7 +732,7 @@ function AppShell({
             className={cn(
               "flex",
               sidebarCompact
-                ? "flex-col items-center gap-3"
+                ? "items-center justify-center gap-2"
                 : "items-start justify-between gap-3",
             )}
           >
@@ -777,7 +777,7 @@ function AppShell({
               {esEntrenador ? "Workspace" : "Entrenamiento"}
             </div>
           )}
-          <nav className="mt-3 space-y-1.5">
+          <nav className={cn("space-y-1.5", sidebarCompact ? "mt-6" : "mt-3")}>
             {navegacion.map((item) => {
               const NavIcon = item.icon;
               return (
