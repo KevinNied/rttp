@@ -18,7 +18,7 @@ Una actividad es histórica e independiente:
 Al finalizar una sesión se registra:
 
 - atleta y entrenamiento programado de origen;
-- fecha y duración planificada;
+- fecha y duración real de la sesión, redondeada al minuto superior;
 - título e identificador de la rutina;
 - snapshot completo de la rutina;
 - series realizadas u omitidas;
@@ -29,6 +29,12 @@ Al finalizar una sesión se registra:
 
 El snapshot permite consultar la sesión aunque la rutina se edite o elimine
 después.
+
+El cronómetro comienza al iniciar la rutina y usa una marca temporal, por lo que
+sigue midiendo correctamente entre bloques y mientras la pantalla está
+bloqueada. Al salir de la ejecución se pausa y al retomarla continúa desde el
+tiempo acumulado. El estado se conserva en el dispositivo hasta completar o
+eliminar el entrenamiento.
 
 ## Actividades externas
 

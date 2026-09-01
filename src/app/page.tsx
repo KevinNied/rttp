@@ -130,6 +130,7 @@ type TrainingSetRecord = {
 const sessionStorageKey = "rttp-user-session-v2";
 const selectedAthleteStorageKey = "rttp-selected-athlete-v2";
 const sidebarPreferenceStorageKey = "rttp-sidebar-compact-v1";
+const workoutTimerStoragePrefix = "rttp-workout-start-v1:";
 const supabaseMigrationStorageKey = "rttp-supabase-migrated-v2";
 const supabaseMigrationSourceStorageKey =
   "rttp-supabase-migration-source-v2";
@@ -137,6 +138,11 @@ const supabaseUserMappingStorageKey = "rttp-supabase-user-mapping-v2";
 const supabaseOutboxStorageKey = "rttp-supabase-outbox-v2";
 const supabaseMigrationLock = "rttp-supabase-migration";
 const supabaseOutboxLock = "rttp-supabase-outbox";
+
+type WorkoutTimerState = {
+  elapsedSeconds: number;
+  runningSince: string | null;
+};
 const desktopPageShellClassName =
   "mx-auto max-w-[1760px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12";
 const pageEyebrowClassName =
@@ -256,6 +262,106 @@ function removePersistentSessionValue(key: string) {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(key);
   window.sessionStorage.removeItem(key);
+}
+
+function workoutTimerKey(workoutId: string) {
+  return `${workoutTimerStoragePrefix}${workoutId}`;
+}
+
+function readWorkoutTimer(workoutId: string): WorkoutTimerState | null {
+  if (typeof window === "undefined") return null;
+  const key = workoutTimerKey(workoutId);
+  const storedValue = window.localStorage.getItem(key);
+  if (!storedValue) return null;
+
+  if (!Number.isNaN(Date.parse(storedValue))) {
+    return { elapsedSeconds: 0, runningSince: storedValue };
+  }
+
+  try {
+    const parsed = JSON.parse(storedValue) as WorkoutTimerState;
+    const validElapsed =
+      Number.isFinite(parsed.elapsedSeconds) && parsed.elapsedSeconds >= 0;
+    const validRunningSince =
+      parsed.runningSince === null ||
+      (typeof parsed.runningSince === "string" &&
+        !Number.isNaN(Date.parse(parsed.runningSince)));
+    if (validElapsed && validRunningSince) return parsed;
+  } catch {
+    console.warn(`No se pudo leer el cronómetro de ${workoutId}.`);
+  }
+
+  console.warn(`Se reinició un cronómetro inválido para ${workoutId}.`);
+  window.localStorage.removeItem(key);
+  return null;
+}
+
+function writeWorkoutTimer(workoutId: string, timer: WorkoutTimerState) {
+  if (typeof window === "undefined") return timer;
+  window.localStorage.setItem(workoutTimerKey(workoutId), JSON.stringify(timer));
+  return timer;
+}
+
+function elapsedSecondsForTimer(timer: WorkoutTimerState) {
+  const runningSeconds = timer.runningSince
+    ? Math.max(
+        0,
+        Math.floor((Date.now() - Date.parse(timer.runningSince)) / 1000),
+      )
+    : 0;
+  return timer.elapsedSeconds + runningSeconds;
+}
+
+function resumeWorkoutTimer(workoutId: string) {
+  const current = readWorkoutTimer(workoutId);
+  if (current?.runningSince) return current;
+  return writeWorkoutTimer(workoutId, {
+    elapsedSeconds: current?.elapsedSeconds ?? 0,
+    runningSince: new Date().toISOString(),
+  });
+}
+
+function pauseWorkoutTimer(workoutId: string) {
+  const current = readWorkoutTimer(workoutId);
+  if (!current) return 0;
+  const elapsedSeconds = elapsedSecondsForTimer(current);
+  writeWorkoutTimer(workoutId, { elapsedSeconds, runningSince: null });
+  return elapsedSeconds;
+}
+
+function restartWorkoutTimer(workoutId: string) {
+  return writeWorkoutTimer(workoutId, {
+    elapsedSeconds: 0,
+    runningSince: new Date().toISOString(),
+  });
+}
+
+function clearWorkoutTimer(workoutId: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(workoutTimerKey(workoutId));
+}
+
+function pruneWorkoutTimers(workouts: ScheduledWorkout[]) {
+  const activeWorkoutIds = new Set(
+    workouts
+      .filter((workout) => workout.status === "in-progress")
+      .map((workout) => workout.id),
+  );
+  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.localStorage.key(index);
+    if (!key?.startsWith(workoutTimerStoragePrefix)) continue;
+    const workoutId = key.slice(workoutTimerStoragePrefix.length);
+    if (!activeWorkoutIds.has(workoutId)) window.localStorage.removeItem(key);
+  }
+}
+
+function formatElapsedDuration(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return hours > 0
+    ? [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":")
+    : [minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
 }
 
 function clearDeprecatedLocalStorage() {
@@ -3666,6 +3772,7 @@ function CampoPrescripcion({
 function WorkoutMode({
   rutina,
   sesionId,
+  timer,
   registros,
   setRegistros,
   indiceActivo,
@@ -3675,6 +3782,7 @@ function WorkoutMode({
 }: {
   rutina: Routine;
   sesionId: string;
+  timer: WorkoutTimerState;
   registros: Record<string, TrainingSetRecord>;
   setRegistros: React.Dispatch<
     React.SetStateAction<Record<string, TrainingSetRecord>>
@@ -3691,6 +3799,9 @@ function WorkoutMode({
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(() =>
+    elapsedSecondsForTimer(timer),
+  );
   const [vistaCalentamiento, setVistaCalentamiento] = useState<
     "resumida" | "tarjetas"
   >("resumida");
@@ -3710,6 +3821,14 @@ function WorkoutMode({
     skipped: false,
   };
   const registro = registros[paso.stepId] ?? valorInicial;
+
+  useEffect(() => {
+    const updateElapsedTime = () =>
+      setElapsedSeconds(elapsedSecondsForTimer(timer));
+    updateElapsedTime();
+    const interval = window.setInterval(updateElapsedTime, 1000);
+    return () => window.clearInterval(interval);
+  }, [timer]);
 
   function actualizar(patch: Partial<TrainingSetRecord>) {
     setRegistros((actuales) => ({
@@ -3882,8 +4001,15 @@ function WorkoutMode({
             <div className="text-[9px] uppercase tracking-[0.18em] text-cyan-200/65">
               Rutina en curso
             </div>
-            <div className="mt-1 text-[10px] text-indigo-100/35">
-              Bloque {paso.bloqueIndex + 1} de {rutina.blocks.length}
+            <div className="mt-1 flex items-center justify-center gap-2 text-[10px] text-indigo-100/35">
+              <span>
+                Bloque {paso.bloqueIndex + 1} de {rutina.blocks.length}
+              </span>
+              <span className="text-white/15">·</span>
+              <span className="inline-flex items-center gap-1 tabular-nums text-cyan-100/60">
+                <Clock3 className="size-3" />
+                {formatElapsedDuration(elapsedSeconds)}
+              </span>
             </div>
           </div>
           <div className="size-9" />
@@ -4332,11 +4458,13 @@ function WorkoutMode({
 
 function RutinaCompletada({
   atleta,
+  elapsedSeconds,
   feedback,
   setFeedback,
   onDone,
 }: {
   atleta: User;
+  elapsedSeconds: number;
   feedback: string;
   setFeedback: (value: string) => void;
   onDone: (effort: number) => void;
@@ -4354,6 +4482,15 @@ function RutinaCompletada({
           <p className="mt-2 text-xs text-indigo-100/40">
             Excelente trabajo, {atleta.name}.
           </p>
+          <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-cyan-300/[0.07] px-4 py-2 text-cyan-100/75">
+            <Clock3 className="size-4" />
+            <span className="text-sm tabular-nums">
+              {formatElapsedDuration(elapsedSeconds)}
+            </span>
+            <span className="text-[9px] uppercase tracking-wider text-cyan-100/35">
+              Tiempo total
+            </span>
+          </div>
           <div className="my-6 flex justify-center gap-2">
             {[1, 2, 3, 4, 5].map((value) => (
               <button
@@ -4422,6 +4559,7 @@ function ExperienciaAtleta({
     entrenamiento: ScheduledWorkout;
     rutina: Routine;
     sets: ActivitySet[];
+    elapsedSeconds: number;
     effort: number;
     feedback: string;
   }) => void;
@@ -4440,6 +4578,12 @@ function ExperienciaAtleta({
   const [entrenamiento, setEntrenamiento] = useState<
     ScheduledWorkout | undefined
   >(entrenamientoInicial);
+  const [timer, setTimer] = useState<WorkoutTimerState | null>(() =>
+    entrenamientoInicial
+      ? resumeWorkoutTimer(entrenamientoInicial.id)
+      : null,
+  );
+  const [finishedElapsedSeconds, setFinishedElapsedSeconds] = useState(0);
   const sesionId = entrenamiento?.id;
   const progreso = Object.entries(registros).filter(
     ([key, value]) => sesionId && key.startsWith(`${sesionId}-`) && value.completed,
@@ -4460,11 +4604,13 @@ function ExperienciaAtleta({
       ),
     );
     setIndiceActivo(0);
+    setTimer(restartWorkoutTimer(sesionId));
   }
 
   function iniciar() {
     if (entrenamiento) {
       const enCurso = { ...entrenamiento, status: "in-progress" as const };
+      setTimer(resumeWorkoutTimer(enCurso.id));
       setEntrenamiento(enCurso);
       onUpdateEntrenamiento(enCurso);
       setPantalla("workout");
@@ -4484,11 +4630,13 @@ function ExperienciaAtleta({
       title: null,
       category: null,
     });
+    setTimer(resumeWorkoutTimer(creado.id));
     setEntrenamiento(creado);
     setPantalla("workout");
   }
 
   function cerrarEntrenamiento() {
+    if (entrenamiento) pauseWorkoutTimer(entrenamiento.id);
     if (entrenamientoInicial) {
       onCloseScheduled();
       return;
@@ -4496,17 +4644,21 @@ function ExperienciaAtleta({
     setPantalla("home");
   }
 
-  if (pantalla === "workout" && sesionId) {
+  if (pantalla === "workout" && sesionId && timer) {
     return (
       <WorkoutMode
         rutina={rutina}
         sesionId={sesionId}
+        timer={timer}
         registros={registros}
         setRegistros={setRegistros}
         indiceActivo={indiceActivo}
         setIndiceActivo={setIndiceActivo}
         onExit={cerrarEntrenamiento}
-        onFinish={() => setPantalla("final")}
+        onFinish={() => {
+          setFinishedElapsedSeconds(pauseWorkoutTimer(sesionId));
+          setPantalla("final");
+        }}
       />
     );
   }
@@ -4515,6 +4667,7 @@ function ExperienciaAtleta({
     return (
       <RutinaCompletada
         atleta={atleta}
+        elapsedSeconds={finishedElapsedSeconds}
         feedback={feedback}
         setFeedback={setFeedback}
         onDone={(effort) => {
@@ -4550,9 +4703,11 @@ function ExperienciaAtleta({
               entrenamiento: completado,
               rutina,
               sets,
+              elapsedSeconds: finishedElapsedSeconds,
               effort,
               feedback: feedback.trim(),
             });
+            clearWorkoutTimer(entrenamiento.id);
           }
           cerrarEntrenamiento();
         }}
@@ -4663,9 +4818,6 @@ export default function Home() {
 
   useEffect(() => {
     let cancelled = false;
-    const frame = window.requestAnimationFrame(() => {
-      void hydrate();
-    });
     const retryPending = () => {
       void hydrate();
     };
@@ -4806,6 +4958,7 @@ export default function Home() {
       setPlantillas(finalData.templates);
       setEntrenamientos(finalData.workouts);
       setActividades(finalData.activities);
+      pruneWorkoutTimers(finalData.workouts);
       remoteDataAppliedRef.current = remoteDataApplied;
 
       const storedUserId = Number(readPersistentSessionValue(sessionStorageKey));
@@ -4830,9 +4983,10 @@ export default function Home() {
       setHydrated(true);
     }
 
+    void hydrate();
+
     return () => {
       cancelled = true;
-      window.cancelAnimationFrame(frame);
       window.removeEventListener("online", retryPending);
     };
   }, [atletaRutaId]);
@@ -4956,12 +5110,14 @@ export default function Home() {
     entrenamiento,
     rutina: rutinaCompletada,
     sets,
+    elapsedSeconds,
     effort,
     feedback,
   }: {
     entrenamiento: ScheduledWorkout;
     rutina: Routine;
     sets: ActivitySet[];
+    elapsedSeconds: number;
     effort: number;
     feedback: string;
   }) {
@@ -4976,7 +5132,7 @@ export default function Home() {
       routineSnapshot: snapshotRoutine(rutinaCompletada),
       date: entrenamiento.date,
       completedAt: new Date().toISOString(),
-      durationMinutes: entrenamiento.durationMinutes,
+      durationMinutes: Math.max(1, Math.ceil(elapsedSeconds / 60)),
       effort,
       feedback,
       notes: entrenamiento.notes,
@@ -4995,6 +5151,7 @@ export default function Home() {
   }
 
   function eliminarEntrenamiento(id: string) {
+    clearWorkoutTimer(id);
     setEntrenamientos((actuales) =>
       actuales.filter((item) => item.id !== id),
     );

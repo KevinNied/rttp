@@ -129,7 +129,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
             <div className="text-lg font-light">{actividad.durationMinutes}</div>
             <div className="text-[9px] uppercase tracking-wider text-white/25">
-              Minutos
+              {actividad.type === "routine" ? "Minutos reales" : "Minutos"}
             </div>
           </div>
         )}
@@ -423,7 +423,9 @@ export function ActivityHistory({
                             {actividad.durationMinutes && (
                               <ActivityChip
                                 icon={<Clock3 className="size-3" />}
-                                label={`${actividad.durationMinutes} min`}
+                                label={`${actividad.durationMinutes} min${
+                                  actividad.type === "routine" ? " reales" : ""
+                                }`}
                               />
                             )}
                             {actividad.effort && (
