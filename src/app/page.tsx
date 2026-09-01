@@ -2973,7 +2973,13 @@ function HomeEntrenador({
   );
 }
 
-function OverviewRutina({ rutina }: { rutina: Routine }) {
+function OverviewRutina({
+  rutina,
+  className,
+}: {
+  rutina: Routine;
+  className?: string;
+}) {
   const ejercicios = cantidadEjercicios(rutina);
 
   return (
@@ -2983,7 +2989,10 @@ function OverviewRutina({ rutina }: { rutina: Routine }) {
           <Button
             variant="ghost"
             size="sm"
-            className="rounded-full border border-white/10 bg-black/20 text-[10px] text-white/60 hover:bg-white/[0.08] hover:text-white"
+            className={cn(
+              "rounded-full border border-white/10 bg-black/20 text-[10px] text-white/60 hover:bg-white/[0.08] hover:text-white",
+              className,
+            )}
           />
         }
       >
@@ -3407,28 +3416,36 @@ function HomeHoy({
                     </div>
 
                     {!completed && (
-                      <Button
-                        onClick={() =>
-                          entrenamiento.origin === "routine"
-                            ? onStart(entrenamiento)
-                            : onUpdate({ ...entrenamiento, status: "completed" })
-                        }
-                        disabled={
-                          entrenamiento.origin === "routine" &&
-                          rutina !== null &&
-                          !rutinaDisponible
-                        }
-                        className="mt-6 h-11 w-full rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 sm:w-auto sm:px-7"
-                      >
-                        {entrenamiento.origin === "routine"
-                          ? !rutinaDisponible
-                            ? "Rutina en preparación"
-                            : entrenamiento.status === "in-progress"
-                              ? "Continuar rutina"
-                              : "Comenzar rutina"
-                          : "Marcar como realizada"}
-                        <ArrowRight />
-                      </Button>
+                      <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center">
+                        {entrenamiento.origin === "routine" && rutina && (
+                          <OverviewRutina
+                            rutina={rutina}
+                            className="h-11 w-full justify-center px-5 text-xs sm:w-auto"
+                          />
+                        )}
+                        <Button
+                          onClick={() =>
+                            entrenamiento.origin === "routine"
+                              ? onStart(entrenamiento)
+                              : onUpdate({ ...entrenamiento, status: "completed" })
+                          }
+                          disabled={
+                            entrenamiento.origin === "routine" &&
+                            rutina !== null &&
+                            !rutinaDisponible
+                          }
+                          className="h-11 w-full rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 sm:w-auto sm:px-7"
+                        >
+                          {entrenamiento.origin === "routine"
+                            ? !rutinaDisponible
+                              ? "Rutina en preparación"
+                              : entrenamiento.status === "in-progress"
+                                ? "Continuar rutina"
+                                : "Comenzar rutina"
+                            : "Marcar como realizada"}
+                          <ArrowRight />
+                        </Button>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
