@@ -77,6 +77,27 @@ La versión publicada está disponible en:
 
 **[https://rttp-two.vercel.app/](https://rttp-two.vercel.app/)**
 
+### Versionado
+
+RTTP usa [Semantic Versioning](https://semver.org/):
+
+- `MAJOR`: cambios incompatibles o una nueva etapa estable del producto.
+- `MINOR`: funcionalidades nuevas compatibles con la versión anterior.
+- `PATCH`: correcciones compatibles que no agregan funcionalidad.
+
+La versión de `package.json` es la única fuente de verdad y se muestra
+discretamente dentro de la aplicación. Antes de cada push a producción,
+incrementá el segmento correspondiente:
+
+```bash
+npm version patch --no-git-tag-version
+npm version minor --no-git-tag-version
+npm version major --no-git-tag-version
+```
+
+El comando actualiza `package.json` y `package-lock.json`. Ambos archivos deben
+incluirse en el mismo commit que será desplegado.
+
 ## Stack
 
 - Next.js, React, TypeScript y Tailwind CSS

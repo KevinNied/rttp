@@ -18,3 +18,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Exercise rest is optional and must be hidden everywhere when `null`.
 - Preparation blocks support both a compact whole-block view and individual swipeable cards.
 - Coach workflows include creating athletes, routines, blocks and exercises, plus drag-and-drop reordering and confirmed routine deletion.
+
+## Release versioning
+
+- `package.json` is the single source of truth for the app version.
+- Before every production push, bump the version with `npm version patch|minor|major --no-git-tag-version` according to Semantic Versioning and include both package files in the commit.

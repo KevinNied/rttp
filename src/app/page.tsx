@@ -84,6 +84,7 @@ import {
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { appVersion } from "@/lib/app-version";
 import { ActivityHistory } from "@/components/activity-history";
 import { SportsSchedule } from "@/components/sports-schedule";
 import {
@@ -512,6 +513,20 @@ function Logo() {
   );
 }
 
+function VersionLabel({ className }: { className?: string }) {
+  return (
+    <span
+      aria-label={`Versión ${appVersion}`}
+      className={cn(
+        "text-[9px] font-medium tabular-nums tracking-[0.08em] text-white/25",
+        className,
+      )}
+    >
+      v{appVersion}
+    </span>
+  );
+}
+
 function LandingAcceso({
   onAccess,
 }: {
@@ -614,6 +629,7 @@ function LandingAcceso({
           </DialogContent>
         </Dialog>
       </div>
+      <VersionLabel className="absolute bottom-5 left-1/2 -translate-x-1/2" />
     </main>
   );
 }
@@ -853,6 +869,7 @@ function AppShell({
               {!sidebarCompact && <span>Cerrar sesión</span>}
               <LogOut className="size-4" />
             </Button>
+            <VersionLabel className="mt-3 block text-center" />
           </div>
         </aside>
       )}
@@ -881,7 +898,7 @@ function AppShell({
             {!vistaPrevia && (
               <div className="min-w-0">
                 <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/85">
-                  RTTP
+                  RTTP <VersionLabel className="ml-1 align-middle" />
                 </div>
                 <div className="truncate text-[11px] text-white/40">
                   {encabezado[0]}
