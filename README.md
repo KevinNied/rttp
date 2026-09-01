@@ -46,6 +46,18 @@ acceso anónimo a estas tablas. No debe considerarse un modelo de seguridad para
 una publicación abierta; las políticas deberán limitarse por usuario y relación
 coach-atleta al incorporar autenticación.
 
+### Sesión
+
+El usuario activo y, para entrenadores, el último atleta seleccionado se guardan
+en `localStorage`. La sesión se mantiene al recargar, cerrar la pestaña o volver
+a abrir el navegador en el mismo dispositivo. Se elimina al pulsar **Cerrar
+sesión** o al borrar los datos del sitio.
+
+Esta persistencia solo evita volver a ingresar el email: no autentica ni protege
+la identidad, porque todavía no existe Supabase Auth. Cuando se incorpore
+autenticación real, la sesión local deberá reemplazarse por la sesión de Supabase
+y sus tokens renovables.
+
 La Agenda deportiva organiza rutinas y actividades externas por fecha. Su modelo
 está separado de las rutinas y persiste en Supabase. La evolución funcional está documentada en
 [`docs/agenda-deportiva.md`](docs/agenda-deportiva.md).

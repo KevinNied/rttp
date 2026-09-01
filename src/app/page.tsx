@@ -233,6 +233,31 @@ function removeSessionValue(key: string) {
   window.sessionStorage.removeItem(key);
 }
 
+function readPersistentSessionValue(key: string) {
+  if (typeof window === "undefined") return null;
+  const storedValue = window.localStorage.getItem(key);
+  if (storedValue !== null) return storedValue;
+
+  const temporaryValue = window.sessionStorage.getItem(key);
+  if (temporaryValue !== null) {
+    window.localStorage.setItem(key, temporaryValue);
+    window.sessionStorage.removeItem(key);
+  }
+  return temporaryValue;
+}
+
+function writePersistentSessionValue(key: string, value: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, value);
+  window.sessionStorage.removeItem(key);
+}
+
+function removePersistentSessionValue(key: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(key);
+  window.sessionStorage.removeItem(key);
+}
+
 function clearDeprecatedLocalStorage() {
   if (typeof window === "undefined") return;
   const keys = [
@@ -242,12 +267,10 @@ function clearDeprecatedLocalStorage() {
     "rttp-templates-v2",
     "rttp-templates-v1",
     "rttp-plantillas-v1",
-    "rttp-user-session-v2",
     "rttp-usuario-v1",
     "rttp-users-v2",
     "rttp-users-v1",
     "rttp-usuarios-v1",
-    "rttp-selected-athlete-v2",
     "rttp-atleta-seleccionado-v1",
     "rttp-schedule-v2",
     "rttp-agenda-v1",
@@ -4737,8 +4760,8 @@ export default function Home() {
             origin = {
               ...origin,
               mutations: readPendingMutations(),
-              userId: readSessionValue(sessionStorageKey),
-              athleteId: readSessionValue(selectedAthleteStorageKey),
+              userId: readPersistentSessionValue(sessionStorageKey),
+              athleteId: readPersistentSessionValue(selectedAthleteStorageKey),
               remappingStarted: true,
             };
             saveMigrationSource(origin);
@@ -4759,7 +4782,7 @@ export default function Home() {
               ? userMapping[storedId]
               : undefined;
             if (remappedId !== undefined) {
-              writeSessionValue(key, String(remappedId));
+              writePersistentSessionValue(key, String(remappedId));
             }
           }
           writeSessionValue(supabaseMigrationStorageKey, "true");
@@ -4785,13 +4808,15 @@ export default function Home() {
       setActividades(finalData.activities);
       remoteDataAppliedRef.current = remoteDataApplied;
 
-      const storedUserId = Number(readSessionValue(sessionStorageKey));
+      const storedUserId = Number(readPersistentSessionValue(sessionStorageKey));
       if (finalData.users.some((item) => item.id === storedUserId)) {
         setUserId(storedUserId);
         const initialUser = finalData.users.find(
           (item) => item.id === storedUserId,
         );
-        const storedAthleteId = Number(readSessionValue(selectedAthleteStorageKey));
+        const storedAthleteId = Number(
+          readPersistentSessionValue(selectedAthleteStorageKey),
+        );
         setAtletaSeleccionadoId(
           initialUser?.role === "athlete"
             ? initialUser.id
@@ -4852,14 +4877,14 @@ export default function Home() {
     setAtletaSeleccionadoId(athleteId);
     setRutinaId(primeraRutina?.id ?? initialRoutines[0].id);
     setVistaPrevia(false);
-    writeSessionValue(sessionStorageKey, String(usuarioEncontrado.id));
+    writePersistentSessionValue(sessionStorageKey, String(usuarioEncontrado.id));
     return true;
   }
 
   function seleccionarAtleta(id: number) {
     const primeraRutina = routines.find((item) => item.athleteId === id);
     setAtletaSeleccionadoId(id);
-    writeSessionValue(selectedAthleteStorageKey, String(id));
+    writePersistentSessionValue(selectedAthleteStorageKey, String(id));
     if (primeraRutina) setRutinaId(primeraRutina.id);
     setRegistros({});
   }
@@ -5148,8 +5173,8 @@ export default function Home() {
   }
 
   function salir() {
-    removeSessionValue(sessionStorageKey);
-    removeSessionValue(selectedAthleteStorageKey);
+    removePersistentSessionValue(sessionStorageKey);
+    removePersistentSessionValue(selectedAthleteStorageKey);
     setUserId(null);
     setVistaPrevia(false);
     setRegistros({});

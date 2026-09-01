@@ -18,8 +18,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Exercise rest is optional and must be hidden everywhere when `null`.
 - Preparation blocks support both a compact whole-block view and individual swipeable cards.
 - Coach workflows include creating athletes, routines, blocks and exercises, plus drag-and-drop reordering and confirmed routine deletion.
+- Until Supabase Auth is added, the selected local user persists in `localStorage` and is cleared explicitly on logout; this is a convenience session, not authentication.
 
 ## Release versioning
 
 - `package.json` is the single source of truth for the app version.
 - Before every production push, bump the version with `npm version patch|minor|major --no-git-tag-version` according to Semantic Versioning and include both package files in the commit.
+
+## Delivery workflow
+
+- After fully implementing and validating the requested work, commit and push it immediately using the configured personal Git identity.
+- Do not commit or push when the requested work is incomplete, validation is failing, or a blocker remains unresolved.
