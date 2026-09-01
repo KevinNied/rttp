@@ -621,6 +621,7 @@ function LandingAcceso({
 function AppShell({
   usuario,
   vistaPrevia,
+  workoutImmersive,
   vistaEntrenador,
   vistaAtleta,
   syncError,
@@ -631,6 +632,7 @@ function AppShell({
 }: {
   usuario: User;
   vistaPrevia: boolean;
+  workoutImmersive: boolean;
   vistaEntrenador: CoachView;
   vistaAtleta: AthleteView;
   syncError: string | null;
@@ -721,7 +723,7 @@ function AppShell({
   return (
     <div className="min-h-screen bg-[#07080b] text-white selection:bg-cyan-300 selection:text-black">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(34,211,238,.14),transparent_32%),radial-gradient(circle_at_10%_70%,rgba(124,58,237,.15),transparent_35%)]" />
-      {!vistaPrevia && (
+      {!vistaPrevia && !workoutImmersive && (
         <aside
           className={cn(
             "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/[0.07] bg-[#0a0b0f]/92 py-7 backdrop-blur-xl lg:flex",
@@ -858,6 +860,7 @@ function AppShell({
       <header
         className={cn(
           "fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/[0.07] bg-[#07080b]/88 px-4 backdrop-blur-xl lg:h-18 lg:px-8",
+          workoutImmersive && "hidden",
           !vistaPrevia &&
             (sidebarCompact ? "lg:left-24 lg:hidden" : "lg:left-64 lg:hidden"),
         )}
@@ -926,12 +929,17 @@ function AppShell({
       <main
         className={cn(
           "relative min-h-screen pt-16 lg:pt-18",
+          workoutImmersive && "pt-0 lg:pt-0",
           !vistaPrevia &&
+            !workoutImmersive &&
             (sidebarCompact ? "lg:pl-24 lg:pt-0" : "lg:pl-64 lg:pt-0"),
-          !vistaPrevia && !esEntrenador && "pb-24 lg:pb-0",
+          !vistaPrevia &&
+            !esEntrenador &&
+            !workoutImmersive &&
+            "pb-24 lg:pb-0",
         )}
       >
-        {syncError && (
+        {syncError && !workoutImmersive && (
           <div
             role="alert"
             className="relative z-20 mx-auto max-w-[1760px] px-4 pt-4 sm:px-6 lg:px-10"
@@ -956,7 +964,7 @@ function AppShell({
         )}
         {children}
       </main>
-      {!esEntrenador && !vistaPrevia && (
+      {!esEntrenador && !vistaPrevia && !workoutImmersive && (
         <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-[#07080b]/96 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 backdrop-blur-xl lg:hidden">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-[1.35rem] border border-white/[0.06] bg-white/[0.03] p-1.5 shadow-[0_-18px_45px_rgba(4,8,18,.35)]">
             {navegacionAtleta.map((item) => {
@@ -3818,14 +3826,15 @@ function WorkoutMode({
   }
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-4.5rem)] max-w-[1760px] flex-col overflow-hidden px-4 py-3 md:px-8 md:py-5 xl:px-10">
+    <div className="mx-auto flex h-dvh max-w-[1760px] flex-col overflow-hidden px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] md:px-8 md:py-5 xl:px-10">
       <div>
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between">
           <Button
             variant="ghost"
             size="icon"
             onClick={onExit}
-            className="rounded-full border border-indigo-200/10 text-indigo-100/55 hover:bg-indigo-300/10 hover:text-white"
+            aria-label="Salir del entrenamiento"
+            className="size-9 rounded-full border border-indigo-200/10 text-indigo-100/55 hover:bg-indigo-300/10 hover:text-white"
           >
             <ArrowLeft />
           </Button>
@@ -3845,7 +3854,7 @@ function WorkoutMode({
         />
       </div>
 
-      <div className="mx-auto mt-3 w-full max-w-lg xl:max-w-4xl">
+      <div className="mx-auto mt-3 min-h-0 w-full max-w-lg flex-1 overflow-y-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:max-w-4xl">
         {esBloqueBreve && (
           <div className="mb-3 flex items-center justify-between rounded-full border border-white/[0.08] bg-white/[0.025] p-1 pl-3">
             <span className="text-[8px] uppercase tracking-[0.16em] text-white/30">
@@ -3999,12 +4008,12 @@ function WorkoutMode({
           </div>
         ) : (
           <>
-        <div className="relative min-h-[445px]">
+        <div className="relative">
           {pasos[indiceActivo + 2] && (
-            <div className="absolute inset-x-8 top-4 h-[425px] rounded-[2rem] border border-blue-200/[0.06] bg-blue-300/[0.025]" />
+            <div className="absolute inset-x-8 bottom-0 top-4 rounded-[2rem] border border-blue-200/[0.06] bg-blue-300/[0.025]" />
           )}
           {proximo && (
-            <div className="absolute inset-x-4 top-2 h-[425px] rounded-[2rem] border border-violet-200/[0.09] bg-violet-300/[0.045]" />
+            <div className="absolute inset-x-4 bottom-0 top-2 rounded-[2rem] border border-violet-200/[0.09] bg-violet-300/[0.045]" />
           )}
           <div
             role="group"
@@ -4018,7 +4027,7 @@ function WorkoutMode({
               setDragX(0);
             }}
             className={cn(
-              "relative z-10 min-h-[425px] select-none overflow-hidden rounded-[2rem] border bg-[#101116] p-4 shadow-[0_30px_80px_rgba(0,0,0,.5)] md:p-5",
+              "relative z-10 select-none overflow-hidden rounded-[2rem] border bg-[#101116] p-4 pb-5 shadow-[0_30px_80px_rgba(0,0,0,.5)] md:p-5",
               registro.completed
                 ? "border-cyan-300/30"
                 : registro.skipped
@@ -4032,13 +4041,13 @@ function WorkoutMode({
             }}
           >
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(34,211,238,.15),transparent_37%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.16),transparent_42%)]" />
-            <div className="relative flex min-h-[391px] flex-col">
+            <div className="relative flex flex-col">
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="text-[9px] uppercase tracking-[0.16em] text-indigo-100/30">
                     Serie {paso.round} de {paso.sets}
                   </div>
-                  <h1 className="mt-2 text-3xl font-light tracking-[-0.04em]">
+                  <h1 className="mt-2 text-[2rem] font-light leading-tight tracking-[-0.04em]">
                     {paso.name}
                   </h1>
                 </div>
@@ -4202,7 +4211,7 @@ function WorkoutMode({
                   });
                 }}
                 className={cn(
-                  "mt-auto h-12 w-full rounded-full",
+                  "mt-5 h-12 w-full rounded-full",
                   registro.completed
                     ? "border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15"
                     : "bg-indigo-50 text-indigo-950 hover:bg-cyan-100",
@@ -4226,7 +4235,7 @@ function WorkoutMode({
           </div>
         </div>
 
-        <div className="-mt-1 text-center">
+        <div className="mt-2 text-center">
           <div
             className={cn(
               "h-4 text-[10px] text-orange-200 transition-opacity",
@@ -4261,9 +4270,17 @@ function WorkoutMode({
           </Button>
         </div>
 
-        <div className="mt-2 flex items-center justify-end rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.04] p-3">
-          <div className="max-w-40 truncate text-[10px] text-indigo-100/35">
-            Próximo: {proximo?.name ?? "Fin"}
+        <div className="mt-2 flex items-start gap-3 rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.04] px-4 py-3">
+          <div className="grid size-8 shrink-0 place-items-center rounded-full bg-cyan-300/[0.08] text-cyan-100/55">
+            <ArrowRight className="size-3.5" />
+          </div>
+          <div className="min-w-0 pt-0.5">
+            <div className="text-[8px] uppercase tracking-[0.16em] text-indigo-100/30">
+              Siguiente ejercicio
+            </div>
+            <div className="mt-1 text-xs leading-snug text-indigo-50/70">
+              {proximo?.name ?? "Finalizar rutina"}
+            </div>
           </div>
         </div>
           </>
@@ -4348,6 +4365,7 @@ function ExperienciaAtleta({
   onUpdateEntrenamiento,
   onCompleteRoutine,
   onCloseScheduled,
+  onWorkoutModeChange,
   registros,
   setRegistros,
 }: {
@@ -4368,6 +4386,7 @@ function ExperienciaAtleta({
     feedback: string;
   }) => void;
   onCloseScheduled: () => void;
+  onWorkoutModeChange: (active: boolean) => void;
   registros: Record<string, TrainingSetRecord>;
   setRegistros: React.Dispatch<
     React.SetStateAction<Record<string, TrainingSetRecord>>
@@ -4385,6 +4404,11 @@ function ExperienciaAtleta({
   const progreso = Object.entries(registros).filter(
     ([key, value]) => sesionId && key.startsWith(`${sesionId}-`) && value.completed,
   ).length;
+
+  useEffect(() => {
+    onWorkoutModeChange(pantalla === "workout");
+    return () => onWorkoutModeChange(false);
+  }, [onWorkoutModeChange, pantalla]);
 
   function reset() {
     if (!sesionId) return;
@@ -4531,6 +4555,7 @@ export default function Home() {
   const [atletaSeleccionadoId, setAtletaSeleccionadoId] = useState(1);
   const [vistaPrevia, setVistaPrevia] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
+  const [workoutImmersive, setWorkoutImmersive] = useState(false);
   const [registros, setRegistros] = useState<
     Record<string, TrainingSetRecord>
   >({});
@@ -5144,6 +5169,7 @@ export default function Home() {
     <AppShell
       usuario={usuario}
       vistaPrevia={vistaPrevia}
+      workoutImmersive={workoutImmersive}
       vistaEntrenador={vistaEntrenador}
       vistaAtleta={vistaAtleta}
       syncError={syncError}
@@ -5235,6 +5261,7 @@ export default function Home() {
           onUpdateEntrenamiento={actualizarEntrenamiento}
           onCompleteRoutine={registrarActividadRutina}
           onCloseScheduled={() => setEntrenamientoActivoId(null)}
+          onWorkoutModeChange={setWorkoutImmersive}
           registros={registros}
           setRegistros={setRegistros}
         />
