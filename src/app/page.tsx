@@ -877,10 +877,8 @@ function AppShell({
         >
           <div
             className={cn(
-              "flex",
-              sidebarCompact
-                ? "items-center justify-center gap-2"
-                : "items-start justify-between gap-3",
+              "flex h-10 items-center",
+              sidebarCompact ? "justify-center" : "justify-start",
             )}
           >
             <div className={cn(sidebarCompact && "hidden")}>
@@ -896,29 +894,26 @@ function AppShell({
                 className="size-10 object-contain drop-shadow-[0_0_12px_rgba(99,102,241,.18)]"
               />
             )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={
-                sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
-              }
-              title={
-                sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
-              }
-              onClick={() => setSidebarCompact((current) => !current)}
-              className={cn(
-                "hidden border border-white/[0.08] bg-white/[0.03] text-white/45 hover:bg-white/[0.06] hover:text-white lg:inline-flex",
-                sidebarCompact ? "rounded-xl" : "rounded-xl",
-              )}
-            >
-              {sidebarCompact ? (
-                <ChevronsRight className="size-4" />
-              ) : (
-                <ChevronsLeft className="size-4" />
-              )}
-            </Button>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={
+              sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
+            }
+            title={
+              sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
+            }
+            onClick={() => setSidebarCompact((current) => !current)}
+            className="absolute -right-4 top-1/2 hidden size-8 -translate-y-1/2 rounded-full border border-cyan-200/25 bg-[#11131a] text-cyan-100/60 shadow-[0_6px_20px_rgba(0,0,0,.35)] hover:border-cyan-200/40 hover:bg-[#181b24] hover:text-cyan-100 lg:inline-flex"
+          >
+            {sidebarCompact ? (
+              <ChevronsRight className="size-4" />
+            ) : (
+              <ChevronsLeft className="size-4" />
+            )}
+          </Button>
           {!sidebarCompact && (
             <div className="mt-10 px-3 text-[10px] font-medium uppercase tracking-[0.18em] text-white/25">
               {esEntrenador ? "Workspace" : "Entrenamiento"}
@@ -934,10 +929,10 @@ function AppShell({
                   title={item.label}
                   onClick={() => navigate(item.href)}
                   className={cn(
-                    "group flex w-full rounded-2xl transition-colors",
+                    "group flex w-full items-center rounded-2xl transition-colors",
                     sidebarCompact
                       ? "justify-center px-0 py-3"
-                      : "items-center gap-3 px-3 py-3.5",
+                      : "gap-3 px-3 py-3.5",
                     (esEntrenador
                       ? item.view === vistaEntrenador
                       : item.view === vistaAtleta)
@@ -949,9 +944,11 @@ function AppShell({
                     <NavIcon className="size-4" />
                   </span>
                   {!sidebarCompact && (
-                    <span className="min-w-0">
-                      <span className="block text-sm font-medium">{item.label}</span>
-                      <span className="mt-0.5 block text-[10px] text-white/25 transition-colors group-hover:text-white/40">
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="block text-sm font-medium leading-tight">
+                        {item.label}
+                      </span>
+                      <span className="mt-1 block truncate text-[10px] leading-tight text-white/25 transition-colors group-hover:text-white/40">
                         {item.description}
                       </span>
                     </span>
