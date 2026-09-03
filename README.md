@@ -58,6 +58,13 @@ la identidad, porque todavía no existe Supabase Auth. Cuando se incorpore
 autenticación real, la sesión local deberá reemplazarse por la sesión de Supabase
 y sus tokens renovables.
 
+### Apariencia
+
+RTTP usa el tema oscuro de forma predeterminada. El selector de tema disponible
+en la landing y en la navegación permite activar el tema claro; la preferencia se
+guarda en `localStorage` y se aplica antes del primer render para evitar cambios
+visibles de color al recargar.
+
 La Agenda deportiva organiza rutinas y actividades externas por fecha. Su modelo
 está separado de las rutinas y persiste en Supabase. La evolución funcional está documentada en
 [`docs/agenda-deportiva.md`](docs/agenda-deportiva.md).

@@ -37,12 +37,29 @@ export const metadata: Metadata = {
   },
 };
 
+const themeScript = `
+try {
+  var theme = localStorage.getItem("rttp-theme-v1");
+  var light = theme === "light";
+  document.documentElement.classList.toggle("dark", !light);
+  document.documentElement.classList.toggle("light", light);
+  document.documentElement.style.colorScheme = light ? "light" : "dark";
+} catch (_) {
+  document.documentElement.classList.add("dark");
+  document.documentElement.style.colorScheme = "dark";
+}
+`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es-AR"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable} dark h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

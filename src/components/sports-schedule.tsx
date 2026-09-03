@@ -50,7 +50,7 @@ function EtiquetaAccion({ children }: { children: string }) {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-white px-2 py-1 text-[10px] font-medium text-slate-950 opacity-0 shadow-lg transition-opacity group-hover/action:opacity-100 group-focus-visible/action:opacity-100 group-active/action:opacity-100"
+      className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-1.5 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[10px] font-medium text-background opacity-0 shadow-lg transition-opacity group-hover/action:opacity-100 group-focus-visible/action:opacity-100 group-active/action:opacity-100"
     >
       {children}
     </span>
@@ -212,7 +212,7 @@ function DialogoEntrenamiento({
   return (
     <Dialog open={open} onOpenChange={cambiarApertura}>
       <DialogTrigger render={trigger} />
-      <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-lg">
+      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
             {item ? "Editar entrenamiento" : "Programar entrenamiento"}
@@ -556,7 +556,7 @@ function TarjetaEntrenamiento({
               </Button>
             }
           />
-          <DialogContent className="border-white/10 bg-[#111217] text-white">
+          <DialogContent className="border-white/10 bg-app-panel text-white">
             <DialogHeader>
               <DialogTitle>¿Eliminar este entrenamiento?</DialogTitle>
               <DialogDescription className="text-white/40">
@@ -707,7 +707,7 @@ export function SportsSchedule({
       )}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_232px] 2xl:grid-cols-[minmax(0,1fr)_220px]">
-        <section className="overflow-hidden rounded-3xl border border-white/[0.07] bg-[#0d0e13]/75">
+        <section className="overflow-hidden rounded-3xl border border-white/[0.07] bg-app-surface/75">
           <div className="flex items-center justify-between border-b border-white/[0.06] p-4">
             <div>
               <div className="text-sm font-medium">
@@ -865,7 +865,7 @@ export function SportsSchedule({
           </div>
         </section>
 
-        <aside className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/75 p-4 xl:sticky xl:top-24">
+        <aside className="rounded-3xl border border-white/[0.07] bg-app-surface/75 p-4 xl:sticky xl:top-24">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-medium">Rutinas disponibles</div>

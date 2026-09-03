@@ -40,11 +40,13 @@ import {
   LayoutGrid,
   ListChecks,
   Minus,
+  Moon,
   MoveHorizontal,
   Plus,
   RotateCcw,
   Route,
   SkipForward,
+  Sun,
   TimerReset,
   Trash2,
   Trophy,
@@ -130,6 +132,7 @@ type TrainingSetRecord = {
 const sessionStorageKey = "rttp-user-session-v2";
 const selectedAthleteStorageKey = "rttp-selected-athlete-v2";
 const sidebarPreferenceStorageKey = "rttp-sidebar-compact-v1";
+const themeStorageKey = "rttp-theme-v1";
 const workoutTimerStoragePrefix = "rttp-workout-start-v1:";
 const supabaseMigrationStorageKey = "rttp-supabase-migrated-v2";
 const supabaseMigrationSourceStorageKey =
@@ -628,7 +631,7 @@ function Logo() {
         width={36}
         height={36}
         unoptimized
-        className="size-9 object-contain drop-shadow-[0_0_14px_rgba(99,102,241,.2)]"
+        className="size-9 rounded-lg bg-indigo-950 p-1 object-contain drop-shadow-[0_0_14px_rgba(99,102,241,.2)] dark:bg-transparent dark:p-0"
       />
       <div>
         <div className="text-sm font-semibold tracking-[0.24em] text-white">
@@ -656,6 +659,45 @@ function VersionLabel({ className }: { className?: string }) {
   );
 }
 
+function ThemeToggle({
+  compact = false,
+  className,
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
+  function toggleTheme() {
+    const nextTheme = document.documentElement.classList.contains("dark")
+      ? "light"
+      : "dark";
+    const light = nextTheme === "light";
+    document.documentElement.classList.toggle("dark", !light);
+    document.documentElement.classList.toggle("light", light);
+    document.documentElement.style.colorScheme = nextTheme;
+    localStorage.setItem(themeStorageKey, nextTheme);
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size={compact ? "icon-sm" : "sm"}
+      aria-label="Cambiar tema"
+      title="Cambiar tema"
+      onClick={toggleTheme}
+      className={cn(
+        "rounded-xl border border-white/[0.07] bg-white/[0.03] text-white/55 hover:bg-white/[0.08] hover:text-white",
+        !compact && "w-full justify-between px-3 text-xs",
+        className,
+      )}
+    >
+      {!compact && <span>Cambiar tema</span>}
+      <Sun className="hidden size-4 dark:block" />
+      <Moon className="size-4 dark:hidden" />
+    </Button>
+  );
+}
+
 function LandingAcceso({
   onAccess,
 }: {
@@ -671,10 +713,11 @@ function LandingAcceso({
   }
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-[#07080b] px-5 text-white">
+    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-app px-5 text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(34,211,238,.15),transparent_32%),radial-gradient(circle_at_20%_80%,rgba(124,58,237,.2),transparent_38%)]" />
+      <ThemeToggle compact className="absolute right-5 top-5 z-10" />
       <div className="relative flex w-full max-w-sm flex-col items-center text-center">
-        <div className="relative size-32">
+        <div className="relative size-32 rounded-[2rem] bg-indigo-950/90 shadow-[0_18px_50px_rgba(79,70,229,.18)] dark:bg-transparent dark:shadow-none">
           <Image
             src="/rttp-mark-v2.png"
             alt="Logo de RTTP"
@@ -682,7 +725,7 @@ function LandingAcceso({
             priority
             unoptimized
             sizes="128px"
-            className="object-contain drop-shadow-[0_18px_35px_rgba(79,70,229,.28)]"
+            className="object-contain p-4 drop-shadow-[0_18px_35px_rgba(79,70,229,.28)] dark:p-0"
           />
         </div>
 
@@ -717,7 +760,7 @@ function LandingAcceso({
             Acceder
             <ArrowRight className="size-4" />
           </DialogTrigger>
-          <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-sm">
+          <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Ingresá a RTTP</DialogTitle>
               <DialogDescription className="text-white/40">
@@ -866,12 +909,12 @@ function AppShell({
   }, [sidebarCompact]);
 
   return (
-    <div className="min-h-screen bg-[#07080b] text-white selection:bg-cyan-300 selection:text-black">
+    <div className="min-h-screen bg-app text-white selection:bg-cyan-300 selection:text-black">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(34,211,238,.14),transparent_32%),radial-gradient(circle_at_10%_70%,rgba(124,58,237,.15),transparent_35%)]" />
       {!vistaPrevia && !workoutImmersive && (
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/[0.07] bg-[#0a0b0f]/92 py-7 backdrop-blur-xl lg:flex",
+            "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/[0.07] bg-app-sidebar py-7 backdrop-blur-xl lg:flex",
             sidebarCompact ? "w-24 px-3" : "w-64 px-5",
           )}
         >
@@ -891,7 +934,7 @@ function AppShell({
                 width={40}
                 height={40}
                 unoptimized
-                className="size-10 object-contain drop-shadow-[0_0_12px_rgba(99,102,241,.18)]"
+                className="size-10 rounded-lg bg-indigo-950 p-1 object-contain drop-shadow-[0_0_12px_rgba(99,102,241,.18)] dark:bg-transparent dark:p-0"
               />
             )}
           </div>
@@ -906,7 +949,7 @@ function AppShell({
               sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
             }
             onClick={() => setSidebarCompact((current) => !current)}
-            className="absolute -right-4 top-1/2 hidden size-8 -translate-y-1/2 rounded-full border border-cyan-200/25 bg-[#11131a] text-cyan-100/60 shadow-[0_6px_20px_rgba(0,0,0,.35)] hover:border-cyan-200/40 hover:bg-[#181b24] hover:text-cyan-100 lg:inline-flex"
+            className="absolute -right-4 top-1/2 hidden size-8 -translate-y-1/2 rounded-full border border-cyan-200/25 bg-app-elevated text-cyan-100/60 shadow-[0_6px_20px_rgba(0,0,0,.35)] hover:border-cyan-200/40 hover:bg-app-panel hover:text-cyan-100 lg:inline-flex"
           >
             {sidebarCompact ? (
               <ChevronsRight className="size-4" />
@@ -995,6 +1038,7 @@ function AppShell({
               {!sidebarCompact && <span>Cerrar sesión</span>}
               <LogOut className="size-4" />
             </Button>
+            <ThemeToggle compact={sidebarCompact} className="mt-2" />
             <VersionLabel className="mt-3 block text-center" />
           </div>
         </aside>
@@ -1002,7 +1046,7 @@ function AppShell({
 
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/[0.07] bg-[#07080b]/88 px-4 backdrop-blur-xl lg:h-18 lg:px-8",
+          "fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/[0.07] bg-app/90 px-4 backdrop-blur-xl lg:h-18 lg:px-8",
           workoutImmersive && "hidden",
           !vistaPrevia &&
             (sidebarCompact ? "lg:left-24 lg:hidden" : "lg:left-64 lg:hidden"),
@@ -1019,7 +1063,7 @@ function AppShell({
               width={28}
               height={28}
               unoptimized
-              className="size-7 object-contain drop-shadow-[0_0_10px_rgba(99,102,241,.18)]"
+              className="size-7 rounded-md bg-indigo-950 p-0.5 object-contain drop-shadow-[0_0_10px_rgba(99,102,241,.18)] dark:bg-transparent dark:p-0"
             />
             {!vistaPrevia && (
               <div className="min-w-0">
@@ -1044,6 +1088,7 @@ function AppShell({
           </div>
         )}
         <div className="flex items-center gap-2">
+          <ThemeToggle compact />
           {!vistaPrevia && (
             <div
               className={cn(
@@ -1108,7 +1153,7 @@ function AppShell({
         {children}
       </main>
       {!esEntrenador && !vistaPrevia && !workoutImmersive && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-[#07080b]/96 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 backdrop-blur-xl lg:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-app/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 backdrop-blur-xl lg:hidden">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-[1.35rem] border border-white/[0.06] bg-white/[0.03] p-1.5 shadow-[0_-18px_45px_rgba(4,8,18,.35)]">
             {navegacionAtleta.map((item) => {
               const NavIcon = item.icon;
@@ -1239,7 +1284,7 @@ function FilaEjercicio({
       }}
       className={cn(
         "mx-3 my-2 grid gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-3 py-3 shadow-sm md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center xl:mx-4 xl:my-3 xl:gap-5 xl:px-4 xl:py-4",
-        isDragging && "relative z-20 border-cyan-300/30 bg-[#161920] opacity-70 shadow-2xl",
+        isDragging && "relative z-20 border-cyan-300/30 bg-app-elevated opacity-70 shadow-2xl",
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -1628,7 +1673,7 @@ function DialogoEjercicio({
   return (
     <Dialog open={open} onOpenChange={cambiarApertura}>
       <DialogTrigger render={trigger} />
-      <DialogContent className="border-violet-200/15 bg-[#111217] text-white">
+      <DialogContent className="border-violet-200/15 bg-app-panel text-white">
         <DialogHeader>
           <DialogTitle>
             {initialBlockId === "nuevo" ? "Nuevo bloque" : "Nuevo ejercicio"}
@@ -1849,7 +1894,7 @@ function DialogoNuevaRutina({
         <Plus />
         Nueva rutina
       </DialogTrigger>
-      <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-md">
+      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Crear rutina para {atleta.name}</DialogTitle>
           <DialogDescription className="text-white/40">
@@ -1980,7 +2025,7 @@ function DialogoDetallesRutina({
       >
         Editar detalles
       </DialogTrigger>
-      <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-md">
+      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Detalles de la rutina</DialogTitle>
           <DialogDescription className="text-white/40">
@@ -2077,7 +2122,7 @@ function DialogoAsignarPlantilla({
         Asignar
         <ArrowRight />
       </DialogTrigger>
-      <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-sm">
+      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Asignar “{plantilla.title}”</DialogTitle>
           <DialogDescription className="text-white/40">
@@ -2175,7 +2220,7 @@ function DialogoNuevoAtleta({
       >
         <Plus className="size-4" />
       </DialogTrigger>
-      <DialogContent className="border-white/10 bg-[#111217] text-white sm:max-w-sm">
+      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Agregar alumno</DialogTitle>
           <DialogDescription className="text-white/40">
@@ -2616,7 +2661,7 @@ function HomeEntrenador({
             </div>
             <DialogoNuevoAtleta users={users} onCreate={onCreateAtleta} />
           </div>
-          <div className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/70 p-4 md:p-5 xl:p-6">
+          <div className="rounded-3xl border border-white/[0.07] bg-app-surface/70 p-4 md:p-5 xl:p-6">
             <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
             {atletas.map((item) => {
               const planes = rutinasPorAtleta.filter(
@@ -2712,7 +2757,7 @@ function HomeEntrenador({
             Guardar como plantilla
             </Button>
           </div>
-          <div className="rounded-3xl border border-white/[0.07] bg-[#0d0e13]/70 p-4 md:p-5 xl:p-6">
+          <div className="rounded-3xl border border-white/[0.07] bg-app-surface/70 p-4 md:p-5 xl:p-6">
             {templates.length === 0 ? (
             <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5 text-xs text-white/35">
               Todavía no tenés plantillas. Personalizá una rutina y guardala acá
@@ -2762,7 +2807,7 @@ function HomeEntrenador({
                       >
                         <Trash2 />
                       </DialogTrigger>
-                      <DialogContent className="border-white/10 bg-[#111217] text-white">
+                      <DialogContent className="border-white/10 bg-app-panel text-white">
                         <DialogHeader>
                           <DialogTitle>
                             ¿Eliminar “{plantilla.title}”?
@@ -2898,7 +2943,7 @@ function HomeEntrenador({
             />
           </div>
 
-          <Card className="overflow-hidden border-white/[0.08] bg-[#0f1015] text-white shadow-[0_24px_70px_rgba(37,28,100,.18)]">
+          <Card className="overflow-hidden border-white/[0.08] bg-app-panel text-white shadow-[0_24px_70px_rgba(37,28,100,.18)]">
             <CardHeader className="border-b border-indigo-200/[0.07] p-4 md:p-5 xl:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -2952,7 +2997,7 @@ function HomeEntrenador({
                     >
                       <Trash2 />
                     </DialogTrigger>
-                    <DialogContent className="border-white/10 bg-[#111217] text-white">
+                    <DialogContent className="border-white/10 bg-app-panel text-white">
                       <DialogHeader>
                         <DialogTitle>¿Eliminar “{rutina.title}”?</DialogTitle>
                         <DialogDescription className="text-white/40">
@@ -3089,7 +3134,7 @@ function HomeEntrenador({
           if (!open) setAccionPendiente(null);
         }}
       >
-        <DialogContent className="border-white/10 bg-[#111217] text-white">
+        <DialogContent className="border-white/10 bg-app-panel text-white">
           <DialogHeader>
             <DialogTitle>Tenés cambios sin guardar</DialogTitle>
             <DialogDescription className="text-white/40">
@@ -3150,7 +3195,7 @@ function OverviewRutina({
         <Route className="size-3.5" />
         Vista general
       </DialogTrigger>
-      <DialogContent className="max-h-[88vh] gap-0 overflow-hidden border-white/10 bg-[#0d0e13] p-0 text-white sm:max-w-3xl">
+      <DialogContent className="max-h-[88vh] gap-0 overflow-hidden border-white/10 bg-app-surface p-0 text-white sm:max-w-3xl">
         <DialogHeader className="border-b border-white/[0.07] p-5 pr-12 md:p-6">
           <div className="flex items-center gap-2">
             <Badge className="border-cyan-200/15 bg-cyan-300/10 text-[9px] text-cyan-100">
@@ -3318,7 +3363,7 @@ function HomeAtleta({
           />
         </aside>
 
-      <Card className="relative overflow-hidden border-white/[0.09] bg-[#101116] text-white shadow-[0_30px_80px_rgba(0,0,0,.45)]">
+      <Card className="relative overflow-hidden border-white/[0.09] bg-app-panel text-white shadow-[0_30px_80px_rgba(0,0,0,.45)]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(34,211,238,.18),transparent_35%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.18),transparent_42%)]" />
         <CardContent className="relative p-5 md:p-7">
           <div className="flex items-center justify-between">
@@ -3382,7 +3427,7 @@ function HomeAtleta({
                   >
                     Reiniciar progreso
                   </DialogTrigger>
-                  <DialogContent className="border-white/10 bg-[#111217] text-white">
+                  <DialogContent className="border-white/10 bg-app-panel text-white">
                     <DialogHeader>
                       <DialogTitle>¿Reiniciar esta rutina?</DialogTitle>
                       <DialogDescription className="text-white/45">
@@ -3488,7 +3533,7 @@ function HomeHoy({
               return (
                 <Card
                   key={entrenamiento.id}
-                  className="relative overflow-hidden border-white/[0.09] bg-[#101116] text-white shadow-[0_24px_70px_rgba(0,0,0,.35)]"
+                  className="relative overflow-hidden border-white/[0.09] bg-app-panel text-white shadow-[0_24px_70px_rgba(0,0,0,.35)]"
                 >
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_0%,rgba(34,211,238,.15),transparent_38%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.13),transparent_45%)]" />
                   <CardContent className="relative p-5 md:p-6">
@@ -4086,7 +4131,7 @@ function WorkoutMode({
         </div>
 
         {esBloqueBreve && vistaCalentamiento === "resumida" ? (
-          <div className="relative overflow-hidden rounded-[2rem] border border-cyan-200/[0.14] bg-[#101116] p-5 shadow-[0_30px_80px_rgba(0,0,0,.5)]">
+          <div className="relative overflow-hidden rounded-[2rem] border border-cyan-200/[0.14] bg-app-panel p-5 shadow-[0_30px_80px_rgba(0,0,0,.5)]">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(34,211,238,.14),transparent_37%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.15),transparent_42%)]" />
             <div className="relative">
               <div className="flex items-start justify-between gap-4">
@@ -4190,7 +4235,7 @@ function WorkoutMode({
               setDragX(0);
             }}
             className={cn(
-              "relative z-10 select-none overflow-hidden rounded-[2rem] border bg-[#101116] p-4 pb-5 shadow-[0_30px_80px_rgba(0,0,0,.5)] md:p-5",
+              "relative z-10 select-none overflow-hidden rounded-[2rem] border bg-app-panel p-4 pb-5 shadow-[0_30px_80px_rgba(0,0,0,.5)] md:p-5",
               registro.completed
                 ? "border-cyan-300/30"
                 : registro.skipped
@@ -4230,7 +4275,7 @@ function WorkoutMode({
                     </SheetTrigger>
                     <SheetContent
                       side="bottom"
-                      className="mx-auto max-w-lg rounded-t-[2rem] border-white/10 bg-[#111217] pb-6 text-white"
+                      className="mx-auto max-w-lg rounded-t-[2rem] border-white/10 bg-app-panel pb-6 text-white"
                     >
                       <SheetHeader className="px-5 pt-6">
                         <SheetTitle className="text-white">
@@ -4469,7 +4514,7 @@ function RutinaCompletada({
   const [effort, setEsfuerzo] = useState(4);
   return (
     <div className="mx-auto grid min-h-[calc(100vh-4.5rem)] max-w-5xl place-items-center px-4 py-8 md:px-8 xl:px-10">
-      <Card className="w-full border-violet-200/[0.12] bg-[#101116] text-center text-white shadow-[0_30px_90px_rgba(0,0,0,.5)]">
+      <Card className="w-full border-violet-200/[0.12] bg-app-panel text-center text-white shadow-[0_30px_90px_rgba(0,0,0,.5)]">
         <CardContent className="p-6 md:p-9 xl:grid xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:items-center xl:gap-10 xl:p-12">
           <div>
           <div className="mx-auto grid size-16 place-items-center rounded-full bg-gradient-to-br from-cyan-300 to-violet-400 text-indigo-950">
@@ -5348,7 +5393,7 @@ export default function Home() {
   }
 
   if (!hydrated) {
-    return <div className="min-h-screen bg-[#07080b]" />;
+    return <div className="min-h-screen bg-app" />;
   }
 
   if (!usuario) {
