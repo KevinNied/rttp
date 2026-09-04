@@ -1127,7 +1127,7 @@ function AppShell({
             (sidebarCompact ? "lg:pl-24 lg:pt-0" : "lg:pl-64 lg:pt-0"),
           !vistaPrevia &&
             !workoutImmersive &&
-            "pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-0",
+            "pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0",
         )}
       >
         {syncError && !workoutImmersive && (
@@ -1168,12 +1168,13 @@ function AppShell({
                   key={item.label}
                   type="button"
                   aria-label={item.label}
+                  title={item.label}
                   onClick={() => navigate(item.href)}
                   className={cn(
-                    "flex h-11 shrink-0 items-center justify-center rounded-[1rem] transition-[width,transform,background-color,color] duration-300 ease-out",
+                    "flex size-11 shrink-0 items-center justify-center rounded-[1rem] transition-[transform,background-color,color] duration-300 ease-out",
                     activo
-                      ? "w-[5.75rem] -translate-y-0.5 gap-2 bg-cyan-300/14 px-2.5 text-cyan-100 shadow-[0_8px_24px_rgba(34,211,238,.09)]"
-                      : "w-11 text-white/35 hover:bg-white/[0.06] hover:text-white/80",
+                      ? "-translate-y-1 scale-110 bg-cyan-300/14 text-cyan-100 shadow-[0_8px_24px_rgba(34,211,238,.12)]"
+                      : "text-white/35 hover:bg-white/[0.06] hover:text-white/80",
                   )}
                 >
                   <span
@@ -1186,11 +1187,6 @@ function AppShell({
                   >
                     <NavIcon className="size-4" />
                   </span>
-                  {activo && (
-                    <span className="truncate text-[10px] font-medium leading-none">
-                      {item.label}
-                    </span>
-                  )}
                 </button>
               );
             })}
@@ -4584,11 +4580,9 @@ function RutinaCompletada({
 function PerfilUsuario({
   usuario,
   entrenadorAsignado,
-  onLogout,
 }: {
   usuario: User;
   entrenadorAsignado?: User;
-  onLogout: () => void;
 }) {
   return (
     <div
@@ -4608,18 +4602,11 @@ function PerfilUsuario({
 
         <Card className="mt-7 border-white/[0.08] bg-app-panel text-white shadow-none">
           <CardContent className="p-5 md:p-6">
-            <div className="flex items-center gap-4">
-              <BlobatarAvatar
-                name={usuario.email}
-                size="lg"
-                className="size-14"
-              />
-              <div className="min-w-0">
-                <h2 className="truncate text-xl font-medium">{usuario.name}</h2>
-                <p className="mt-1 truncate text-xs text-white/40">
-                  {usuario.email}
-                </p>
-              </div>
+            <div>
+              <h2 className="truncate text-xl font-medium">{usuario.name}</h2>
+              <p className="mt-1 text-xs text-white/35">
+                Información de la cuenta
+              </p>
             </div>
             <dl className="mt-6 divide-y divide-white/[0.06] border-y border-white/[0.06]">
               <div className="flex items-center justify-between gap-4 py-3">
@@ -4652,19 +4639,6 @@ function PerfilUsuario({
             </dl>
           </CardContent>
         </Card>
-
-        <div className="mt-4 space-y-2">
-          <ThemeToggle />
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={onLogout}
-            className="h-10 w-full justify-between rounded-xl border border-red-300/10 bg-red-400/[0.04] px-3 text-xs text-red-200/70 hover:bg-red-400/[0.08] hover:text-red-200"
-          >
-            <span>Cerrar sesión</span>
-            <LogOut className="size-4" />
-          </Button>
-        </div>
 
         <div className="mt-auto pt-12 text-center">
           <VersionLabel />
@@ -5537,7 +5511,6 @@ export default function Home() {
           entrenadorAsignado={
             usuario.role === "athlete" ? entrenadorDelAtleta : undefined
           }
-          onLogout={intentarSalir}
         />
       ) : !mostrandoAtleta ? (
         <HomeEntrenador
