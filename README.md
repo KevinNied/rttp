@@ -4,6 +4,9 @@ RTTP existe para transformar rutinas estáticas de Excel o Google Sheets en una 
 
 La prioridad es que el atleta siempre sepa qué hacer a continuación, pueda registrar su progreso con mínima fricción y se concentre en entrenar.
 
+Las ideas para futuras versiones se mantienen en
+[`docs/pending-features.md`](docs/pending-features.md).
+
 ## Ejecutar localmente
 
 ### Requisitos
