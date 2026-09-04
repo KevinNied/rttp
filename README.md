@@ -82,6 +82,7 @@ documentados en
 - `/schedule`: planificación deportiva semanal.
 - `/routines`: todas las rutinas asignadas y ejecución libre.
 - `/activities`: historial y detalle de actividades realizadas.
+- `/profile`: datos del usuario, preferencias y versión instalada.
 
 ### Rutas del entrenador
 

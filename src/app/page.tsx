@@ -50,6 +50,7 @@ import {
   TimerReset,
   Trash2,
   Trophy,
+  UserRound,
   Users,
   X,
 } from "lucide-react";
@@ -169,8 +170,8 @@ type MigrationSource = {
   remappingStarted: boolean;
 };
 
-type CoachView = "resumen" | "atletas" | "routines";
-type AthleteView = "inicio" | "agenda" | "routines" | "activities";
+type CoachView = "resumen" | "atletas" | "routines" | "profile";
+type AthleteView = "inicio" | "agenda" | "routines" | "activities" | "profile";
 
 function TextWithLinks({
   children,
@@ -847,21 +848,6 @@ function AppShell({
     if (typeof window === "undefined") return false;
     return readSessionValue(sidebarPreferenceStorageKey) === "true";
   });
-  const encabezadoEntrenador =
-    vistaEntrenador === "atletas"
-      ? ["Atletas", "Perfiles y planificación individual"]
-      : vistaEntrenador === "routines"
-        ? ["Biblioteca de rutinas", "Plantillas reutilizables para tus atletas"]
-        : ["Resumen", "Organización y seguimiento de planes"];
-  const encabezado = esEntrenador
-    ? encabezadoEntrenador
-    : vistaAtleta === "agenda"
-      ? ["Agenda deportiva", "Tu semana de entrenamiento"]
-      : vistaAtleta === "activities"
-        ? ["Actividades", "Tu historial deportivo"]
-      : vistaAtleta === "routines"
-        ? ["Rutinas", "Todos tus planes asignados"]
-        : ["Inicio", "Tu entrenamiento de hoy"];
   const navegacionCoach = [
     {
       icon: LayoutGrid,
@@ -883,6 +869,13 @@ function AppShell({
       description: "Plantillas y planes",
       href: "/coach/routines",
       view: "routines" as const,
+    },
+    {
+      icon: UserRound,
+      label: "Perfil",
+      description: "Cuenta y apariencia",
+      href: "/coach/profile",
+      view: "profile" as const,
     },
   ];
   const navegacionAtleta = [
@@ -914,8 +907,16 @@ function AppShell({
       href: "/activities",
       view: "activities" as const,
     },
+    {
+      icon: UserRound,
+      label: "Perfil",
+      description: "Tu cuenta",
+      href: "/profile",
+      view: "profile" as const,
+    },
   ];
   const navegacion = esEntrenador ? navegacionCoach : navegacionAtleta;
+  const navegacionMobile = navegacion.filter((item) => item.view !== "profile");
 
   useEffect(() => {
     writeSessionValue(sidebarPreferenceStorageKey, String(sidebarCompact));
@@ -1059,7 +1060,7 @@ function AppShell({
 
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-40 flex h-[calc(4rem+env(safe-area-inset-top))] items-center justify-between border-b border-white/[0.07] bg-app/90 pb-0 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:h-18 lg:px-8 lg:pt-0",
+          "fixed inset-x-0 top-0 z-40 flex h-[calc(3.75rem+env(safe-area-inset-top))] items-center justify-between bg-app/75 pb-0 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-2xl after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-6 after:h-6 after:bg-gradient-to-b after:from-app/70 after:to-transparent lg:h-18 lg:px-8 lg:pt-0 lg:after:hidden",
           workoutImmersive && "hidden",
           !vistaPrevia &&
             (sidebarCompact ? "lg:left-24 lg:hidden" : "lg:left-64 lg:hidden"),
@@ -1069,75 +1070,64 @@ function AppShell({
           <div className={cn(!vistaPrevia && "hidden lg:block")}>
             <Logo />
           </div>
-          <div className="flex items-center gap-3 lg:hidden">
+          <div className="flex items-center lg:hidden">
             <Image
               src="/rttp-mark-v2.png"
-              alt=""
-              width={28}
-              height={28}
+              alt="RTTP"
+              width={32}
+              height={32}
+              loading="eager"
               unoptimized
-              className="size-7 rounded-md bg-indigo-950 p-0.5 object-contain drop-shadow-[0_0_10px_rgba(99,102,241,.18)] dark:bg-transparent dark:p-0"
+              className="size-8 rounded-lg bg-indigo-950 p-0.5 object-contain drop-shadow-[0_0_10px_rgba(99,102,241,.18)] dark:bg-transparent dark:p-0"
             />
-            {!vistaPrevia && (
-              <div className="min-w-0">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/85">
-                  RTTP <VersionLabel className="ml-1 align-middle" />
-                </div>
-                <div className="truncate text-[11px] text-white/40">
-                  {encabezado[0]}
-                </div>
-              </div>
-            )}
           </div>
         </div>
-        {!vistaPrevia && (
-          <div className="hidden lg:block">
-            <div className="text-sm font-medium text-white/85">
-              {encabezado[0]}
-            </div>
-            <div className="mt-0.5 text-[10px] text-white/30">
-              {encabezado[1]}
-            </div>
-          </div>
-        )}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <ThemeToggle compact />
           {!vistaPrevia && (
-            <div
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Abrir perfil"
+              title="Abrir perfil"
+              onClick={() =>
+                navigate(esEntrenador ? "/coach/profile" : "/profile")
+              }
               className={cn(
-                "hidden text-right sm:block",
-                esEntrenador && "lg:hidden",
+                "rounded-xl border border-white/[0.07] bg-white/[0.03] text-white/55 hover:bg-white/[0.08] hover:text-white",
+                (esEntrenador
+                  ? vistaEntrenador === "profile"
+                  : vistaAtleta === "profile") &&
+                  "border-cyan-200/20 bg-cyan-300/10 text-cyan-100",
               )}
             >
-              <div className="text-[11px]">{usuario.name}</div>
-              <div className="text-[9px] text-white/30">
-                {usuario.role === "coach" ? "Entrenador" : "Atleta"}
-              </div>
-            </div>
+              <UserRound className="size-4" />
+            </Button>
           )}
           <Button
             variant="ghost"
+            size="icon-sm"
             onClick={onLogout}
             aria-label="Cerrar sesión"
-            className="h-9 rounded-full px-3 text-white/40 hover:bg-white/[0.07] hover:text-white"
+            title="Cerrar sesión"
+            className="rounded-xl border border-white/[0.07] bg-white/[0.03] text-white/55 hover:bg-white/[0.08] hover:text-white"
           >
             <LogOut />
-            <span className="hidden text-xs lg:inline">Cerrar sesión</span>
           </Button>
         </div>
       </header>
 
       <main
         className={cn(
-          "relative min-h-dvh pt-[calc(4rem+env(safe-area-inset-top))] lg:pt-18",
+          "relative min-h-dvh pt-[calc(3.75rem+env(safe-area-inset-top))] lg:pt-18",
           workoutImmersive && "pt-0 lg:pt-0",
           !vistaPrevia &&
             !workoutImmersive &&
             (sidebarCompact ? "lg:pl-24 lg:pt-0" : "lg:pl-64 lg:pt-0"),
           !vistaPrevia &&
-            !esEntrenador &&
             !workoutImmersive &&
-            "pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0",
+            "pb-[calc(5.25rem+env(safe-area-inset-bottom))] lg:pb-0",
         )}
       >
         {syncError && !workoutImmersive && (
@@ -1165,12 +1155,14 @@ function AppShell({
         )}
         {children}
       </main>
-      {!esEntrenador && !vistaPrevia && !workoutImmersive && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-app/95 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-2 backdrop-blur-xl lg:hidden">
-          <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-[1.35rem] border border-white/[0.06] bg-white/[0.03] p-1.5 shadow-[0_-18px_45px_rgba(4,8,18,.35)]">
-            {navegacionAtleta.map((item) => {
+      {!vistaPrevia && !workoutImmersive && (
+        <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] lg:hidden">
+          <div className="pointer-events-auto flex w-fit items-center gap-1 rounded-[1.35rem] border border-white/[0.09] bg-app-panel/88 p-1.5 shadow-[0_14px_45px_rgba(4,8,18,.38)] backdrop-blur-2xl">
+            {navegacionMobile.map((item) => {
               const NavIcon = item.icon;
-              const activo = item.view === vistaAtleta;
+              const activo = esEntrenador
+                ? item.view === vistaEntrenador
+                : item.view === vistaAtleta;
               return (
                 <button
                   key={item.label}
@@ -1178,10 +1170,10 @@ function AppShell({
                   aria-label={item.label}
                   onClick={() => navigate(item.href)}
                   className={cn(
-                    "flex min-w-0 flex-col items-center gap-1 rounded-2xl px-2 py-2 text-center transition-colors",
+                    "flex h-11 shrink-0 items-center justify-center rounded-[1rem] transition-[width,transform,background-color,color] duration-300 ease-out",
                     activo
-                      ? "bg-cyan-300/12 text-cyan-100"
-                      : "text-white/35 hover:bg-white/[0.06] hover:text-white/80",
+                      ? "w-[5.75rem] -translate-y-0.5 gap-2 bg-cyan-300/14 px-2.5 text-cyan-100 shadow-[0_8px_24px_rgba(34,211,238,.09)]"
+                      : "w-11 text-white/35 hover:bg-white/[0.06] hover:text-white/80",
                   )}
                 >
                   <span
@@ -1194,9 +1186,11 @@ function AppShell({
                   >
                     <NavIcon className="size-4" />
                   </span>
-                  <span className="truncate text-[10px] font-medium leading-none">
-                    {item.label}
-                  </span>
+                  {activo && (
+                    <span className="truncate text-[10px] font-medium leading-none">
+                      {item.label}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -4587,6 +4581,99 @@ function RutinaCompletada({
   );
 }
 
+function PerfilUsuario({
+  usuario,
+  entrenadorAsignado,
+  onLogout,
+}: {
+  usuario: User;
+  entrenadorAsignado?: User;
+  onLogout: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        desktopPageShellClassName,
+        "flex min-h-[calc(100dvh-10rem)] flex-col",
+      )}
+    >
+      <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col">
+        <div>
+          <div className={pageEyebrowClassName}>Tu espacio</div>
+          <h1 className={pageTitleClassName}>Perfil</h1>
+          <p className={pageDescriptionClassName}>
+            Tus datos y preferencias de RTTP.
+          </p>
+        </div>
+
+        <Card className="mt-7 border-white/[0.08] bg-app-panel text-white shadow-none">
+          <CardContent className="p-5 md:p-6">
+            <div className="flex items-center gap-4">
+              <BlobatarAvatar
+                name={usuario.email}
+                size="lg"
+                className="size-14"
+              />
+              <div className="min-w-0">
+                <h2 className="truncate text-xl font-medium">{usuario.name}</h2>
+                <p className="mt-1 truncate text-xs text-white/40">
+                  {usuario.email}
+                </p>
+              </div>
+            </div>
+            <dl className="mt-6 divide-y divide-white/[0.06] border-y border-white/[0.06]">
+              <div className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-xs text-white/35">Rol</dt>
+                <dd className="text-xs font-medium">
+                  {usuario.role === "coach" ? "Entrenador" : "Atleta"}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-4 py-3">
+                <dt className="text-xs text-white/35">Cuenta</dt>
+                <dd className="truncate text-right text-xs text-white/65">
+                  {usuario.email}
+                </dd>
+              </div>
+              {usuario.role === "athlete" && (
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <dt className="text-xs text-white/35">Entrenador</dt>
+                  <dd className="min-w-0 text-right">
+                    <div className="truncate text-xs font-medium">
+                      {entrenadorAsignado?.name ?? "Sin asignar"}
+                    </div>
+                    {entrenadorAsignado && (
+                      <div className="mt-1 truncate text-[10px] text-white/35">
+                        {entrenadorAsignado.email}
+                      </div>
+                    )}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </CardContent>
+        </Card>
+
+        <div className="mt-4 space-y-2">
+          <ThemeToggle />
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onLogout}
+            className="h-10 w-full justify-between rounded-xl border border-red-300/10 bg-red-400/[0.04] px-3 text-xs text-red-200/70 hover:bg-red-400/[0.08] hover:text-red-200"
+          >
+            <span>Cerrar sesión</span>
+            <LogOut className="size-4" />
+          </Button>
+        </div>
+
+        <div className="mt-auto pt-12 text-center">
+          <VersionLabel />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExperienciaAtleta({
   atleta,
   routines,
@@ -4824,6 +4911,12 @@ export default function Home() {
       ? usuario
       : atletasDelCoach.find((item) => item.id === atletaSeleccionadoId) ??
         atletasDelCoach[0];
+  const entrenadorDelAtleta = atleta
+    ? users.find(
+        (item) =>
+          item.role === "coach" && item.athleteIds?.includes(atleta.id),
+      )
+    : undefined;
   const rutinasDelAtleta = atleta
     ? routines.filter((item) => item.athleteId === atleta.id)
     : [];
@@ -4848,6 +4941,8 @@ export default function Home() {
       ? "atletas"
       : pathname === "/coach/routines"
         ? "routines"
+        : pathname === "/coach/profile"
+          ? "profile"
         : "resumen";
   const vistaAtleta: AthleteView =
     pathname === "/schedule"
@@ -4856,6 +4951,8 @@ export default function Home() {
         ? "activities"
       : pathname === "/routines"
         ? "routines"
+        : pathname === "/profile"
+          ? "profile"
         : "inicio";
 
   function navigate(path: string) {
@@ -5431,7 +5528,18 @@ export default function Home() {
       onLogout={intentarSalir}
       navigate={navigate}
     >
-      {!mostrandoAtleta ? (
+      {(!mostrandoAtleta && vistaEntrenador === "profile") ||
+      (mostrandoAtleta &&
+        vistaAtleta === "profile" &&
+        !entrenamientoActivo) ? (
+        <PerfilUsuario
+          usuario={usuario}
+          entrenadorAsignado={
+            usuario.role === "athlete" ? entrenadorDelAtleta : undefined
+          }
+          onLogout={intentarSalir}
+        />
+      ) : !mostrandoAtleta ? (
         <HomeEntrenador
           key={`${atleta.id}-${rutina.id}`}
           entrenador={usuario}
