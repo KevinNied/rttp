@@ -63,7 +63,9 @@ y sus tokens renovables.
 RTTP usa el tema oscuro de forma predeterminada. El selector de tema disponible
 en la landing y en la navegación permite activar el tema claro; la preferencia se
 guarda en `localStorage` y se aplica antes del primer render para evitar cambios
-visibles de color al recargar.
+visibles de color al recargar. En iPhone, la interfaz usa un viewport edge-to-edge,
+integra las barras de Safari con el tema activo y respeta las áreas seguras de la
+Dynamic Island y el indicador inferior.
 
 La Agenda deportiva organiza rutinas y actividades externas por fecha. Su modelo
 está separado de las rutinas y persiste en Supabase. La evolución funcional está documentada en

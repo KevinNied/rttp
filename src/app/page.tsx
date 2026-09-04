@@ -666,6 +666,13 @@ function ThemeToggle({
   compact?: boolean;
   className?: string;
 }) {
+  useEffect(() => {
+    const light = document.documentElement.classList.contains("light");
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", light ? "#f5f7ff" : "#07080b");
+  }, []);
+
   function toggleTheme() {
     const nextTheme = document.documentElement.classList.contains("dark")
       ? "light"
@@ -674,6 +681,9 @@ function ThemeToggle({
     document.documentElement.classList.toggle("dark", !light);
     document.documentElement.classList.toggle("light", light);
     document.documentElement.style.colorScheme = nextTheme;
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute("content", light ? "#f5f7ff" : "#07080b");
     localStorage.setItem(themeStorageKey, nextTheme);
   }
 
@@ -713,9 +723,12 @@ function LandingAcceso({
   }
 
   return (
-    <main className="relative grid min-h-screen place-items-center overflow-hidden bg-app px-5 text-white">
+    <main className="relative grid min-h-dvh place-items-center overflow-hidden bg-app pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(34,211,238,.15),transparent_32%),radial-gradient(circle_at_20%_80%,rgba(124,58,237,.2),transparent_38%)]" />
-      <ThemeToggle compact className="absolute right-5 top-5 z-10" />
+      <ThemeToggle
+        compact
+        className="absolute right-[max(1.25rem,env(safe-area-inset-right))] top-[max(1.25rem,env(safe-area-inset-top))] z-10"
+      />
       <div className="relative flex w-full max-w-sm flex-col items-center text-center">
         <div className="relative size-32 rounded-[2rem] bg-indigo-950/90 shadow-[0_18px_50px_rgba(79,70,229,.18)] dark:bg-transparent dark:shadow-none">
           <Image
@@ -909,7 +922,7 @@ function AppShell({
   }, [sidebarCompact]);
 
   return (
-    <div className="min-h-screen bg-app text-white selection:bg-cyan-300 selection:text-black">
+    <div className="min-h-dvh bg-app text-white selection:bg-cyan-300 selection:text-black">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_80%_-10%,rgba(34,211,238,.14),transparent_32%),radial-gradient(circle_at_10%_70%,rgba(124,58,237,.15),transparent_35%)]" />
       {!vistaPrevia && !workoutImmersive && (
         <aside
@@ -1046,7 +1059,7 @@ function AppShell({
 
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-white/[0.07] bg-app/90 px-4 backdrop-blur-xl lg:h-18 lg:px-8",
+          "fixed inset-x-0 top-0 z-40 flex h-[calc(4rem+env(safe-area-inset-top))] items-center justify-between border-b border-white/[0.07] bg-app/90 pb-0 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:h-18 lg:px-8 lg:pt-0",
           workoutImmersive && "hidden",
           !vistaPrevia &&
             (sidebarCompact ? "lg:left-24 lg:hidden" : "lg:left-64 lg:hidden"),
@@ -1116,7 +1129,7 @@ function AppShell({
 
       <main
         className={cn(
-          "relative min-h-screen pt-16 lg:pt-18",
+          "relative min-h-dvh pt-[calc(4rem+env(safe-area-inset-top))] lg:pt-18",
           workoutImmersive && "pt-0 lg:pt-0",
           !vistaPrevia &&
             !workoutImmersive &&
@@ -1124,7 +1137,7 @@ function AppShell({
           !vistaPrevia &&
             !esEntrenador &&
             !workoutImmersive &&
-            "pb-24 lg:pb-0",
+            "pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0",
         )}
       >
         {syncError && !workoutImmersive && (
@@ -1153,7 +1166,7 @@ function AppShell({
         {children}
       </main>
       {!esEntrenador && !vistaPrevia && !workoutImmersive && (
-        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-app/95 px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 backdrop-blur-xl lg:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/[0.07] bg-app/95 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-2 backdrop-blur-xl lg:hidden">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-1 rounded-[1.35rem] border border-white/[0.06] bg-white/[0.03] p-1.5 shadow-[0_-18px_45px_rgba(4,8,18,.35)]">
             {navegacionAtleta.map((item) => {
               const NavIcon = item.icon;
@@ -4513,7 +4526,7 @@ function RutinaCompletada({
 }) {
   const [effort, setEsfuerzo] = useState(4);
   return (
-    <div className="mx-auto grid min-h-[calc(100vh-4.5rem)] max-w-5xl place-items-center px-4 py-8 md:px-8 xl:px-10">
+    <div className="mx-auto grid min-h-dvh max-w-5xl place-items-center px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] md:px-8 xl:px-10">
       <Card className="w-full border-violet-200/[0.12] bg-app-panel text-center text-white shadow-[0_30px_90px_rgba(0,0,0,.5)]">
         <CardContent className="p-6 md:p-9 xl:grid xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:items-center xl:gap-10 xl:p-12">
           <div>
@@ -5393,7 +5406,7 @@ export default function Home() {
   }
 
   if (!hydrated) {
-    return <div className="min-h-screen bg-app" />;
+    return <div className="min-h-dvh bg-app" />;
   }
 
   if (!usuario) {
