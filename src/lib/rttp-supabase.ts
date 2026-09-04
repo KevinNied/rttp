@@ -1,4 +1,8 @@
-import { CompletedActivity, ActivitySet } from "@/lib/rttp-activity";
+import {
+  CompletedActivity,
+  ActivitySet,
+  RoutineActivitySnapshot,
+} from "@/lib/rttp-activity";
 import {
   ActivityCategory,
   ScheduledWorkout,
@@ -89,10 +93,11 @@ type ActivityRow = {
   title: string;
   category: ActivityCategory | null;
   routine_id: string | null;
-  routine_snapshot: Routine | null;
+  routine_snapshot: RoutineActivitySnapshot | null;
   activity_date: string;
   completed_at: string;
   duration_minutes: number | null;
+  duration_seconds?: number | null;
   effort: number | null;
   feedback: string;
   notes: string;
@@ -233,6 +238,10 @@ export async function loadSupabaseData(): Promise<PersistedData> {
       date: row.activity_date,
       completedAt: row.completed_at,
       durationMinutes: row.duration_minutes,
+      durationSeconds:
+        row.duration_seconds ??
+        row.routine_snapshot?.durationSeconds ??
+        null,
       effort: row.effort,
       feedback: row.feedback,
       notes: row.notes,

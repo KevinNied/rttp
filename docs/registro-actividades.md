@@ -18,7 +18,7 @@ Una actividad es histórica e independiente:
 Al finalizar una sesión se registra:
 
 - atleta y entrenamiento programado de origen;
-- fecha y duración real de la sesión, redondeada al minuto superior;
+- fecha y duración real exacta de la sesión en segundos;
 - título e identificador de la rutina;
 - snapshot completo de la rutina;
 - series realizadas u omitidas;
@@ -33,8 +33,14 @@ después.
 El cronómetro comienza al iniciar la rutina y usa una marca temporal, por lo que
 sigue midiendo correctamente entre bloques y mientras la pantalla está
 bloqueada. Al salir de la ejecución se pausa y al retomarla continúa desde el
-tiempo acumulado. El estado se conserva en el dispositivo hasta completar o
-eliminar el entrenamiento.
+tiempo acumulado. La posición, las series registradas, el feedback pendiente y
+el descanso activo también se conservan en el dispositivo. Una recarga recupera
+la pantalla exacta de la sesión, y completar o eliminar el entrenamiento limpia
+todo el estado temporal.
+
+Si un ejercicio define descanso, completar la serie inicia una cuenta regresiva
+que puede pausarse, reanudarse u omitirse. Los ejercicios sin descanso no
+muestran esa interfaz.
 
 ## Actividades externas
 
@@ -57,7 +63,8 @@ el identificador del entrenamiento programado como clave de idempotencia.
 
 El contrato se separa en:
 
-- `workout_activities`: cabecera de cada actividad;
+- `workout_activities`: cabecera de cada actividad, con `duration_seconds` como
+  fuente exacta y `duration_minutes` para compatibilidad;
 - `workout_activity_sets`: detalle de series realizadas;
 - `routine_snapshot`: snapshot de la rutina en una columna `jsonb`;
 - relación opcional con `scheduled_workouts`;

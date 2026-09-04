@@ -15,6 +15,7 @@ import {
 
 import { CompletedActivity } from "@/lib/rttp-activity";
 import { activityCategories } from "@/lib/rttp-agenda";
+import { countLabel, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type FiltroActividad = "todas" | "routines" | "externas";
@@ -66,8 +67,8 @@ function resumenActividad(actividad: CompletedActivity) {
     resumen:
       actividad.type === "routine"
         ? [
-            `${seriesCompletadas} series`,
-            `${bloques.length} ${bloques.length === 1 ? "bloque" : "bloques"}`,
+            countLabel(seriesCompletadas, "serie", "series"),
+            countLabel(bloques.length, "bloque"),
           ]
         : [categoriaActividad(actividad.category) ?? "Actividad externa"],
   };
@@ -121,15 +122,20 @@ function ActivityCopy({
 
 function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
   const { bloques, seriesCompletadas } = resumenActividad(actividad);
+  const duracion =
+    actividad.durationSeconds ??
+    (actividad.durationMinutes ? actividad.durationMinutes * 60 : null);
 
   return (
     <div className="space-y-3">
       <div className="grid gap-2 sm:grid-cols-3">
-        {actividad.durationMinutes && (
+        {duracion !== null && (
           <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
-            <div className="text-lg font-light">{actividad.durationMinutes}</div>
+            <div className="text-lg font-light tabular-nums">
+              {formatDuration(duracion)}
+            </div>
             <div className="text-[9px] uppercase tracking-wider text-white/25">
-              {actividad.type === "routine" ? "Minutos reales" : "Minutos"}
+              {actividad.type === "routine" ? "Tiempo real" : "Duración"}
             </div>
           </div>
         )}
@@ -255,7 +261,11 @@ export function ActivityHistory({
     return true;
   });
   const minutos = activities.reduce(
-    (total, actividad) => total + (actividad.durationMinutes ?? 0),
+    (total, actividad) =>
+      total +
+      (actividad.durationSeconds !== null
+        ? actividad.durationSeconds / 60
+        : (actividad.durationMinutes ?? 0)),
     0,
   );
 
@@ -296,8 +306,12 @@ export function ActivityHistory({
           <div className="mb-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {[
               [activities.length, "Actividades"],
-              ...(activities.some((actividad) => actividad.durationMinutes)
-                ? [[minutos, "Minutos"]]
+              ...(activities.some(
+                (actividad) =>
+                  actividad.durationSeconds !== null ||
+                  actividad.durationMinutes !== null,
+              )
+                ? [[Math.ceil(minutos), "Minutos"]]
                 : []),
               [
                 activities.filter((actividad) => actividad.type === "routine").length,
@@ -420,12 +434,18 @@ export function ActivityHistory({
                           </div>
 
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {actividad.durationMinutes && (
+                            {(actividad.durationSeconds !== null ||
+                              actividad.durationMinutes !== null) && (
                               <ActivityChip
                                 icon={<Clock3 className="size-3" />}
-                                label={`${actividad.durationMinutes} min${
-                                  actividad.type === "routine" ? " reales" : ""
-                                }`}
+                                label={
+                                  actividad.type === "routine"
+                                    ? `${formatDuration(
+                                        actividad.durationSeconds ??
+                                          (actividad.durationMinutes ?? 0) * 60,
+                                      )} reales`
+                                    : `${actividad.durationMinutes ?? 0} min`
+                                }
                               />
                             )}
                             {actividad.effort && (
@@ -438,7 +458,11 @@ export function ActivityHistory({
                               <>
                                 <ActivityChip
                                   icon={<ListChecks className="size-3" />}
-                                  label={`${seriesCompletadas} series`}
+                                  label={countLabel(
+                                    seriesCompletadas,
+                                    "serie",
+                                    "series",
+                                  )}
                                 />
                                 {resumen[1] && (
                                   <ActivityChip

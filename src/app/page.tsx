@@ -88,6 +88,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { appVersion } from "@/lib/app-version";
+import { countLabel, formatDuration } from "@/lib/format";
 import { ActivityHistory } from "@/components/activity-history";
 import { SportsSchedule } from "@/components/sports-schedule";
 import {
@@ -135,6 +136,8 @@ const selectedAthleteStorageKey = "rttp-selected-athlete-v2";
 const sidebarPreferenceStorageKey = "rttp-sidebar-compact-v1";
 const themeStorageKey = "rttp-theme-v1";
 const workoutTimerStoragePrefix = "rttp-workout-start-v1:";
+const workoutSessionStoragePrefix = "rttp-workout-session-v1:";
+const mobileDockOnboardingStorageKey = "rttp-mobile-dock-onboarding-v1";
 const supabaseMigrationStorageKey = "rttp-supabase-migrated-v2";
 const supabaseMigrationSourceStorageKey =
   "rttp-supabase-migration-source-v2";
@@ -146,6 +149,22 @@ const supabaseOutboxLock = "rttp-supabase-outbox";
 type WorkoutTimerState = {
   elapsedSeconds: number;
   runningSince: string | null;
+};
+type RestTimerState = {
+  stepId: string;
+  remainingSeconds: number;
+  runningSince: string | null;
+};
+type WorkoutSessionState = {
+  workoutId: string;
+  routineId: string;
+  athleteId: number;
+  phase: "home" | "workout" | "final";
+  activeIndex: number;
+  records: Record<string, TrainingSetRecord>;
+  finishedElapsedSeconds: number;
+  feedback: string;
+  restTimer: RestTimerState | null;
 };
 const desktopPageShellClassName =
   "mx-auto max-w-[1760px] px-4 py-7 md:px-8 md:py-10 xl:px-10 xl:py-12";
@@ -345,6 +364,75 @@ function clearWorkoutTimer(workoutId: string) {
   window.localStorage.removeItem(workoutTimerKey(workoutId));
 }
 
+function workoutSessionKey(workoutId: string) {
+  return `${workoutSessionStoragePrefix}${workoutId}`;
+}
+
+function readWorkoutSession(workoutId: string): WorkoutSessionState | null {
+  if (typeof window === "undefined") return null;
+  const storedValue = window.localStorage.getItem(workoutSessionKey(workoutId));
+  if (!storedValue) return null;
+
+  try {
+    const parsed = JSON.parse(storedValue) as WorkoutSessionState;
+    const valid =
+      parsed.workoutId === workoutId &&
+      typeof parsed.routineId === "string" &&
+      Number.isInteger(parsed.athleteId) &&
+      ["home", "workout", "final"].includes(parsed.phase) &&
+      Number.isInteger(parsed.activeIndex) &&
+      parsed.activeIndex >= 0 &&
+      typeof parsed.records === "object" &&
+      parsed.records !== null &&
+      Number.isFinite(parsed.finishedElapsedSeconds) &&
+      typeof parsed.feedback === "string";
+    if (valid) return parsed;
+  } catch {
+    console.warn(`No se pudo leer la sesión de ${workoutId}.`);
+  }
+
+  console.warn(`Se reinició una sesión inválida para ${workoutId}.`);
+  window.localStorage.removeItem(workoutSessionKey(workoutId));
+  return null;
+}
+
+function writeWorkoutSession(session: WorkoutSessionState) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(
+    workoutSessionKey(session.workoutId),
+    JSON.stringify(session),
+  );
+}
+
+function clearWorkoutSession(workoutId: string) {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(workoutSessionKey(workoutId));
+}
+
+function pruneWorkoutSessions(workouts: ScheduledWorkout[]) {
+  const activeWorkoutIds = new Set(
+    workouts
+      .filter((workout) => workout.status === "in-progress")
+      .map((workout) => workout.id),
+  );
+  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.localStorage.key(index);
+    if (!key?.startsWith(workoutSessionStoragePrefix)) continue;
+    const workoutId = key.slice(workoutSessionStoragePrefix.length);
+    if (!activeWorkoutIds.has(workoutId)) {
+      window.localStorage.removeItem(key);
+    }
+  }
+}
+
+function readWorkoutRecords(workouts: ScheduledWorkout[]) {
+  return workouts.reduce<Record<string, TrainingSetRecord>>((records, workout) => {
+    if (workout.status !== "in-progress") return records;
+    const session = readWorkoutSession(workout.id);
+    return session ? { ...records, ...session.records } : records;
+  }, {});
+}
+
 function pruneWorkoutTimers(workouts: ScheduledWorkout[]) {
   const activeWorkoutIds = new Set(
     workouts
@@ -357,15 +445,6 @@ function pruneWorkoutTimers(workouts: ScheduledWorkout[]) {
     const workoutId = key.slice(workoutTimerStoragePrefix.length);
     if (!activeWorkoutIds.has(workoutId)) window.localStorage.removeItem(key);
   }
-}
-
-function formatElapsedDuration(totalSeconds: number) {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return hours > 0
-    ? [hours, minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":")
-    : [minutes, seconds].map((value) => String(value).padStart(2, "0")).join(":");
 }
 
 function clearDeprecatedLocalStorage() {
@@ -848,6 +927,10 @@ function AppShell({
     if (typeof window === "undefined") return false;
     return readSessionValue(sidebarPreferenceStorageKey) === "true";
   });
+  const [showDockOnboarding, setShowDockOnboarding] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(mobileDockOnboardingStorageKey) !== "true";
+  });
   const navegacionCoach = [
     {
       icon: LayoutGrid,
@@ -921,6 +1004,11 @@ function AppShell({
   useEffect(() => {
     writeSessionValue(sidebarPreferenceStorageKey, String(sidebarCompact));
   }, [sidebarCompact]);
+
+  function dismissDockOnboarding() {
+    window.localStorage.setItem(mobileDockOnboardingStorageKey, "true");
+    setShowDockOnboarding(false);
+  }
 
   return (
     <div className="min-h-dvh bg-app text-white selection:bg-cyan-300 selection:text-black">
@@ -1141,23 +1229,48 @@ function AppShell({
           </div>
         )}
         {vistaPrevia && (
-          <div className="mx-auto max-w-[1760px] px-4 pt-6 sm:px-6 lg:px-10">
+          <div className="mx-auto flex max-w-[1760px] items-center justify-between gap-3 px-4 pt-6 sm:px-6 lg:px-10">
             <Button
               variant="ghost"
               size="sm"
               onClick={onClosePreview}
-              className="-ml-3 rounded-full text-white/55 hover:bg-white/[0.07] hover:text-white"
+              className="-ml-3 rounded-full text-white/65 hover:bg-white/[0.07] hover:text-white"
             >
               <ArrowLeft />
               Volver a editar
             </Button>
+            <Badge className="border-cyan-200/20 bg-cyan-300/10 text-[9px] uppercase tracking-[0.12em] text-cyan-100">
+              Vista previa · Solo lectura
+            </Badge>
           </div>
         )}
-        {children}
+        <div
+          inert={vistaPrevia ? true : undefined}
+          className={cn(vistaPrevia && "pointer-events-none select-none opacity-85")}
+        >
+          {children}
+        </div>
       </main>
       {!vistaPrevia && !workoutImmersive && (
         <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] lg:hidden">
-          <div className="pointer-events-auto flex w-fit items-center gap-1 rounded-[1.35rem] border border-white/[0.09] bg-app-panel/88 p-1.5 shadow-[0_14px_45px_rgba(4,8,18,.38)] backdrop-blur-2xl">
+          <div className="pointer-events-auto relative flex w-fit items-center gap-1 rounded-[1.35rem] border border-white/[0.09] bg-app-panel/88 p-1.5 shadow-[0_14px_45px_rgba(4,8,18,.38)] backdrop-blur-2xl">
+            {showDockOnboarding && (
+              <div className="absolute bottom-[calc(100%+0.75rem)] left-1/2 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl border border-cyan-200/15 bg-app-panel px-4 py-3 text-center shadow-[0_14px_40px_rgba(0,0,0,.35)]">
+                <div className="text-[10px] font-medium text-white/80">
+                  Tu navegación rápida
+                </div>
+                <div className="mt-1 text-[9px] text-white/50">
+                  {navegacionMobile.map((item) => item.label).join(" · ")}
+                </div>
+                <button
+                  type="button"
+                  onClick={dismissDockOnboarding}
+                  className="mt-2 text-[9px] font-medium text-cyan-100"
+                >
+                  Entendido
+                </button>
+              </div>
+            )}
             {navegacionMobile.map((item) => {
               const NavIcon = item.icon;
               const activo = esEntrenador
@@ -1169,7 +1282,10 @@ function AppShell({
                   type="button"
                   aria-label={item.label}
                   title={item.label}
-                  onClick={() => navigate(item.href)}
+                  onClick={() => {
+                    dismissDockOnboarding();
+                    navigate(item.href);
+                  }}
                   className={cn(
                     "flex size-11 shrink-0 items-center justify-center rounded-[1rem] transition-[transform,background-color,color] duration-300 ease-out",
                     activo
@@ -1250,7 +1366,7 @@ function SelectorRutina({
               desktopVertical && "xl:mt-2 xl:text-xs",
             )}
           >
-            {cantidadEjercicios(rutina)} ejercicios
+            {countLabel(cantidadEjercicios(rutina), "ejercicio")}
           </div>
         </button>
       ))}
@@ -2283,6 +2399,82 @@ function DialogoNuevoAtleta({
   );
 }
 
+function DialogoGuardarPlantilla({
+  rutina,
+  onSave,
+}: {
+  rutina: Routine;
+  onSave: (title: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState(rutina.title);
+  const exercises = cantidadEjercicios(rutina);
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (nextOpen) setTitle(rutina.title);
+        setOpen(nextOpen);
+      }}
+    >
+      <DialogTrigger
+        render={
+          <Button
+            variant="outline"
+            disabled={exercises === 0}
+            title={
+              exercises === 0
+                ? "Agregá al menos un ejercicio antes de guardarla como plantilla"
+                : `Guardar ${rutina.title} como plantilla`
+            }
+            className="self-start shrink-0 rounded-full border-indigo-200/10 bg-indigo-300/[0.05] text-white hover:bg-indigo-300/10 hover:text-white xl:self-auto"
+          />
+        }
+      >
+        <Plus />
+        Guardar como plantilla
+      </DialogTrigger>
+      <DialogContent className="border-white/10 bg-app-panel text-white">
+        <DialogHeader>
+          <DialogTitle>Guardar plantilla</DialogTitle>
+          <DialogDescription className="text-white/50">
+            Vas a crear una copia reutilizable de “{rutina.title}” con{" "}
+            {countLabel(exercises, "ejercicio")}.
+          </DialogDescription>
+        </DialogHeader>
+        <label className="block space-y-2">
+          <span className="text-xs text-white/65">Nombre de la plantilla</span>
+          <Input
+            autoFocus
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Ej. Fuerza base"
+            className="h-11 border-white/10 bg-black/25"
+          />
+        </label>
+        <DialogFooter>
+          <DialogClose
+            render={<Button variant="ghost" className="text-white/55" />}
+          >
+            Cancelar
+          </DialogClose>
+          <Button
+            disabled={!title.trim()}
+            onClick={() => {
+              onSave(title.trim());
+              setOpen(false);
+            }}
+            className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+          >
+            Crear plantilla
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function HomeEntrenador({
   entrenador,
   users,
@@ -2328,7 +2520,7 @@ function HomeEntrenador({
   onSelect: (id: string) => void;
   onSaveRutina: (rutina: Routine) => void;
   onCreateRutina: (rutina: Routine) => void;
-  onSaveAsTemplate: (rutina: Routine) => void;
+  onSaveAsTemplate: (rutina: Routine, title: string) => void;
   onAssignTemplate: (plantillaId: string, athleteId: number) => void;
   onDeleteTemplate: (plantillaId: string) => void;
   onCreateAtleta: (name: string, email: string) => Promise<string | null>;
@@ -2349,6 +2541,7 @@ function HomeEntrenador({
     null,
   );
   const [guardadoVisible, setGuardadoVisible] = useState(false);
+  const [plantillaGuardadaVisible, setPlantillaGuardadaVisible] = useState(false);
   const hayCambios =
     JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
   const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
@@ -2745,20 +2938,25 @@ function HomeEntrenador({
               Guardá la rutina abierta como plantilla para reutilizar su estructura y pesos base. Cada asignación crea una copia independiente para el atleta.
             </p>
             </div>
-            <Button
-            variant="outline"
-            onClick={() => onSaveAsTemplate(rutina)}
-            disabled={ejerciciosRutinaActiva === 0}
-            title={
-              ejerciciosRutinaActiva === 0
-                ? "Agregá al menos un ejercicio antes de guardarla como plantilla"
-                : "Guardar como plantilla"
-            }
-            className="self-start shrink-0 rounded-full border-indigo-200/10 bg-indigo-300/[0.05] text-white hover:bg-indigo-300/10 hover:text-white xl:self-auto"
-            >
-            <Plus />
-            Guardar como plantilla
-            </Button>
+            <DialogoGuardarPlantilla
+              rutina={rutina}
+              onSave={(title) => {
+                onSaveAsTemplate(rutina, title);
+                setPlantillaGuardadaVisible(true);
+                window.setTimeout(() => setPlantillaGuardadaVisible(false), 2400);
+              }}
+            />
+          </div>
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-[10px] text-white/55">
+            <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5">
+              Rutina fuente: <strong className="font-medium text-white/80">{rutina.title}</strong>
+            </span>
+            {plantillaGuardadaVisible && (
+              <span role="status" className="inline-flex items-center gap-1.5 text-emerald-200">
+                <CheckCircle2 className="size-3.5" />
+                Plantilla creada
+              </span>
+            )}
           </div>
           <div className="rounded-3xl border border-white/[0.07] bg-app-surface/70 p-4 md:p-5 xl:p-6">
             {templates.length === 0 ? (
@@ -2784,7 +2982,7 @@ function HomeEntrenador({
                     </Badge>
                   </div>
                   <div className="mt-2 text-[10px] text-white/30">
-                    {cantidadEjercicios(plantilla)} ejercicios
+                    {countLabel(cantidadEjercicios(plantilla), "ejercicio")}
                     {plantilla.durationMinutes
                       ? ` · ${plantilla.durationMinutes} min`
                       : ""}
@@ -2935,7 +3133,7 @@ function HomeEntrenador({
                 Rutinas asignadas
               </span>
               <span className="text-[10px] text-white/25">
-                {routines.length} planes
+                {countLabel(routines.length, "plan", "planes")}
               </span>
             </div>
             <SelectorRutina
@@ -2958,7 +3156,7 @@ function HomeEntrenador({
                     {rutina.durationMinutes
                       ? ` · ${rutina.durationMinutes} min`
                       : ""}{" "}
-                    · {ejerciciosRutinaActiva} ejercicios
+                    · {countLabel(ejerciciosRutinaActiva, "ejercicio")}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
@@ -3213,7 +3411,7 @@ function OverviewRutina({
           </DialogTitle>
           <DialogDescription className="text-white/40">
             {rutina.blocks.length} bloques conectados ·{" "}
-            {ejercicios} ejercicios
+            {countLabel(ejercicios, "ejercicio")}
             {rutina.durationMinutes ? ` · ${rutina.durationMinutes} min` : ""}
           </DialogDescription>
         </DialogHeader>
@@ -3355,7 +3553,7 @@ function HomeAtleta({
               Tus rutinas
             </span>
             <span className="text-[10px] text-white/25">
-              {routines.length} planes
+              {countLabel(routines.length, "plan", "planes")}
             </span>
           </div>
           <SelectorRutina
@@ -3387,8 +3585,8 @@ function HomeAtleta({
                 ...(rutina.durationMinutes
                   ? [[Clock3, `${rutina.durationMinutes} min`]]
                   : []),
-                [Dumbbell, `${ejerciciosRutinaActiva} ejercicios`],
-                [LayoutGrid, `${rutina.blocks.length} bloques`],
+                [Dumbbell, countLabel(ejerciciosRutinaActiva, "ejercicio")],
+                [LayoutGrid, countLabel(rutina.blocks.length, "bloque")],
               ].map(([Icon, value]) => {
                 const InfoIcon = Icon as typeof Clock3;
                 return (
@@ -3595,7 +3793,7 @@ function HomeHoy({
                       {entrenamiento.origin === "routine" && rutina && (
                         <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-black/25 px-3 py-2 text-[10px] text-white/55">
                           <Dumbbell className="size-3 text-violet-200" />
-                          {cantidadEjercicios(rutina)} ejercicios
+                          {countLabel(cantidadEjercicios(rutina), "ejercicio")}
                         </div>
                       )}
                       {entrenamiento.origin === "routine" &&
@@ -3822,6 +4020,8 @@ function WorkoutMode({
   setRegistros,
   indiceActivo,
   setIndiceActivo,
+  restTimer,
+  setRestTimer,
   onExit,
   onFinish,
 }: {
@@ -3834,6 +4034,8 @@ function WorkoutMode({
   >;
   indiceActivo: number;
   setIndiceActivo: React.Dispatch<React.SetStateAction<number>>;
+  restTimer: RestTimerState | null;
+  setRestTimer: React.Dispatch<React.SetStateAction<RestTimerState | null>>;
   onExit: () => void;
   onFinish: () => void;
 }) {
@@ -3847,6 +4049,13 @@ function WorkoutMode({
   const [elapsedSeconds, setElapsedSeconds] = useState(() =>
     elapsedSecondsForTimer(timer),
   );
+  const [restSeconds, setRestSeconds] = useState(() => {
+    if (!restTimer || restTimer.stepId !== paso.stepId) return 0;
+    const runningSeconds = restTimer.runningSince
+      ? Math.floor((Date.now() - Date.parse(restTimer.runningSince)) / 1000)
+      : 0;
+    return Math.max(0, restTimer.remainingSeconds - runningSeconds);
+  });
   const [vistaCalentamiento, setVistaCalentamiento] = useState<
     "resumida" | "tarjetas"
   >("resumida");
@@ -3875,6 +4084,26 @@ function WorkoutMode({
     return () => window.clearInterval(interval);
   }, [timer]);
 
+  useEffect(() => {
+    if (!restTimer || restTimer.stepId !== paso.stepId) {
+      return;
+    }
+
+    const updateRest = () => {
+      const runningSeconds = restTimer.runningSince
+        ? Math.floor((Date.now() - Date.parse(restTimer.runningSince)) / 1000)
+        : 0;
+      const remaining = Math.max(0, restTimer.remainingSeconds - runningSeconds);
+      setRestSeconds(remaining);
+      if (remaining === 0 && restTimer.runningSince) {
+        setRestTimer({ ...restTimer, remainingSeconds: 0, runningSince: null });
+      }
+    };
+    if (!restTimer.runningSince) return;
+    const interval = window.setInterval(updateRest, 1000);
+    return () => window.clearInterval(interval);
+  }, [paso.stepId, restTimer, setRestTimer]);
+
   function actualizar(patch: Partial<TrainingSetRecord>) {
     setRegistros((actuales) => ({
       ...actuales,
@@ -3887,6 +4116,7 @@ function WorkoutMode({
 
   function avanzar() {
     setDragX(0);
+    setRestTimer(null);
     let siguiente = indiceActivo + 1;
     while (
       siguiente < pasos.length &&
@@ -3946,7 +4176,32 @@ function WorkoutMode({
 
   function volver() {
     setDragX(0);
+    setRestTimer(null);
     setIndiceActivo((indice) => Math.max(0, indice - 1));
+  }
+
+  function iniciarDescanso() {
+    if (paso.restSeconds === null || paso.restSeconds <= 0 || !proximo) {
+      setRestTimer(null);
+      return;
+    }
+    setRestSeconds(paso.restSeconds);
+    setRestTimer({
+      stepId: paso.stepId,
+      remainingSeconds: paso.restSeconds,
+      runningSince: new Date().toISOString(),
+    });
+  }
+
+  function toggleDescanso() {
+    if (!restTimer || restTimer.stepId !== paso.stepId || restSeconds === 0) {
+      return;
+    }
+    setRestTimer({
+      stepId: paso.stepId,
+      remainingSeconds: restSeconds,
+      runningSince: restTimer.runningSince ? null : new Date().toISOString(),
+    });
   }
 
   function completarRondaResumida() {
@@ -4053,7 +4308,7 @@ function WorkoutMode({
               <span className="text-white/15">·</span>
               <span className="inline-flex items-center gap-1 tabular-nums text-cyan-100/60">
                 <Clock3 className="size-3" />
-                {formatElapsedDuration(elapsedSeconds)}
+                {formatDuration(elapsedSeconds)}
               </span>
             </div>
           </div>
@@ -4146,7 +4401,7 @@ function WorkoutMode({
                     Toda la vuelta, de un vistazo
                   </h1>
                   <p className="mt-1 text-[10px] text-white/35">
-                    {bloque.exercises.length} ejercicios · vuelta {paso.round}{" "}
+                    {countLabel(bloque.exercises.length, "ejercicio")} · vuelta {paso.round}{" "}
                     de {paso.rondas}
                   </p>
                 </div>
@@ -4371,7 +4626,8 @@ function WorkoutMode({
                 </div>
               )}
 
-              {paso.restSeconds !== null && (
+              {paso.restSeconds !== null &&
+                (!restTimer || restTimer.stepId !== paso.stepId) && (
                 <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-300/15 bg-blue-400/[0.07] px-3 py-2">
                   <div className="flex items-center gap-2">
                     <div className="grid size-8 place-items-center rounded-full bg-blue-300/10 text-blue-200">
@@ -4389,6 +4645,47 @@ function WorkoutMode({
                   <div className="text-lg font-light tabular-nums text-blue-100">
                     {paso.restSeconds}
                     <span className="ml-1 text-[10px] text-blue-100/40">s</span>
+                  </div>
+                </div>
+              )}
+
+              {restTimer?.stepId === paso.stepId && (
+                <div
+                  role="timer"
+                  aria-live="polite"
+                  className="mt-3 rounded-2xl border border-cyan-200/20 bg-cyan-300/[0.08] px-4 py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[8px] uppercase tracking-[0.14em] text-cyan-100/55">
+                        {restSeconds > 0 ? "Descanso activo" : "Descanso terminado"}
+                      </div>
+                      <div className="mt-1 text-3xl font-light tabular-nums text-cyan-50">
+                        {formatDuration(restSeconds)}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      {restSeconds > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={toggleDescanso}
+                          className="rounded-full border-cyan-200/15 bg-cyan-300/[0.06] text-cyan-100 hover:bg-cyan-300/12"
+                        >
+                          {restTimer.runningSince ? "Pausar" : "Reanudar"}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setRestTimer(null)}
+                        className="rounded-full text-white/55 hover:bg-white/[0.07] hover:text-white"
+                      >
+                        Omitir
+                      </Button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -4416,10 +4713,13 @@ function WorkoutMode({
                 onPointerDown={(event) => event.stopPropagation()}
                 onClick={(event) => {
                   event.stopPropagation();
+                  const completing = !registro.completed;
                   actualizar({
-                    completed: !registro.completed,
+                    completed: completing,
                     skipped: false,
                   });
+                  if (completing) iniciarDescanso();
+                  else setRestTimer(null);
                 }}
                 className={cn(
                   "mt-5 h-12 w-full rounded-full",
@@ -4530,7 +4830,7 @@ function RutinaCompletada({
           <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-cyan-300/[0.07] px-4 py-2 text-cyan-100/75">
             <Clock3 className="size-4" />
             <span className="text-sm tabular-nums">
-              {formatElapsedDuration(elapsedSeconds)}
+              {formatDuration(elapsedSeconds)}
             </span>
             <span className="text-[9px] uppercase tracking-wider text-cyan-100/35">
               Tiempo total
@@ -4653,6 +4953,7 @@ function ExperienciaAtleta({
   routines,
   rutina,
   entrenamientoInicial,
+  entrenamientoPausado,
   onSelect,
   onCreateEntrenamiento,
   onUpdateEntrenamiento,
@@ -4666,6 +4967,7 @@ function ExperienciaAtleta({
   routines: Routine[];
   rutina: Routine;
   entrenamientoInicial?: ScheduledWorkout;
+  entrenamientoPausado?: ScheduledWorkout;
   onSelect: (id: string) => void;
   onCreateEntrenamiento: (
     item: NewScheduledWorkout,
@@ -4686,20 +4988,46 @@ function ExperienciaAtleta({
     React.SetStateAction<Record<string, TrainingSetRecord>>
   >;
 }) {
-  const [pantalla, setPantalla] = useState<"home" | "workout" | "final">(
-    entrenamientoInicial ? "workout" : "home",
+  const entrenamientoRestaurado = entrenamientoInicial ?? entrenamientoPausado;
+  const sesionRestaurada = entrenamientoRestaurado
+    ? readWorkoutSession(entrenamientoRestaurado.id)
+    : null;
+  const ultimoIndiceDisponible = entrenamientoRestaurado
+    ? Math.max(
+        0,
+        pasosDeRutina(rutina, entrenamientoRestaurado.id).length - 1,
+      )
+    : 0;
+  const [pantalla, setPantalla] = useState<"home" | "workout" | "final">(() =>
+    entrenamientoInicial
+      ? (sesionRestaurada?.phase ?? "workout")
+      : (sesionRestaurada?.phase ?? "home"),
   );
-  const [indiceActivo, setIndiceActivo] = useState(0);
-  const [feedback, setFeedback] = useState("");
+  const [indiceActivo, setIndiceActivo] = useState(
+    Math.min(sesionRestaurada?.activeIndex ?? 0, ultimoIndiceDisponible),
+  );
+  const indiceActivoSeguro = Math.min(
+    indiceActivo,
+    ultimoIndiceDisponible,
+  );
+  const [feedback, setFeedback] = useState(sesionRestaurada?.feedback ?? "");
   const [entrenamiento, setEntrenamiento] = useState<
     ScheduledWorkout | undefined
-  >(entrenamientoInicial);
+  >(entrenamientoRestaurado);
   const [timer, setTimer] = useState<WorkoutTimerState | null>(() =>
-    entrenamientoInicial
-      ? resumeWorkoutTimer(entrenamientoInicial.id)
+    entrenamientoRestaurado
+      ? pantalla === "workout"
+        ? resumeWorkoutTimer(entrenamientoRestaurado.id)
+        : readWorkoutTimer(entrenamientoRestaurado.id)
       : null,
   );
-  const [finishedElapsedSeconds, setFinishedElapsedSeconds] = useState(0);
+  const [finishedElapsedSeconds, setFinishedElapsedSeconds] = useState(
+    sesionRestaurada?.finishedElapsedSeconds ?? 0,
+  );
+  const [restTimer, setRestTimer] = useState<RestTimerState | null>(
+    sesionRestaurada?.restTimer ?? null,
+  );
+  const completedSessionRef = useRef(false);
   const sesionId = entrenamiento?.id;
   const progreso = Object.entries(registros).filter(
     ([key, value]) => sesionId && key.startsWith(`${sesionId}-`) && value.completed,
@@ -4709,6 +5037,35 @@ function ExperienciaAtleta({
     onWorkoutModeChange(pantalla === "workout");
     return () => onWorkoutModeChange(false);
   }, [onWorkoutModeChange, pantalla]);
+
+  useEffect(() => {
+    if (!entrenamiento || completedSessionRef.current) return;
+    writeWorkoutSession({
+      workoutId: entrenamiento.id,
+      routineId: rutina.id,
+      athleteId: atleta.id,
+      phase: pantalla,
+      activeIndex: indiceActivoSeguro,
+      records: Object.fromEntries(
+        Object.entries(registros).filter(([key]) =>
+          key.startsWith(`${entrenamiento.id}-`),
+        ),
+      ),
+      finishedElapsedSeconds,
+      feedback,
+      restTimer,
+    });
+  }, [
+    atleta.id,
+    entrenamiento,
+    feedback,
+    finishedElapsedSeconds,
+    indiceActivoSeguro,
+    pantalla,
+    registros,
+    restTimer,
+    rutina.id,
+  ]);
 
   function reset() {
     if (!sesionId) return;
@@ -4720,6 +5077,9 @@ function ExperienciaAtleta({
       ),
     );
     setIndiceActivo(0);
+    setRestTimer(null);
+    setFinishedElapsedSeconds(0);
+    setFeedback("");
     setTimer(restartWorkoutTimer(sesionId));
   }
 
@@ -4752,7 +5112,24 @@ function ExperienciaAtleta({
   }
 
   function cerrarEntrenamiento() {
-    if (entrenamiento) pauseWorkoutTimer(entrenamiento.id);
+    if (entrenamiento) {
+      pauseWorkoutTimer(entrenamiento.id);
+      writeWorkoutSession({
+        workoutId: entrenamiento.id,
+        routineId: rutina.id,
+        athleteId: atleta.id,
+        phase: "home",
+        activeIndex: indiceActivoSeguro,
+        records: Object.fromEntries(
+          Object.entries(registros).filter(([key]) =>
+            key.startsWith(`${entrenamiento.id}-`),
+          ),
+        ),
+        finishedElapsedSeconds,
+        feedback,
+        restTimer,
+      });
+    }
     if (entrenamientoInicial) {
       onCloseScheduled();
       return;
@@ -4768,11 +5145,14 @@ function ExperienciaAtleta({
         timer={timer}
         registros={registros}
         setRegistros={setRegistros}
-        indiceActivo={indiceActivo}
+        indiceActivo={indiceActivoSeguro}
         setIndiceActivo={setIndiceActivo}
+        restTimer={restTimer}
+        setRestTimer={setRestTimer}
         onExit={cerrarEntrenamiento}
         onFinish={() => {
           setFinishedElapsedSeconds(pauseWorkoutTimer(sesionId));
+          setRestTimer(null);
           setPantalla("final");
         }}
       />
@@ -4823,9 +5203,22 @@ function ExperienciaAtleta({
               effort,
               feedback: feedback.trim(),
             });
+            completedSessionRef.current = true;
             clearWorkoutTimer(entrenamiento.id);
+            clearWorkoutSession(entrenamiento.id);
+            setRegistros((actuales) =>
+              Object.fromEntries(
+                Object.entries(actuales).filter(
+                  ([key]) => !key.startsWith(`${entrenamiento.id}-`),
+                ),
+              ),
+            );
           }
-          cerrarEntrenamiento();
+          setEntrenamiento(undefined);
+          setPantalla("home");
+          setIndiceActivo(0);
+          setRestTimer(null);
+          onCloseScheduled();
         }}
       />
     );
@@ -4836,9 +5229,11 @@ function ExperienciaAtleta({
       routines={routines}
       rutina={rutina}
       onSelect={(id) => {
+        if (sesionId) pauseWorkoutTimer(sesionId);
         onSelect(id);
         setIndiceActivo(0);
         setEntrenamiento(undefined);
+        setRestTimer(null);
       }}
       onStart={iniciar}
       progreso={progreso}
@@ -4900,6 +5295,15 @@ export default function Home() {
   const entrenamientoActivo = workouts.find(
     (item) => item.id === entrenamientoActivoId,
   );
+  const entrenamientoPausado = workouts
+    .filter(
+      (item) =>
+        item.athleteId === atleta?.id &&
+        item.origin === "routine" &&
+        item.routineId === rutina?.id &&
+        item.status === "in-progress",
+    )
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   const rutinaDeEntrenamiento =
     entrenamientoActivo?.origin === "routine"
       ? rutinasDelAtleta.find(
@@ -4934,6 +5338,11 @@ export default function Home() {
     setPathname(path);
   }
 
+  function replaceNavigate(path: string) {
+    window.history.replaceState(null, "", path);
+    setPathname(path);
+  }
+
   useEffect(() => {
     function onPopState() {
       setPathname(window.location.pathname);
@@ -4941,6 +5350,21 @@ export default function Home() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    let redirect: string | null = null;
+    if (!usuario) {
+      if (pathname !== "/") redirect = "/";
+    } else if (usuario.role === "coach" && !pathname.startsWith("/coach")) {
+      redirect = "/coach";
+    } else if (usuario.role === "athlete" && pathname.startsWith("/coach")) {
+      redirect = "/";
+    }
+    if (!redirect) return;
+    const timeout = window.setTimeout(() => replaceNavigate(redirect), 0);
+    return () => window.clearTimeout(timeout);
+  }, [hydrated, pathname, usuario]);
 
   useEffect(() => {
     let cancelled = false;
@@ -5079,12 +5503,17 @@ export default function Home() {
       }
 
       if (cancelled) return;
+      if (!remoteDataApplied && remoteDataAppliedRef.current) return;
       setUsuarios(finalData.users.map(normalizeUser));
       setRutinas(finalData.routines);
       setPlantillas(finalData.templates);
       setEntrenamientos(finalData.workouts);
       setActividades(finalData.activities);
-      pruneWorkoutTimers(finalData.workouts);
+      if (remoteDataApplied) {
+        pruneWorkoutTimers(finalData.workouts);
+        pruneWorkoutSessions(finalData.workouts);
+        setRegistros(readWorkoutRecords(finalData.workouts));
+      }
       remoteDataAppliedRef.current = remoteDataApplied;
 
       const storedUserId = Number(readPersistentSessionValue(sessionStorageKey));
@@ -5158,6 +5587,7 @@ export default function Home() {
     setRutinaId(primeraRutina?.id ?? initialRoutines[0].id);
     setVistaPrevia(false);
     writePersistentSessionValue(sessionStorageKey, String(usuarioEncontrado.id));
+    replaceNavigate(usuarioEncontrado.role === "coach" ? "/coach" : "/");
     return true;
   }
 
@@ -5214,6 +5644,7 @@ export default function Home() {
         date: item.date,
         completedAt: new Date().toISOString(),
         durationMinutes: item.durationMinutes,
+        durationSeconds: null,
         effort: null,
         feedback: "",
         notes: item.notes,
@@ -5255,16 +5686,22 @@ export default function Home() {
       title: rutinaCompletada.title,
       category: null,
       routineId: rutinaCompletada.id,
-      routineSnapshot: snapshotRoutine(rutinaCompletada),
+      routineSnapshot: {
+        ...snapshotRoutine(rutinaCompletada),
+        durationSeconds: elapsedSeconds,
+      },
       date: entrenamiento.date,
       completedAt: new Date().toISOString(),
       durationMinutes: Math.max(1, Math.ceil(elapsedSeconds / 60)),
+      durationSeconds: elapsedSeconds,
       effort,
       feedback,
       notes: entrenamiento.notes,
       sets,
       recordedById: usuario?.id ?? entrenamiento.athleteId,
     };
+    clearWorkoutTimer(entrenamiento.id);
+    clearWorkoutSession(entrenamiento.id);
     setActividades((actuales) =>
       actuales.some(
         (actual) =>
@@ -5278,6 +5715,7 @@ export default function Home() {
 
   function eliminarEntrenamiento(id: string) {
     clearWorkoutTimer(id);
+    clearWorkoutSession(id);
     setEntrenamientos((actuales) =>
       actuales.filter((item) => item.id !== id),
     );
@@ -5337,13 +5775,14 @@ export default function Home() {
     setEntrenamientoActivoId(item.id);
   }
 
-  function guardarComoPlantilla(rutina: Routine) {
+  function guardarComoPlantilla(rutina: Routine, title: string) {
     if (!usuario || usuario.role !== "coach") return;
     const id = idPlantilla(usuario.id);
     const plantilla = {
       ...rutina,
       id,
       coachId: usuario.id,
+      title,
     };
     setPlantillas((actuales) => [...actuales, plantilla]);
     persist({ type: "save-templates", data: [plantilla] });
@@ -5435,6 +5874,10 @@ export default function Home() {
     const idsDeEntrenamientos = workouts
       .filter((item) => item.origin === "routine" && item.routineId === id)
       .map((item) => item.id);
+    idsDeEntrenamientos.forEach((workoutId) => {
+      clearWorkoutTimer(workoutId);
+      clearWorkoutSession(workoutId);
+    });
     setRutinas((actuales) => actuales.filter((item) => item.id !== id));
     setEntrenamientos((actuales) =>
       actuales.filter(
@@ -5462,6 +5905,7 @@ export default function Home() {
     setVistaPrevia(false);
     setRegistros({});
     setEntrenamientoActivoId(null);
+    replaceNavigate("/");
   }
 
   function intentarSalir() {
@@ -5591,6 +6035,7 @@ export default function Home() {
           routines={rutinasDelAtleta}
           rutina={rutinaDeEntrenamiento}
           entrenamientoInicial={entrenamientoActivo}
+          entrenamientoPausado={entrenamientoPausado}
           onSelect={setRutinaId}
           onCreateEntrenamiento={crearEntrenamiento}
           onUpdateEntrenamiento={actualizarEntrenamiento}

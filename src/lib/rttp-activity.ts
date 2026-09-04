@@ -1,6 +1,10 @@
 import { ActivityCategory } from "@/lib/rttp-agenda";
 import { Routine } from "@/lib/rttp-data";
 
+export type RoutineActivitySnapshot = Routine & {
+  durationSeconds?: number;
+};
+
 export type ActivitySet = {
   stepId: string;
   exerciseId: string;
@@ -21,10 +25,11 @@ export type CompletedActivity = {
   title: string;
   category: ActivityCategory | null;
   routineId: string | null;
-  routineSnapshot: Routine | null;
+  routineSnapshot: RoutineActivitySnapshot | null;
   date: string;
   completedAt: string;
   durationMinutes: number | null;
+  durationSeconds: number | null;
   effort: number | null;
   feedback: string;
   notes: string;

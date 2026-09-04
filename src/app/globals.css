@@ -177,40 +177,40 @@
 
   @layer utilities {
     .light .text-white\/20 {
-      color: color-mix(in oklab, var(--color-white) 38%, transparent) !important;
+      color: color-mix(in oklab, var(--color-white) 50%, transparent) !important;
     }
 
     .light .text-white\/25 {
-      color: color-mix(in oklab, var(--color-white) 44%, transparent) !important;
+      color: color-mix(in oklab, var(--color-white) 54%, transparent) !important;
     }
 
     .light .text-white\/30 {
-      color: color-mix(in oklab, var(--color-white) 48%, transparent) !important;
+      color: color-mix(in oklab, var(--color-white) 58%, transparent) !important;
     }
 
     .light .text-white\/35 {
-      color: color-mix(in oklab, var(--color-white) 52%, transparent) !important;
+      color: color-mix(in oklab, var(--color-white) 62%, transparent) !important;
     }
 
     .light .text-white\/40 {
-      color: color-mix(in oklab, var(--color-white) 56%, transparent) !important;
+      color: color-mix(in oklab, var(--color-white) 66%, transparent) !important;
     }
 
     .light .text-white\/45 {
-      color: color-mix(in oklab, var(--color-white) 60%, transparent) !important;
+      color: color-mix(in oklab, var(--color-white) 70%, transparent) !important;
     }
 
     .light .text-white\/50 {
-      color: color-mix(in oklab, var(--color-white) 64%, transparent) !important;
+      color: color-mix(in oklab, var(--color-white) 74%, transparent) !important;
     }
 
     .light .text-white\/55 {
-      color: color-mix(in oklab, var(--color-white) 68%, transparent) !important;
+      color: color-mix(in oklab, var(--color-white) 78%, transparent) !important;
     }
 
     .light input::placeholder,
     .light textarea::placeholder {
-      color: color-mix(in oklab, var(--color-white) 48%, transparent) !important;
+      color: color-mix(in oklab, var(--color-white) 58%, transparent) !important;
     }
   }
 

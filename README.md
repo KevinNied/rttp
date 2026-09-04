@@ -39,10 +39,13 @@ como caché y respaldo cuando la base no está disponible. Copiá `.env.example`
 Supabase usado en local y producción. Nunca uses una `service_role` key en estas
 variables públicas.
 
-Antes del primer inicio, ejecutá
-[`supabase/migrations/20260817000000_initial_persistence.sql`](supabase/migrations/20260817000000_initial_persistence.sql)
-desde el SQL Editor de Supabase. La primera carga migra los registros existentes
-del navegador sin sobrescribir identificadores que ya existan remotamente.
+Antes del primer inicio, ejecutá en orden las migraciones de
+[`supabase/migrations/`](supabase/migrations/) desde el SQL Editor de Supabase.
+La primera carga migra los registros existentes del navegador sin sobrescribir
+identificadores que ya existan remotamente. La migración
+`20260904000000_activity_duration_seconds.sql` agrega la duración exacta en
+segundos; mientras se despliega, RTTP mantiene compatibilidad leyendo ese dato
+desde el snapshot histórico de la rutina.
 
 Mientras RTTP funciona sin Supabase Auth, el esquema permite temporalmente
 acceso anónimo a estas tablas. No debe considerarse un modelo de seguridad para
@@ -78,6 +81,18 @@ Las rutinas completadas y las actividades externas realizadas se guardan como
 registros históricos independientes. El modelo y su persistencia están
 documentados en
 [`docs/registro-actividades.md`](docs/registro-actividades.md).
+
+Durante una rutina, RTTP conserva localmente la posición, las series, el
+cronómetro general y cualquier descanso activo. Salir pausa la sesión y una
+recarga recupera el punto exacto. Los descansos configurados ofrecen cuenta
+regresiva, pausa, reanudación y omisión; cuando el descanso es `null` no se
+muestra. Al finalizar, el historial mantiene la duración exacta en formato
+`mm:ss` o `hh:mm:ss`.
+
+La **Vista atleta** del entrenador es una previsualización de solo lectura: sirve
+para revisar la experiencia sin iniciar rutinas ni modificar datos del atleta.
+Las plantillas se crean desde una rutina fuente visible y requieren confirmar el
+nombre antes de guardarse.
 
 ### Rutas del atleta
 
