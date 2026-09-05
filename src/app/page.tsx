@@ -3963,35 +3963,75 @@ function CampoPrescripcion({
   value: number;
   onChange: (value: number) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [draftValue, setDraftValue] = useState(String(value));
+  const acceptsDecimals = step < 1;
+
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setDraftValue(String(value));
+    }
+  }, [value]);
+
+  function updateValue(nextValue: number) {
+    const normalizedValue = Math.max(0, Math.round(nextValue * 100) / 100);
+    setDraftValue(String(normalizedValue));
+    onChange(normalizedValue);
+  }
+
+  function updateDraft(nextDraft: string) {
+    const normalizedDraft = nextDraft.replace(",", ".");
+    const validPattern = acceptsDecimals ? /^\d*(?:\.\d*)?$/ : /^\d*$/;
+    if (!validPattern.test(normalizedDraft)) return;
+
+    setDraftValue(nextDraft);
+    if (normalizedDraft === "" || normalizedDraft === ".") return;
+
+    const parsedValue = Number(normalizedDraft);
+    if (Number.isFinite(parsedValue)) {
+      onChange(Math.max(0, parsedValue));
+    }
+  }
+
+  function commitDraft() {
+    const parsedValue = Number(draftValue.replace(",", "."));
+    updateValue(Number.isFinite(parsedValue) ? parsedValue : 0);
+  }
+
   return (
-    <div className="rounded-2xl border border-white/[0.09] bg-black/30 p-3 text-center">
-      <div className="text-[9px] uppercase tracking-[0.16em] text-indigo-100/35">
+    <div className="rounded-2xl border border-white/[0.09] bg-black/30 p-3.5 text-center">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-50/75">
         {label}
       </div>
-      <div className="mt-2 flex items-center justify-center gap-1">
+      <div className="mt-2.5 flex items-center justify-center gap-1.5">
         <Button
           type="button"
           variant="ghost"
           size="icon-sm"
           aria-label={`Reducir ${label.toLowerCase()}`}
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => onChange(Math.max(0, value - step))}
-          className="size-8 rounded-full bg-white/[0.04] text-white/45 hover:bg-white/[0.09] hover:text-white"
+          onClick={() => updateValue(value - step)}
+          className="size-9 rounded-full bg-white/[0.06] text-white/60 hover:bg-white/[0.1] hover:text-white"
         >
           <Minus />
         </Button>
         <Input
+          ref={inputRef}
           aria-label={label}
-          type="number"
-          inputMode={step < 1 ? "decimal" : "numeric"}
-          min={0}
-          step={step}
-          value={value}
-          onChange={(event) =>
-            onChange(Math.max(0, Number(event.target.value)))
-          }
+          role="spinbutton"
+          aria-valuemin={0}
+          aria-valuenow={value}
+          type="text"
+          inputMode={acceptsDecimals ? "decimal" : "numeric"}
+          value={draftValue}
+          onFocus={(event) => event.currentTarget.select()}
+          onChange={(event) => updateDraft(event.target.value)}
+          onBlur={commitDraft}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") event.currentTarget.blur();
+          }}
           onPointerDown={(event) => event.stopPropagation()}
-          className="h-10 w-16 border-0 bg-transparent p-0 text-center text-2xl font-light tabular-nums text-white shadow-none [appearance:textfield] focus-visible:ring-0 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          className="h-11 w-16 border-0 bg-transparent p-0 text-center text-2xl font-normal tabular-nums text-white shadow-none focus-visible:ring-0"
         />
         <Button
           type="button"
@@ -3999,13 +4039,13 @@ function CampoPrescripcion({
           size="icon-sm"
           aria-label={`Aumentar ${label.toLowerCase()}`}
           onPointerDown={(event) => event.stopPropagation()}
-          onClick={() => onChange(value + step)}
-          className="size-8 rounded-full bg-white/[0.04] text-white/45 hover:bg-white/[0.09] hover:text-white"
+          onClick={() => updateValue(value + step)}
+          className="size-9 rounded-full bg-white/[0.06] text-white/60 hover:bg-white/[0.1] hover:text-white"
         >
           <Plus />
         </Button>
       </div>
-      <div className="mt-1 text-[8px] uppercase tracking-[0.12em] text-white/20">
+      <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/65">
         {hint}
       </div>
     </div>
@@ -4042,7 +4082,6 @@ function WorkoutMode({
   const pasos = pasosDeRutina(rutina, sesionId);
   const paso = pasos[indiceActivo];
   const bloque = rutina.blocks[paso.bloqueIndex];
-  const proximo = pasos[indiceActivo + 1];
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -4068,9 +4107,34 @@ function WorkoutMode({
     ) ||
       /entrada|activación|movilidad/i.test(bloque.name));
 
+  function siguienteIndiceDisponible(
+    desde: number,
+    idsOmitidos: ReadonlySet<string> = new Set(),
+  ) {
+    for (let index = desde; index < pasos.length; index += 1) {
+      const candidato = pasos[index];
+      if (
+        !idsOmitidos.has(candidato.stepId) &&
+        !registros[candidato.stepId]?.skipped
+      ) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
+  const proximoIndice = siguienteIndiceDisponible(indiceActivo + 1);
+  const proximo = proximoIndice >= 0 ? pasos[proximoIndice] : undefined;
+  const hayPasoPosterior =
+    proximoIndice >= 0 && siguienteIndiceDisponible(proximoIndice + 1) >= 0;
+  const registroAnterior = pasos
+    .slice(0, indiceActivo)
+    .reverse()
+    .map((item) => (item.id === paso.id ? registros[item.stepId] : undefined))
+    .find((item) => item?.completed && !item.skipped);
   const valorInicial: TrainingSetRecord = {
-    weight: paso.weight,
-    reps: paso.minReps,
+    weight: registroAnterior?.weight ?? paso.weight,
+    reps: registroAnterior?.reps ?? paso.minReps,
     completed: false,
     skipped: false,
   };
@@ -4117,15 +4181,9 @@ function WorkoutMode({
   function avanzar() {
     setDragX(0);
     setRestTimer(null);
-    let siguiente = indiceActivo + 1;
-    while (
-      siguiente < pasos.length &&
-      registros[pasos[siguiente].stepId]?.skipped
-    ) {
-      siguiente += 1;
-    }
+    const siguiente = siguienteIndiceDisponible(indiceActivo + 1);
 
-    if (siguiente >= pasos.length) {
+    if (siguiente < 0) {
       onFinish();
     } else {
       setIndiceActivo(siguiente);
@@ -4157,16 +4215,9 @@ function WorkoutMode({
       return siguientes;
     });
 
-    let siguiente = indiceActivo + 1;
-    while (
-      siguiente < pasos.length &&
-      (idsOmitidos.has(pasos[siguiente].stepId) ||
-        registros[pasos[siguiente].stepId]?.skipped)
-    ) {
-      siguiente += 1;
-    }
+    const siguiente = siguienteIndiceDisponible(indiceActivo + 1, idsOmitidos);
 
-    if (siguiente >= pasos.length) {
+    if (siguiente < 0) {
       onFinish();
     } else {
       setIndiceActivo(siguiente);
@@ -4297,16 +4348,14 @@ function WorkoutMode({
           >
             <ArrowLeft />
           </Button>
-          <div className="text-center">
-            <div className="text-[9px] uppercase tracking-[0.18em] text-cyan-200/65">
+          <div className="min-w-0 px-3 text-center">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-50/90">
               Rutina en curso
             </div>
-            <div className="mt-1 flex items-center justify-center gap-2 text-[10px] text-indigo-100/35">
-              <span>
-                Bloque {paso.bloqueIndex + 1} de {rutina.blocks.length}
-              </span>
-              <span className="text-white/15">·</span>
-              <span className="inline-flex items-center gap-1 tabular-nums text-cyan-100/60">
+            <div className="mt-1 flex min-w-0 items-center justify-center gap-2 text-xs font-medium text-indigo-50/65">
+              <span className="max-w-44 truncate">{rutina.title}</span>
+              <span className="text-white/25">·</span>
+              <span className="inline-flex shrink-0 items-center gap-1 tabular-nums text-cyan-50/75">
                 <Clock3 className="size-3" />
                 {formatDuration(elapsedSeconds)}
               </span>
@@ -4315,16 +4364,16 @@ function WorkoutMode({
           <div className="size-9" />
         </div>
         <Progress
-          value={(paso.bloqueIndex / rutina.blocks.length) * 100}
+          value={(indiceActivo / pasos.length) * 100}
           className="h-1 bg-indigo-300/10"
         />
       </div>
 
-      <div className="mx-auto mt-3 min-h-0 w-full max-w-lg flex-1 overflow-y-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:max-w-4xl">
+      <div className="mx-auto mt-3 flex min-h-0 w-full max-w-lg flex-1 flex-col overflow-y-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:max-w-4xl">
         {esBloqueBreve && (
           <div className="mb-3 flex items-center justify-between rounded-full border border-white/[0.08] bg-white/[0.025] p-1 pl-3">
-            <span className="text-[8px] uppercase tracking-[0.16em] text-white/30">
-              Prueba de vista
+            <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-white/60">
+              Modo del bloque
             </span>
             <div className="flex gap-1">
               {[
@@ -4344,7 +4393,7 @@ function WorkoutMode({
                   onClick={() => setVistaCalentamiento(vista)}
                   aria-pressed={vistaCalentamiento === vista}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-full px-3 py-2 text-[9px] transition-colors",
+                    "flex items-center gap-1.5 rounded-full px-3 py-2 text-[10px] font-medium transition-colors",
                     vistaCalentamiento === vista
                       ? "bg-indigo-50 text-indigo-950"
                       : "text-white/35 hover:text-white/65",
@@ -4358,13 +4407,15 @@ function WorkoutMode({
           </div>
         )}
         <div className="mb-3 flex items-center justify-between">
-          <div>
-            <Badge className="border-violet-200/15 bg-violet-300/10 text-[9px] text-violet-100">
+          <div className="flex items-center gap-2">
+            <Badge className="border-violet-200/15 bg-violet-300/10 text-[11px] font-medium text-violet-50/90">
               {paso.blockName}
             </Badge>
-            <span className="ml-2 text-[9px] text-indigo-100/30">
-              Ronda {paso.round}/{paso.rondas}
-            </span>
+            {bloque.exercises.length > 1 && (
+              <span className="text-[11px] font-medium text-indigo-50/65">
+                Ronda {paso.round}/{paso.rondas}
+              </span>
+            )}
           </div>
           <div
             className={cn(
@@ -4394,13 +4445,13 @@ function WorkoutMode({
             <div className="relative">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-[9px] uppercase tracking-[0.16em] text-cyan-200/55">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-cyan-100/70">
                     Vista rápida
                   </div>
-                  <h1 className="mt-2 text-2xl font-light tracking-[-0.035em]">
+                  <h1 className="mt-2 text-2xl font-normal tracking-[-0.035em]">
                     Toda la vuelta, de un vistazo
                   </h1>
-                  <p className="mt-1 text-[10px] text-white/35">
+                  <p className="mt-1 text-[11px] font-medium text-white/60">
                     {countLabel(bloque.exercises.length, "ejercicio")} · vuelta {paso.round}{" "}
                     de {paso.rondas}
                   </p>
@@ -4438,17 +4489,17 @@ function WorkoutMode({
                         {completado ? <Check className="size-3" /> : index + 1}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-xs text-white/80">
+                        <div className="truncate text-[13px] font-medium text-white/85">
                           {item.name}
                         </div>
                         {item.instructions && (
-                          <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
+                          <div className="mt-0.5 truncate text-[11px] text-violet-100/65">
                             <TextWithLinks>{item.instructions}</TextWithLinks>
                           </div>
                         )}
                       </div>
-                      <div className="shrink-0 text-[10px] tabular-nums text-white/40">
-                        {item.sets}×{repeticionesObjetivo(item)}
+                      <div className="shrink-0 text-[11px] font-medium tabular-nums text-white/60">
+                        {repeticionesObjetivo(item)} reps
                       </div>
                     </div>
                   );
@@ -4466,16 +4517,16 @@ function WorkoutMode({
               </Button>
               <button
                 onClick={() => omitir("bloque")}
-                className="mt-3 w-full text-center text-[10px] text-white/30 transition-colors hover:text-white/60"
+                className="mt-3 w-full text-center text-[11px] font-medium text-white/55 transition-colors hover:text-white/80"
               >
                 Saltar este bloque
               </button>
             </div>
           </div>
         ) : (
-          <>
+          <div className="flex min-h-0 flex-1 flex-col">
         <div className="relative">
-          {pasos[indiceActivo + 2] && (
+          {hayPasoPosterior && (
             <div className="absolute inset-x-8 bottom-0 top-4 rounded-[2rem] border border-blue-200/[0.06] bg-blue-300/[0.025]" />
           )}
           {proximo && (
@@ -4483,7 +4534,9 @@ function WorkoutMode({
           )}
           <div
             role="group"
-            aria-label={`${paso.name}, ronda ${paso.round}`}
+            aria-label={`${paso.name}, ${
+              bloque.exercises.length > 1 ? "ronda" : "serie"
+            } ${paso.round}`}
             onPointerDown={pointerDown}
             onPointerMove={pointerMove}
             onPointerUp={pointerUp}
@@ -4493,7 +4546,7 @@ function WorkoutMode({
               setDragX(0);
             }}
             className={cn(
-              "relative z-10 select-none overflow-hidden rounded-[2rem] border bg-app-panel p-4 pb-5 shadow-[0_30px_80px_rgba(0,0,0,.5)] md:p-5",
+              "relative z-10 select-none overflow-hidden rounded-[2rem] border bg-app-panel p-5 pb-5 shadow-[0_30px_80px_rgba(0,0,0,.5)] sm:p-6",
               registro.completed
                 ? "border-cyan-300/30"
                 : registro.skipped
@@ -4510,10 +4563,12 @@ function WorkoutMode({
             <div className="relative flex flex-col">
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[9px] uppercase tracking-[0.16em] text-indigo-100/30">
-                    Serie {paso.round} de {paso.sets}
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-50/65">
+                    {bloque.exercises.length > 1
+                      ? `Ejercicio ${paso.posicion + 1} de ${paso.ejerciciosEnRonda}`
+                      : `Serie ${paso.round} de ${paso.sets}`}
                   </div>
-                  <h1 className="mt-2 text-[2rem] font-light leading-tight tracking-[-0.04em]">
+                  <h1 className="mt-2 text-[2rem] font-normal leading-tight tracking-[-0.04em]">
                     {paso.name}
                   </h1>
                 </div>
@@ -4539,7 +4594,7 @@ function WorkoutMode({
                         <SheetTitle className="text-white">
                           ¿Qué querés saltar?
                         </SheetTitle>
-                        <SheetDescription className="text-white/40">
+                        <SheetDescription className="text-white/60">
                           La omisión quedará registrada. Podés volver con
                           Anterior si cambiás de idea.
                         </SheetDescription>
@@ -4585,7 +4640,7 @@ function WorkoutMode({
                               <div className="text-sm text-white">
                                 {opcion.title}
                               </div>
-                              <div className="mt-1 text-[10px] leading-relaxed text-white/35">
+                              <div className="mt-1 text-[11px] leading-relaxed text-white/60">
                                 {opcion.texto}
                               </div>
                             </div>
@@ -4594,33 +4649,31 @@ function WorkoutMode({
                       </div>
                     </SheetContent>
                   </Sheet>
-                  <div
-                    className={cn(
-                      "grid size-10 place-items-center rounded-full border",
-                      registro.completed
-                        ? "border-cyan-200/25 bg-cyan-300 text-indigo-950"
-                        : registro.skipped
-                          ? "border-orange-200/20 bg-orange-300/10 text-orange-200"
-                          : "border-indigo-200/10 bg-indigo-300/[0.07] text-indigo-100/30",
-                    )}
-                  >
-                    {registro.completed ? (
+                  {(registro.completed || registro.skipped) && (
+                    <div
+                      className={cn(
+                        "grid size-10 place-items-center rounded-full border",
+                        registro.completed
+                          ? "border-cyan-200/25 bg-cyan-300 text-indigo-950"
+                          : "border-orange-200/20 bg-orange-300/10 text-orange-200",
+                      )}
+                    >
+                      {registro.completed ? (
                       <Check />
-                    ) : registro.skipped ? (
+                      ) : (
                       <SkipForward />
-                    ) : (
-                      <Dumbbell />
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
               {paso.instructions && (
-                <div className="mt-3 flex w-full flex-col rounded-xl border border-violet-300/15 bg-violet-300/[0.07] px-3 py-2">
-                  <span className="text-[8px] uppercase tracking-[0.14em] text-violet-200/45">
+                <div className="mt-4 flex w-full flex-col rounded-xl border border-violet-300/15 bg-violet-300/[0.07] px-3.5 py-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-100/65">
                     Aclaraciones
                   </span>
-                  <span className="mt-1 text-[11px] leading-relaxed text-violet-100/70">
+                  <span className="mt-1 text-[13px] font-medium leading-relaxed text-violet-50/85">
                     <TextWithLinks>{paso.instructions}</TextWithLinks>
                   </span>
                 </div>
@@ -4628,23 +4681,23 @@ function WorkoutMode({
 
               {paso.restSeconds !== null &&
                 (!restTimer || restTimer.stepId !== paso.stepId) && (
-                <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-300/15 bg-blue-400/[0.07] px-3 py-2">
+                <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-300/15 bg-blue-400/[0.07] px-3.5 py-2.5">
                   <div className="flex items-center gap-2">
                     <div className="grid size-8 place-items-center rounded-full bg-blue-300/10 text-blue-200">
                       <TimerReset className="size-3.5" />
                     </div>
                     <div>
-                      <div className="text-[8px] uppercase tracking-[0.14em] text-blue-200/45">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-100/65">
                         Descanso
                       </div>
-                      <div className="mt-0.5 text-[10px] text-blue-100/60">
+                      <div className="mt-0.5 text-[11px] font-medium text-blue-50/70">
                         Entre series
                       </div>
                     </div>
                   </div>
-                  <div className="text-lg font-light tabular-nums text-blue-100">
+                  <div className="text-lg font-medium tabular-nums text-blue-50">
                     {paso.restSeconds}
-                    <span className="ml-1 text-[10px] text-blue-100/40">s</span>
+                    <span className="ml-1 text-[11px] text-blue-50/60">s</span>
                   </div>
                 </div>
               )}
@@ -4657,10 +4710,10 @@ function WorkoutMode({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <div className="text-[8px] uppercase tracking-[0.14em] text-cyan-100/55">
+                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-50/70">
                         {restSeconds > 0 ? "Descanso activo" : "Descanso terminado"}
                       </div>
-                      <div className="mt-1 text-3xl font-light tabular-nums text-cyan-50">
+                      <div className="mt-1 text-3xl font-medium tabular-nums text-cyan-50">
                         {formatDuration(restSeconds)}
                       </div>
                     </div>
@@ -4690,73 +4743,76 @@ function WorkoutMode({
                 </div>
               )}
 
-              <Separator className="my-3 bg-indigo-200/[0.08]" />
+              <div className="mt-4">
+                <Separator className="mb-4 bg-indigo-200/[0.08]" />
 
-              <div className="grid grid-cols-2 gap-3">
-                <CampoPrescripcion
-                  label="Repeticiones"
-                  hint={`Objetivo ${repeticionesObjetivo(paso)}`}
-                  value={registro.reps}
-                  onChange={(reps) => actualizar({ reps })}
-                />
-                <CampoPrescripcion
-                  label="Peso"
-                  hint="Kilogramos"
-                  step={0.5}
-                  value={registro.weight}
-                  onChange={(weight) => actualizar({ weight })}
-                />
+                <div className="grid grid-cols-2 gap-3">
+                  <CampoPrescripcion
+                    label="Repeticiones"
+                    hint={`Objetivo ${repeticionesObjetivo(paso)}`}
+                    value={registro.reps}
+                    onChange={(reps) => actualizar({ reps })}
+                  />
+                  <CampoPrescripcion
+                    label="Peso"
+                    hint="Kilogramos"
+                    step={0.5}
+                    value={registro.weight}
+                    onChange={(weight) => actualizar({ weight })}
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    const completing = !registro.completed;
+                    actualizar({
+                      completed: completing,
+                      skipped: false,
+                    });
+                    if (completing) iniciarDescanso();
+                    else setRestTimer(null);
+                  }}
+                  className={cn(
+                    "mt-5 h-13 w-full rounded-full text-[15px] font-semibold",
+                    registro.completed
+                      ? "border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15"
+                      : "bg-indigo-50 text-indigo-950 hover:bg-cyan-100",
+                  )}
+                >
+                  {registro.completed ? (
+                    <>
+                      <RotateCcw />
+                      Serie completada
+                    </>
+                  ) : (
+                    <>
+                      <Check />
+                      {registro.skipped
+                        ? "Registrar esta serie"
+                        : "Completar serie"}
+                    </>
+                  )}
+                </Button>
               </div>
-
-              <Button
-                type="button"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  const completing = !registro.completed;
-                  actualizar({
-                    completed: completing,
-                    skipped: false,
-                  });
-                  if (completing) iniciarDescanso();
-                  else setRestTimer(null);
-                }}
-                className={cn(
-                  "mt-5 h-12 w-full rounded-full",
-                  registro.completed
-                    ? "border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15"
-                    : "bg-indigo-50 text-indigo-950 hover:bg-cyan-100",
-                )}
-              >
-                {registro.completed ? (
-                  <>
-                    <RotateCcw />
-                    Serie completada
-                  </>
-                ) : (
-                  <>
-                    <Check />
-                    {registro.skipped
-                      ? "Registrar esta serie"
-                      : "Completar serie"}
-                  </>
-                )}
-              </Button>
             </div>
           </div>
         </div>
 
-        <div className="mt-2 text-center">
+        <div className="mt-auto pt-4">
+        <div className="text-center">
           <div
             className={cn(
-              "h-4 text-[10px] text-orange-200 transition-opacity",
+              "h-5 text-[11px] font-medium text-orange-100 transition-opacity",
               mensaje ? "opacity-100" : "opacity-0",
             )}
           >
             {mensaje}
           </div>
-          <div className="mt-1 flex items-center justify-center gap-2 text-[9px] text-indigo-100/30">
-            <MoveHorizontal className="size-3" />
+          <div className="mt-1 flex items-center justify-center gap-2 text-xs font-semibold text-indigo-50/65">
+            <MoveHorizontal className="size-3.5" />
             Deslizá a la izquierda para avanzar
           </div>
         </div>
@@ -4776,25 +4832,30 @@ function WorkoutMode({
             onClick={avanzar}
             className="h-11 flex-[1.5] rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 disabled:bg-indigo-300/10 disabled:text-indigo-100/25"
           >
-            {indiceActivo === pasos.length - 1 ? "Finalizar" : "Siguiente"}
+            {proximo ? "Siguiente" : "Finalizar"}
             <ArrowRight />
           </Button>
         </div>
 
-        <div className="mt-2 flex items-start gap-3 rounded-2xl border border-indigo-200/[0.08] bg-indigo-300/[0.04] px-4 py-3">
+        <div className="mt-3 flex items-start gap-3 rounded-2xl border border-indigo-200/[0.1] bg-indigo-300/[0.055] px-4 py-3.5">
           <div className="grid size-8 shrink-0 place-items-center rounded-full bg-cyan-300/[0.08] text-cyan-100/55">
             <ArrowRight className="size-3.5" />
           </div>
           <div className="min-w-0 pt-0.5">
-            <div className="text-[8px] uppercase tracking-[0.16em] text-indigo-100/30">
-              Siguiente ejercicio
+            <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-indigo-50/65">
+              {!proximo
+                ? "Último paso"
+                : proximo.id === paso.id
+                  ? "Siguiente serie"
+                  : "Siguiente ejercicio"}
             </div>
-            <div className="mt-1 text-xs leading-snug text-indigo-50/70">
+            <div className="mt-1 text-sm font-medium leading-snug text-indigo-50/85">
               {proximo?.name ?? "Finalizar rutina"}
             </div>
           </div>
         </div>
-          </>
+        </div>
+          </div>
         )}
       </div>
     </div>
