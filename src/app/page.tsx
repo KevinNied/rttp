@@ -129,6 +129,7 @@ type TrainingSetRecord = {
   reps: number;
   completed: boolean;
   skipped: boolean;
+  deferred?: boolean;
 };
 
 const sessionStorageKey = "rttp-user-session-v2";
@@ -3950,32 +3951,40 @@ function HomeHoy({
   );
 }
 
+function prescriptionDisplayValue(value: number, emptyWhenZero: boolean) {
+  return emptyWhenZero && value === 0 ? "" : String(value);
+}
+
 function CampoPrescripcion({
   label,
   hint,
   step = 1,
+  emptyWhenZero = false,
   value,
   onChange,
 }: {
   label: string;
   hint: string;
   step?: number;
+  emptyWhenZero?: boolean;
   value: number;
   onChange: (value: number) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [draftValue, setDraftValue] = useState(String(value));
+  const [draftValue, setDraftValue] = useState(
+    prescriptionDisplayValue(value, emptyWhenZero),
+  );
   const acceptsDecimals = step < 1;
 
   useEffect(() => {
     if (document.activeElement !== inputRef.current) {
-      setDraftValue(String(value));
+      setDraftValue(prescriptionDisplayValue(value, emptyWhenZero));
     }
-  }, [value]);
+  }, [emptyWhenZero, value]);
 
   function updateValue(nextValue: number) {
     const normalizedValue = Math.max(0, Math.round(nextValue * 100) / 100);
-    setDraftValue(String(normalizedValue));
+    setDraftValue(prescriptionDisplayValue(normalizedValue, emptyWhenZero));
     onChange(normalizedValue);
   }
 
@@ -4024,6 +4033,7 @@ function CampoPrescripcion({
           type="text"
           inputMode={acceptsDecimals ? "decimal" : "numeric"}
           value={draftValue}
+          placeholder={emptyWhenZero ? "0" : undefined}
           onFocus={(event) => event.currentTarget.select()}
           onChange={(event) => updateDraft(event.target.value)}
           onBlur={commitDraft}
@@ -4106,16 +4116,29 @@ function WorkoutMode({
       bloque.type,
     ) ||
       /entrada|activación|movilidad/i.test(bloque.name));
+  const registrosResueltos = pasos.filter((item) => {
+    const itemRecord = registros[item.stepId];
+    return itemRecord?.completed || itemRecord?.skipped;
+  }).length;
+  const registrosPospuestos = pasos.filter(
+    (item) =>
+      registros[item.stepId]?.deferred &&
+      !registros[item.stepId]?.completed,
+  ).length;
 
   function siguienteIndiceDisponible(
     desde: number,
     idsOmitidos: ReadonlySet<string> = new Set(),
+    pospuestos = false,
   ) {
     for (let index = desde; index < pasos.length; index += 1) {
       const candidato = pasos[index];
+      const candidatoRecord = registros[candidato.stepId];
       if (
         !idsOmitidos.has(candidato.stepId) &&
-        !registros[candidato.stepId]?.skipped
+        !candidatoRecord?.completed &&
+        !candidatoRecord?.skipped &&
+        Boolean(candidatoRecord?.deferred) === pospuestos
       ) {
         return index;
       }
@@ -4123,10 +4146,26 @@ function WorkoutMode({
     return -1;
   }
 
-  const proximoIndice = siguienteIndiceDisponible(indiceActivo + 1);
+  function siguienteIndiceDeFlujo(
+    desde: number,
+    idsOmitidos: ReadonlySet<string> = new Set(),
+  ) {
+    const siguienteRegular = siguienteIndiceDisponible(desde, idsOmitidos);
+    return siguienteRegular >= 0
+      ? siguienteRegular
+      : siguienteIndiceDisponible(0, idsOmitidos, true);
+  }
+
+  const proximoIndice = siguienteIndiceDeFlujo(
+    indiceActivo + 1,
+    new Set([paso.stepId]),
+  );
   const proximo = proximoIndice >= 0 ? pasos[proximoIndice] : undefined;
-  const hayPasoPosterior =
-    proximoIndice >= 0 && siguienteIndiceDisponible(proximoIndice + 1) >= 0;
+  const hayPasoPosterior = pasos.some((item, index) => {
+    if (index === indiceActivo || index === proximoIndice) return false;
+    const itemRecord = registros[item.stepId];
+    return !itemRecord?.completed && !itemRecord?.skipped;
+  });
   const registroAnterior = pasos
     .slice(0, indiceActivo)
     .reverse()
@@ -4139,13 +4178,38 @@ function WorkoutMode({
     skipped: false,
   };
   const registro = registros[paso.stepId] ?? valorInicial;
+  const mostrarVistaResumida =
+    esBloqueBreve &&
+    vistaCalentamiento === "resumida" &&
+    !registro.deferred;
 
   useEffect(() => {
-    const updateElapsedTime = () =>
-      setElapsedSeconds(elapsedSecondsForTimer(timer));
-    updateElapsedTime();
-    const interval = window.setInterval(updateElapsedTime, 1000);
-    return () => window.clearInterval(interval);
+    let timeoutId: number;
+    const updateElapsedTime = () => {
+      const nextElapsedSeconds = elapsedSecondsForTimer(timer);
+      setElapsedSeconds((current) =>
+        current === nextElapsedSeconds ? current : nextElapsedSeconds,
+      );
+    };
+    const scheduleUpdate = () => {
+      updateElapsedTime();
+      timeoutId = window.setTimeout(scheduleUpdate, 250);
+    };
+    const syncWhenVisible = () => {
+      if (document.visibilityState === "visible") updateElapsedTime();
+    };
+
+    scheduleUpdate();
+    window.addEventListener("focus", updateElapsedTime);
+    window.addEventListener("pageshow", updateElapsedTime);
+    document.addEventListener("visibilitychange", syncWhenVisible);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      window.removeEventListener("focus", updateElapsedTime);
+      window.removeEventListener("pageshow", updateElapsedTime);
+      document.removeEventListener("visibilitychange", syncWhenVisible);
+    };
   }, [timer]);
 
   useEffect(() => {
@@ -4181,7 +4245,16 @@ function WorkoutMode({
   function avanzar() {
     setDragX(0);
     setRestTimer(null);
-    const siguiente = siguienteIndiceDisponible(indiceActivo + 1);
+    if (registro.deferred) {
+      setRegistros((actuales) => ({
+        ...actuales,
+        [paso.stepId]: {
+          ...(actuales[paso.stepId] ?? valorInicial),
+          deferred: false,
+        },
+      }));
+    }
+    const siguiente = siguienteIndiceDeFlujo(indiceActivo + 1);
 
     if (siguiente < 0) {
       onFinish();
@@ -4210,12 +4283,14 @@ function WorkoutMode({
               reps: item.minReps,
               completed: false,
               skipped: true,
+              deferred: false,
             };
+        siguientes[item.stepId].deferred = false;
       });
       return siguientes;
     });
 
-    const siguiente = siguienteIndiceDisponible(indiceActivo + 1, idsOmitidos);
+    const siguiente = siguienteIndiceDeFlujo(indiceActivo + 1, idsOmitidos);
 
     if (siguiente < 0) {
       onFinish();
@@ -4223,6 +4298,56 @@ function WorkoutMode({
       setIndiceActivo(siguiente);
     }
     setDragX(0);
+  }
+
+  function posponerEjercicio() {
+    const objetivos = pasos.filter(
+      (item, index) =>
+        index >= indiceActivo &&
+        item.id === paso.id &&
+        !registros[item.stepId]?.completed &&
+        !registros[item.stepId]?.skipped,
+    );
+    const idsPospuestos = new Set(objetivos.map((item) => item.stepId));
+    if (objetivos.length === 0) {
+      avanzar();
+      return;
+    }
+
+    setRegistros((actuales) => {
+      const siguientes = { ...actuales };
+      objetivos.forEach((item) => {
+        siguientes[item.stepId] = {
+          ...(actuales[item.stepId] ?? {
+            weight: item.weight,
+            reps: item.minReps,
+            completed: false,
+            skipped: false,
+          }),
+          deferred: true,
+        };
+      });
+      return siguientes;
+    });
+
+    const siguienteRegular = siguienteIndiceDisponible(
+      indiceActivo + 1,
+      idsPospuestos,
+    );
+    const primerPospuesto = pasos.findIndex(
+      (item) =>
+        idsPospuestos.has(item.stepId) ||
+        Boolean(registros[item.stepId]?.deferred),
+    );
+    setIndiceActivo(
+      siguienteRegular >= 0
+        ? siguienteRegular
+        : Math.max(0, primerPospuesto),
+    );
+    setRestTimer(null);
+    setDragX(0);
+    setMensaje("Lo dejamos pendiente para el final");
+    window.setTimeout(() => setMensaje(""), 1800);
   }
 
   function volver() {
@@ -4256,10 +4381,15 @@ function WorkoutMode({
   }
 
   function completarRondaResumida() {
-    const objetivos = pasos.filter(
-      (item) =>
-        item.blockId === paso.blockId && item.round === paso.round,
-    );
+    const objetivos = pasos.filter((item) => {
+      const itemRecord = registros[item.stepId];
+      return (
+        item.blockId === paso.blockId &&
+        item.round === paso.round &&
+        !itemRecord?.deferred &&
+        !itemRecord?.skipped
+      );
+    });
     const ids = new Set(objetivos.map((item) => item.stepId));
 
     setRegistros((actuales) => {
@@ -4271,6 +4401,7 @@ function WorkoutMode({
             actuales[item.stepId]?.reps ?? item.minReps,
           completed: true,
           skipped: false,
+          deferred: false,
         };
       });
       return siguientes;
@@ -4280,10 +4411,11 @@ function WorkoutMode({
       (ultimo, item, index) => (ids.has(item.stepId) ? index : ultimo),
       indiceActivo,
     );
-    if (ultimoIndice >= pasos.length - 1) {
+    const siguiente = siguienteIndiceDeFlujo(ultimoIndice + 1, ids);
+    if (siguiente < 0) {
       onFinish();
     } else {
-      setIndiceActivo(ultimoIndice + 1);
+      setIndiceActivo(siguiente);
     }
   }
 
@@ -4361,10 +4493,118 @@ function WorkoutMode({
               </span>
             </div>
           </div>
-          <div className="size-9" />
+          <Sheet>
+            <SheetTrigger
+              render={
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Ver resumen de la rutina"
+                  className="size-9 rounded-full border border-indigo-200/10 text-indigo-100/55 hover:bg-indigo-300/10 hover:text-white"
+                />
+              }
+            >
+              <ListChecks />
+            </SheetTrigger>
+            <SheetContent
+              side="bottom"
+              className="mx-auto max-h-[85dvh] max-w-2xl overflow-y-auto rounded-t-[2rem] border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white"
+            >
+              <SheetHeader className="px-5 pt-6 text-left">
+                <SheetTitle className="text-white">Vista general</SheetTitle>
+                <SheetDescription className="text-white/60">
+                  {registrosResueltos} de {pasos.length} series resueltas
+                  {registrosPospuestos > 0
+                    ? ` · ${countLabel(registrosPospuestos, "serie")} para después`
+                    : ""}
+                </SheetDescription>
+              </SheetHeader>
+              <div className="space-y-3 px-4">
+                {rutina.blocks.map((itemBlock, blockIndex) => (
+                  <div
+                    key={itemBlock.id}
+                    className={cn(
+                      "rounded-2xl border p-4",
+                      itemBlock.id === paso.blockId
+                        ? "border-cyan-200/20 bg-cyan-300/[0.06]"
+                        : "border-white/[0.07] bg-white/[0.025]",
+                    )}
+                  >
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-cyan-100/65">
+                      Bloque {blockIndex + 1} de {rutina.blocks.length}
+                    </div>
+                    <div className="mt-1 text-sm font-medium text-white">
+                      {itemBlock.name}
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {itemBlock.exercises.map((exercise) => {
+                        const exerciseSteps = pasos.filter(
+                          (item) => item.id === exercise.id,
+                        );
+                        const completed = exerciseSteps.filter(
+                          (item) => registros[item.stepId]?.completed,
+                        ).length;
+                        const skipped = exerciseSteps.filter(
+                          (item) => registros[item.stepId]?.skipped,
+                        ).length;
+                        const deferred = exerciseSteps.filter(
+                          (item) =>
+                            registros[item.stepId]?.deferred &&
+                            !registros[item.stepId]?.completed,
+                        ).length;
+                        const current = exercise.id === paso.id;
+
+                        return (
+                          <div
+                            key={exercise.id}
+                            className={cn(
+                              "flex items-center gap-3 rounded-xl px-3 py-2.5",
+                              current
+                                ? "bg-white/[0.08]"
+                                : "bg-black/15",
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "grid size-7 shrink-0 place-items-center rounded-full border",
+                                completed === exerciseSteps.length
+                                  ? "border-cyan-200/20 bg-cyan-300 text-indigo-950"
+                                  : "border-white/10 text-white/45",
+                              )}
+                            >
+                              {completed === exerciseSteps.length ? (
+                                <Check className="size-3.5" />
+                              ) : (
+                                <Dumbbell className="size-3" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate text-[13px] font-medium text-white/85">
+                                {exercise.name}
+                              </div>
+                              <div className="mt-0.5 text-[10px] text-white/50">
+                                {completed}/{exerciseSteps.length} series
+                                {skipped > 0 ? ` · ${skipped} omitidas` : ""}
+                                {deferred > 0 ? " · para después" : ""}
+                              </div>
+                            </div>
+                            {current && (
+                              <span className="text-[9px] font-semibold uppercase tracking-[0.1em] text-cyan-200">
+                                Ahora
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
         <Progress
-          value={(indiceActivo / pasos.length) * 100}
+          value={(registrosResueltos / pasos.length) * 100}
           className="h-1 bg-indigo-300/10"
         />
       </div>
@@ -4406,40 +4646,34 @@ function WorkoutMode({
             </div>
           </div>
         )}
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Badge className="border-violet-200/15 bg-violet-300/10 text-[11px] font-medium text-violet-50/90">
-              {paso.blockName}
-            </Badge>
-            {bloque.exercises.length > 1 && (
-              <span className="text-[11px] font-medium text-indigo-50/65">
-                Ronda {paso.round}/{paso.rondas}
-              </span>
-            )}
+        <div className="mb-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-100/65">
+            Bloque {paso.bloqueIndex + 1} de {rutina.blocks.length}
           </div>
-          <div
-            className={cn(
-              "flex gap-1.5",
-              esBloqueBreve &&
-                vistaCalentamiento === "resumida" &&
-                "hidden",
-            )}
-          >
-            {bloque.exercises.map((item, index) => (
-              <span
-                key={item.id}
-                className={cn(
-                  "h-1.5 rounded-full",
-                  index === paso.posicion
-                    ? "w-6 bg-cyan-300"
-                    : "w-1.5 bg-indigo-200/15",
-                )}
-              />
-            ))}
+          <div className="mt-1 flex items-end justify-between gap-3">
+            <div className="min-w-0 truncate text-sm font-medium text-white/90">
+              {paso.blockName}
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5 text-[10px] font-medium">
+              {bloque.exercises.length > 1 ? (
+                <>
+                  <span className="rounded-full bg-violet-300/10 px-2.5 py-1 text-violet-100/80">
+                    Ronda {paso.round} de {paso.rondas}
+                  </span>
+                  <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
+                    Ejercicio {paso.posicion + 1} de {paso.ejerciciosEnRonda}
+                  </span>
+                </>
+              ) : (
+                <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
+                  Serie {paso.round} de {paso.sets}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 
-        {esBloqueBreve && vistaCalentamiento === "resumida" ? (
+        {mostrarVistaResumida ? (
           <div className="relative overflow-hidden rounded-[2rem] border border-cyan-200/[0.14] bg-app-panel p-5 shadow-[0_30px_80px_rgba(0,0,0,.5)]">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(34,211,238,.14),transparent_37%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.15),transparent_42%)]" />
             <div className="relative">
@@ -4472,6 +4706,9 @@ function WorkoutMode({
                   const completado = pasoDeRonda
                     ? registros[pasoDeRonda.stepId]?.completed
                     : false;
+                  const pospuesto = pasoDeRonda
+                    ? registros[pasoDeRonda.stepId]?.deferred
+                    : false;
 
                   return (
                     <div
@@ -4483,10 +4720,18 @@ function WorkoutMode({
                           "grid size-6 shrink-0 place-items-center rounded-full border text-[9px]",
                           completado
                             ? "border-cyan-200/20 bg-cyan-300 text-indigo-950"
+                            : pospuesto
+                              ? "border-orange-200/20 bg-orange-300/10 text-orange-200"
                             : "border-white/10 bg-white/[0.035] text-white/40",
                         )}
                       >
-                        {completado ? <Check className="size-3" /> : index + 1}
+                        {completado ? (
+                          <Check className="size-3" />
+                        ) : pospuesto ? (
+                          <Clock3 className="size-3" />
+                        ) : (
+                          index + 1
+                        )}
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[13px] font-medium text-white/85">
@@ -4499,7 +4744,9 @@ function WorkoutMode({
                         )}
                       </div>
                       <div className="shrink-0 text-[11px] font-medium tabular-nums text-white/60">
-                        {repeticionesObjetivo(item)} reps
+                        {pospuesto && !completado
+                          ? "Para después"
+                          : `${repeticionesObjetivo(item)} reps`}
                       </div>
                     </div>
                   );
@@ -4564,9 +4811,7 @@ function WorkoutMode({
               <div className="flex items-start justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-50/65">
-                    {bloque.exercises.length > 1
-                      ? `Ejercicio ${paso.posicion + 1} de ${paso.ejerciciosEnRonda}`
-                      : `Serie ${paso.round} de ${paso.sets}`}
+                    {registro.deferred ? "Retomado para completar" : "Ejercicio actual"}
                   </div>
                   <h1 className="mt-2 text-[2rem] font-normal leading-tight tracking-[-0.04em]">
                     {paso.name}
@@ -4595,11 +4840,36 @@ function WorkoutMode({
                           ¿Qué querés saltar?
                         </SheetTitle>
                         <SheetDescription className="text-white/60">
-                          La omisión quedará registrada. Podés volver con
-                          Anterior si cambiás de idea.
+                          Podés dejarlo para más tarde o registrar una omisión
+                          definitiva.
                         </SheetDescription>
                       </SheetHeader>
                       <div className="space-y-2 px-4">
+                        {!registro.deferred &&
+                          !registro.completed &&
+                          !registro.skipped && (
+                          <SheetClose
+                            render={
+                              <button
+                                onClick={posponerEjercicio}
+                                className="flex w-full items-center gap-3 rounded-2xl border border-cyan-200/15 bg-cyan-300/[0.07] p-4 text-left transition-colors hover:bg-cyan-300/[0.12]"
+                              />
+                            }
+                          >
+                            <div className="grid size-10 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-cyan-200">
+                              <Clock3 className="size-4" />
+                            </div>
+                            <div>
+                              <div className="text-sm text-white">
+                                Volver más tarde
+                              </div>
+                              <div className="mt-1 text-[11px] leading-relaxed text-white/60">
+                                Deja sus series pendientes para el final de la
+                                rutina, sin marcarlas como omitidas.
+                              </div>
+                            </div>
+                          </SheetClose>
+                        )}
                         {[
                           {
                             alcance: "serie" as const,
@@ -4757,6 +5027,7 @@ function WorkoutMode({
                     label="Peso"
                     hint="Kilogramos"
                     step={0.5}
+                    emptyWhenZero
                     value={registro.weight}
                     onChange={(weight) => actualizar({ weight })}
                   />
@@ -4845,6 +5116,8 @@ function WorkoutMode({
             <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-indigo-50/65">
               {!proximo
                 ? "Último paso"
+                : registros[proximo.stepId]?.deferred
+                  ? "Pendiente para después"
                 : proximo.id === paso.id
                   ? "Siguiente serie"
                   : "Siguiente ejercicio"}

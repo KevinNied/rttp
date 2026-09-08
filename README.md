@@ -89,6 +89,12 @@ regresiva, pausa, reanudación y omisión; cuando el descanso es `null` no se
 muestra. Al finalizar, el historial mantiene la duración exacta en formato
 `mm:ss` o `hh:mm:ss`.
 
+El modo de ejecución también permite abrir una vista general sin abandonar la
+rutina. Si una máquina está ocupada, el atleta puede dejar las series pendientes
+de ese ejercicio para el final en lugar de registrarlas como omitidas. Esta
+decisión, los valores ingresados y el orden de recuperación sobreviven una
+recarga.
+
 La **Vista atleta** del entrenador es una previsualización de solo lectura: sirve
 para revisar la experiencia sin iniciar rutinas ni modificar datos del atleta.
 Las plantillas se crean desde una rutina fuente visible y requieren confirmar el

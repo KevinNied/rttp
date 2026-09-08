@@ -42,6 +42,12 @@ Si un ejercicio define descanso, completar la serie inicia una cuenta regresiva
 que puede pausarse, reanudarse u omitirse. Los ejercicios sin descanso no
 muestran esa interfaz.
 
+Durante la ejecución, la vista general resume el avance por bloque y ejercicio
+sin interrumpir el cronómetro. Un ejercicio temporalmente no disponible puede
+posponerse: sus series pendientes se conservan sin marcarlas como omitidas y
+vuelven a incorporarse al final de la rutina. Si el atleta decide omitirlas de
+forma definitiva, debe usar una de las acciones de salto explícitas.
+
 ## Actividades externas
 
 Al marcar una actividad externa como realizada se registra:
