@@ -15,35 +15,25 @@ No representa trabajo comprometido ni un orden definitivo de implementación.
 
 ### Objetivo
 
-Permitir que un atleta entrene sin depender obligatoriamente de un coach y pueda
-combinar planes recibidos con rutinas propias.
+Convertir RTTP en una plataforma de entrenamiento personal donde toda cuenta
+pueda crear, programar y ejecutar sus propias rutinas. Tener coach pasa a ser una
+relación opcional y ser coach, una capacidad adicional.
 
-### Alcance posible
+La definición completa del nuevo modelo de identidad, relaciones, propiedad,
+permisos, navegación, migración y primera versión está documentada en
+[`entrenamiento-autogestionado.md`](entrenamiento-autogestionado.md).
 
-- Crear, editar, duplicar y eliminar rutinas personales.
-- Mantener separadas las rutinas asignadas por un coach y las creadas por el
+### Decisiones base
+
+- Toda cuenta tiene un espacio personal de entrenamiento.
+- La capacidad de coaching no reemplaza la experiencia personal.
+- Las rutinas personales son administradas por su creador.
+- Las rutinas asignadas son administradas por el coach y de solo lectura para el
   atleta.
-- Duplicar una rutina del coach como una copia personal editable.
-- Conservar la rutina original del coach sin modificaciones cuando el atleta
-  personalice su copia.
-- Permitir que un atleta siga usando sus rutinas personales aunque deje de
-  tener un coach asignado.
-- Identificar claramente el origen de cada rutina: coach, personal o copia.
-
-### Primera versión sugerida
-
-Agregar una sección **Mis rutinas** donde el atleta pueda crear una rutina desde
-cero o duplicar una rutina asignada. Las copias deben ser independientes y no
-modificar la planificación creada por el coach.
-
-### Decisiones pendientes
-
-- Si un coach puede ver o editar las rutinas personales de sus atletas.
-- Si una rutina del coach debe copiarse o mantenerse vinculada a futuras
-  actualizaciones.
-- Si el atleta puede compartir una rutina personal con su coach.
-- Qué sucede con una rutina asignada cuando termina la relación coach-atleta.
-- Cómo se representa la propiedad y visibilidad de las rutinas en Supabase.
+- Una asignación puede duplicarse como copia personal independiente.
+- La relación de coaching es una entidad opcional, revocable y preparada para
+  múltiples coaches.
+- Agenda, historial y progreso pertenecen a quien realiza el entrenamiento.
 
 ## Progreso por ejercicio
 

@@ -220,6 +220,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Keep future product ideas in
   [`docs/pending-features.md`](docs/pending-features.md); they are not committed
   scope until explicitly approved.
+- Keep optional coaching, routine ownership, and self-directed training decisions
+  in
+  [`docs/entrenamiento-autogestionado.md`](docs/entrenamiento-autogestionado.md).
 - Keep activity persistence and history decisions in
   [`docs/registro-actividades.md`](docs/registro-actividades.md).
 - Keep sports scheduling decisions in
