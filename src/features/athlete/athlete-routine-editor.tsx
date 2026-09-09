@@ -10,10 +10,10 @@ import { countLabel } from "@/lib/format";
 import { Routine, User } from "@/lib/rttp-data";
 
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
-import { DialogoEjercicio } from "@/features/routine-editor/dialogo-ejercicio";
-import { FilaEjercicio } from "@/features/routine-editor/fila-ejercicio";
+import { DialogoEjercicio } from "@/features/routine-editor/exercise-dialog";
+import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
 import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
-import { SeccionEditor } from "@/features/routine-editor/seccion-editor";
+import { SeccionEditor } from "@/features/routine-editor/section-editor";
 import { useRoutineEditor } from "@/features/routine-editor/use-routine-editor";
 import { desktopPageShellClassName } from "@/features/shared/page-shell";
 

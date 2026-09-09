@@ -29,7 +29,7 @@ import {
   TrainingSetRecord,
   WorkoutTimerState,
 } from "@/domain/workout/workout-session";
-import { CampoPrescripcion } from "@/features/workout/campo-prescripcion";
+import { CampoPrescripcion } from "@/features/workout/prescription-field";
 import { WorkoutOverviewSheet } from "@/features/workout/workout-overview-sheet";
 import { WorkoutRoundSummary } from "@/features/workout/workout-round-summary";
 import { WorkoutSkipSheet } from "@/features/workout/workout-skip-sheet";

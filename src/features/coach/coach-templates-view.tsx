@@ -19,8 +19,8 @@ import { Routine, User } from "@/lib/rttp-data";
 
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
 import { RoutineTemplate } from "@/domain/routine/routine-factory";
-import { DialogoAsignarPlantilla } from "@/features/routine-editor/dialogo-asignar-plantilla";
-import { DialogoGuardarPlantilla } from "@/features/routine-editor/dialogo-guardar-plantilla";
+import { DialogoAsignarPlantilla } from "@/features/routine-editor/assign-template-dialog";
+import { DialogoGuardarPlantilla } from "@/features/routine-editor/save-template-dialog";
 import {
   pageDescriptionClassName,
   pageEyebrowClassName,

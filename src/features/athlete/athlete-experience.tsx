@@ -22,8 +22,8 @@ import {
 } from "@/domain/workout/workout-session";
 import { workoutPersistence } from "@/application/workout/workout-persistence";
 import { AthleteRoutineEditor } from "@/features/athlete/athlete-routine-editor";
-import { HomeAtleta } from "@/features/athlete/home-atleta";
-import { RutinaCompletada } from "@/features/workout/rutina-completada";
+import { HomeAtleta } from "@/features/athlete/athlete-home";
+import { RutinaCompletada } from "@/features/workout/completed-routine";
 import { WorkoutMode } from "@/features/workout/workout-mode";
 
 export function ExperienciaAtleta({

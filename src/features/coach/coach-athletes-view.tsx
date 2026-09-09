@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Routine, User } from "@/lib/rttp-data";
 
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
-import { DialogoNuevoAtleta } from "@/features/routine-editor/dialogo-nuevo-atleta";
+import { DialogoNuevoAtleta } from "@/features/routine-editor/new-athlete-dialog";
 import {
   pageDescriptionClassName,
   pageEyebrowClassName,

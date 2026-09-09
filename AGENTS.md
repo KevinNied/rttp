@@ -222,7 +222,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Canonical documentation
 
 - Keep layered architecture and dependency rules in
-  [`docs/arquitectura.md`](docs/arquitectura.md).
+  [`docs/architecture.md`](docs/architecture.md).
 - Keep routine architecture decisions in
   [`docs/routine-sections.md`](docs/routine-sections.md).
 - Keep future product ideas in
@@ -230,11 +230,11 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   scope until explicitly approved.
 - Keep optional coaching, routine ownership, and self-directed training decisions
   in
-  [`docs/entrenamiento-autogestionado.md`](docs/entrenamiento-autogestionado.md).
+  [`docs/self-directed-training.md`](docs/self-directed-training.md).
 - Keep activity persistence and history decisions in
-  [`docs/registro-actividades.md`](docs/registro-actividades.md).
+  [`docs/activity-log.md`](docs/activity-log.md).
 - Keep sports scheduling decisions in
-  [`docs/agenda-deportiva.md`](docs/agenda-deportiva.md).
+  [`docs/sports-schedule.md`](docs/sports-schedule.md).
 - Keep this file focused on stable principles and invariants. Do not add temporary
   versions, migration IDs, database counts, or session-specific implementation
   notes.

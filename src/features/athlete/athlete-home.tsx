@@ -38,9 +38,9 @@ import {
   cantidadEjercicios,
   rutinaTieneEjercicios,
 } from "@/domain/routine/routine-metrics";
-import { OverviewRutina } from "@/features/athlete/overview-rutina";
-import { DialogoNuevaRutina } from "@/features/routine-editor/dialogo-nueva-rutina";
-import { SelectorRutina } from "@/features/routine-editor/selector-rutina";
+import { OverviewRutina } from "@/features/athlete/routine-overview";
+import { DialogoNuevaRutina } from "@/features/routine-editor/new-routine-dialog";
+import { SelectorRutina } from "@/features/routine-editor/routine-selector";
 import {
   desktopPageShellClassName,
   pageDescriptionClassName,

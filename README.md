@@ -75,12 +75,12 @@ Dynamic Island y el indicador inferior.
 
 La Agenda deportiva organiza rutinas y actividades externas por fecha. Su modelo
 está separado de las rutinas y persiste en Supabase. La evolución funcional está documentada en
-[`docs/agenda-deportiva.md`](docs/agenda-deportiva.md).
+[`docs/sports-schedule.md`](docs/sports-schedule.md).
 
 Las rutinas completadas y las actividades externas realizadas se guardan como
 registros históricos independientes. El modelo y su persistencia están
 documentados en
-[`docs/registro-actividades.md`](docs/registro-actividades.md).
+[`docs/activity-log.md`](docs/activity-log.md).
 
 Durante una rutina, RTTP conserva localmente la posición, las series, el
 cronómetro general y cualquier descanso activo. Salir pausa la sesión y una
@@ -172,7 +172,7 @@ hidratación y cola de persistencia), `src/features` (interfaz por funcionalidad
 y `src/app` (rutas y composición).
 
 El detalle de cada capa y las reglas para extenderlas están documentados en
-[`docs/arquitectura.md`](docs/arquitectura.md).
+[`docs/architecture.md`](docs/architecture.md).
 
 ## Convenciones de dominio
 

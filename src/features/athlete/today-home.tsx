@@ -26,7 +26,7 @@ import {
   rutinaTieneEjercicios,
 } from "@/domain/routine/routine-metrics";
 import { routineCreatorLabel } from "@/domain/routine/routine-access";
-import { OverviewRutina } from "@/features/athlete/overview-rutina";
+import { OverviewRutina } from "@/features/athlete/routine-overview";
 import {
   desktopPageShellClassName,
   pageDescriptionClassName,

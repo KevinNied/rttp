@@ -37,13 +37,13 @@ import {
   canCoachEditRoutine,
   routineCreatorLabel,
 } from "@/domain/routine/routine-access";
-import { OverviewRutina } from "@/features/athlete/overview-rutina";
-import { DialogoEjercicio } from "@/features/routine-editor/dialogo-ejercicio";
-import { DialogoNuevaRutina } from "@/features/routine-editor/dialogo-nueva-rutina";
-import { FilaEjercicio } from "@/features/routine-editor/fila-ejercicio";
+import { OverviewRutina } from "@/features/athlete/routine-overview";
+import { DialogoEjercicio } from "@/features/routine-editor/exercise-dialog";
+import { DialogoNuevaRutina } from "@/features/routine-editor/new-routine-dialog";
+import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
 import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
-import { SeccionEditor } from "@/features/routine-editor/seccion-editor";
-import { SelectorRutina } from "@/features/routine-editor/selector-rutina";
+import { SeccionEditor } from "@/features/routine-editor/section-editor";
+import { SelectorRutina } from "@/features/routine-editor/routine-selector";
 import { RoutineEditor } from "@/features/routine-editor/use-routine-editor";
 import {
   pageDescriptionClassName,

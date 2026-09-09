@@ -49,11 +49,11 @@ import {
   useRoleRedirect,
 } from "@/application/navigation/use-app-navigation";
 import { syncErrorMessage } from "@/application/sync/sync-error";
-import { ExperienciaAtleta } from "@/features/athlete/experiencia-atleta";
-import { HomeHoy } from "@/features/athlete/home-hoy";
-import { PerfilUsuario } from "@/features/athlete/perfil-usuario";
-import { HomeEntrenador } from "@/features/coach/home-entrenador";
-import { LandingAcceso } from "@/features/landing/landing-acceso";
+import { ExperienciaAtleta } from "@/features/athlete/athlete-experience";
+import { HomeHoy } from "@/features/athlete/today-home";
+import { PerfilUsuario } from "@/features/athlete/user-profile";
+import { HomeEntrenador } from "@/features/coach/coach-home";
+import { LandingAcceso } from "@/features/landing/access-landing";
 import { AppShell } from "@/features/shell/app-shell";
 
 export default function Home() {
