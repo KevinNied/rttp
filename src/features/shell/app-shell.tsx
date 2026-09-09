@@ -18,9 +18,7 @@ import { cn } from "@/lib/utils";
 
 import { AthleteView, CoachView } from "@/application/navigation/routes";
 import {
-  dismissMobileDockOnboarding,
   readSidebarCompactPreference,
-  shouldShowMobileDockOnboarding,
   writeSidebarCompactPreference,
 } from "@/application/preferences/ui-preferences";
 import { Logo } from "@/features/shared/logo";
@@ -58,20 +56,12 @@ export function AppShell({
   const [sidebarCompact, setSidebarCompact] = useState(
     readSidebarCompactPreference,
   );
-  const [showDockOnboarding, setShowDockOnboarding] = useState(
-    shouldShowMobileDockOnboarding,
-  );
   const navegacion = esEntrenador ? coachNavigation : athleteNavigation;
   const navegacionMobile = navegacion.filter((item) => item.view !== "profile");
 
   useEffect(() => {
     writeSidebarCompactPreference(sidebarCompact);
   }, [sidebarCompact]);
-
-  function dismissDockOnboarding() {
-    dismissMobileDockOnboarding();
-    setShowDockOnboarding(false);
-  }
 
   return (
     <div className="min-h-dvh bg-app text-white selection:bg-cyan-300 selection:text-black">
@@ -286,7 +276,7 @@ export function AppShell({
             (sidebarCompact ? "lg:pl-24 lg:pt-0" : "lg:pl-64 lg:pt-0"),
           !vistaPrevia &&
             !workoutImmersive &&
-            "pb-[calc(4.75rem+env(safe-area-inset-bottom))] lg:pb-0",
+            "pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-0",
         )}
       >
         {syncError && !workoutImmersive && (
@@ -326,24 +316,7 @@ export function AppShell({
       </main>
       {!vistaPrevia && !workoutImmersive && (
         <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center pb-[max(0.75rem,env(safe-area-inset-bottom))] pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] lg:hidden">
-          <div className="pointer-events-auto relative flex w-fit items-center gap-1 rounded-[1.35rem] border border-white/[0.09] bg-app-panel/88 p-1.5 shadow-[0_14px_45px_rgba(4,8,18,.38)] backdrop-blur-2xl">
-            {showDockOnboarding && (
-              <div className="absolute bottom-[calc(100%+0.75rem)] left-1/2 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl border border-cyan-200/15 bg-app-panel px-4 py-3 text-center shadow-[0_14px_40px_rgba(0,0,0,.35)]">
-                <div className="text-[10px] font-medium text-white/80">
-                  Tu navegación rápida
-                </div>
-                <div className="mt-1 text-[9px] text-white/50">
-                  {navegacionMobile.map((item) => item.label).join(" · ")}
-                </div>
-                <button
-                  type="button"
-                  onClick={dismissDockOnboarding}
-                  className="mt-2 text-[9px] font-medium text-cyan-100"
-                >
-                  Entendido
-                </button>
-              </div>
-            )}
+          <div className="pointer-events-auto flex w-full max-w-sm items-center gap-1 rounded-[1.35rem] border border-border bg-app-panel/88 p-1.5 shadow-[0_14px_45px_rgba(4,8,18,.18)] backdrop-blur-2xl dark:border-white/[0.09] dark:shadow-[0_14px_45px_rgba(4,8,18,.38)]">
             {navegacionMobile.map((item) => {
               const NavIcon = item.icon;
               const activo = esEntrenador
@@ -355,26 +328,27 @@ export function AppShell({
                   type="button"
                   aria-label={item.label}
                   title={item.label}
-                  onClick={() => {
-                    dismissDockOnboarding();
-                    navigate(item.href);
-                  }}
+                  aria-current={activo ? "page" : undefined}
+                  onClick={() => navigate(item.href)}
                   className={cn(
-                    "flex size-11 shrink-0 items-center justify-center rounded-[1rem] transition-[transform,background-color,color] duration-300 ease-out",
+                    "flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[1rem] px-1 transition-[background-color,color] duration-300 ease-out",
                     activo
-                      ? "-translate-y-1 scale-110 bg-cyan-300/14 text-cyan-100 shadow-[0_8px_24px_rgba(34,211,238,.12)]"
-                      : "text-white/35 hover:bg-white/[0.06] hover:text-white/80",
+                      ? "bg-cyan-500/10 text-cyan-800 shadow-[0_8px_24px_rgba(34,211,238,.1)] dark:bg-cyan-300/14 dark:text-cyan-100"
+                      : "text-foreground/55 hover:bg-foreground/[0.05] hover:text-foreground dark:text-white/45 dark:hover:bg-white/[0.06] dark:hover:text-white/80",
                   )}
                 >
                   <span
                     className={cn(
-                      "grid size-8 place-items-center rounded-full border transition-colors",
+                      "grid size-7 shrink-0 place-items-center rounded-full border transition-colors",
                       activo
-                        ? "border-cyan-200/20 bg-cyan-300/12"
-                        : "border-white/[0.06] bg-white/[0.03]",
+                        ? "border-cyan-600/20 bg-cyan-500/10 dark:border-cyan-200/20 dark:bg-cyan-300/12"
+                        : "border-border bg-app-elevated dark:border-white/[0.06] dark:bg-white/[0.03]",
                     )}
                   >
                     <NavIcon className="size-4" />
+                  </span>
+                  <span className="max-w-full truncate text-[10px] font-medium leading-none">
+                    {item.label}
                   </span>
                 </button>
               );

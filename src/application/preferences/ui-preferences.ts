@@ -1,10 +1,8 @@
 import {
-  mobileDockOnboardingStorageKey,
   sidebarPreferenceStorageKey,
   themeStorageKey,
 } from "@/infrastructure/storage/storage-keys";
 import {
-  readPersistentSessionValue,
   readSessionValue,
   writePersistentSessionValue,
   writeSessionValue,
@@ -16,14 +14,6 @@ export function readSidebarCompactPreference() {
 
 export function writeSidebarCompactPreference(compact: boolean) {
   writeSessionValue(sidebarPreferenceStorageKey, String(compact));
-}
-
-export function shouldShowMobileDockOnboarding() {
-  return readPersistentSessionValue(mobileDockOnboardingStorageKey) !== "true";
-}
-
-export function dismissMobileDockOnboarding() {
-  writePersistentSessionValue(mobileDockOnboardingStorageKey, "true");
 }
 
 export function writeThemePreference(theme: "dark" | "light") {

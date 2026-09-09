@@ -7,7 +7,7 @@ actividades que forman parte de la vida deportiva del atleta:
 
 - rutinas estructuradas dentro de RTTP;
 - running, natación, ciclismo, movilidad, partidos y otras actividades externas;
-- sesiones completadas y, en el futuro, su historial detallado.
+- sesiones completadas y su historial detallado.
 
 El objetivo no es convertir cada actividad externa en una rutina de RTTP, sino
 darle un lugar dentro de la carga y organización general del atleta.
@@ -30,9 +30,9 @@ Representa una ejecución concreta. Debe conservar lo que realmente ocurrió:
 pesos, repeticiones, series omitidas, esfuerzo, feedback, tiempos y una copia
 histórica suficiente para no cambiar si la rutina se edita después.
 
-El MVP prepara un identificador independiente por entrenamiento programado. El
-registro persistente y consultable de sesiones se incorporará en la siguiente
-etapa.
+Cada entrenamiento programado tiene un identificador independiente. Al
+completarse, genera una actividad persistente y consultable sin compartir
+progreso con otras ocurrencias.
 
 ## MVP
 
@@ -104,11 +104,10 @@ depender de que la rutina original siga existiendo.
 El registro de inicio, duración real y comentarios del coach quedan como
 evoluciones posteriores.
 
-## Segunda etapa funcional
+## Evolución funcional
 
 - Agrupación visible de recurrencias y edición o eliminación de “solo este evento”
   o “toda la serie”.
-- Historial de actividades y detalle de sesión.
 - Adherencia: programados, completados, omitidos y reprogramados.
 - Indicadores simples de volumen y carga semanal.
 - Comentarios entre atleta y coach.

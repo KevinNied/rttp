@@ -184,8 +184,8 @@ cargó ejercicios”.
   rutina aunque luego cambie la relación con el coach.
 - Editar una rutina personal o una rutina del coach no modifica actividades
   históricas anteriores.
-- “Eliminar” una rutina personal la archiva y permite restaurarla; no elimina sus
-  actividades ni rompe las referencias históricas.
+- Eliminar una rutina personal borra su definición y sus entrenamientos
+  asociados, pero no elimina sus actividades históricas ni rompe sus snapshots.
 
 ### Fin de la relación con el coach
 
@@ -229,7 +229,9 @@ Antes de modificar Supabase se debe crear y verificar un backup.
   coach en modo de solo lectura.
 - Rutinas del coach en modo de solo lectura.
 - Edición y eliminación de rutinas personales.
-- Archivado restaurable en lugar de borrado físico.
+- Eliminación definitiva de rutinas personales con confirmación.
+- Archivado restaurable de rutinas creadas por el coach dentro de la biblioteca
+  del atleta.
 - Atleta funcional sin coach.
 - Migración de datos existentes.
 - Validación con atleta sin coach, atleta con coach y coach asignado.
@@ -253,8 +255,8 @@ Antes de modificar Supabase se debe crear y verificar un backup.
   plantillas;
 - mientras no exista Supabase Auth, los atletas independientes se representan
   mediante perfiles accesibles por el flujo local de email y sin coach asignado;
-- eliminar una rutina personal la archiva de forma restaurable y conserva sus
-  actividades históricas.
+- eliminar una rutina personal borra su definición, conserva sus actividades
+  históricas y limpia entrenamientos, sesiones y registros temporales asociados.
 
 ## Criterios de aceptación
 
@@ -267,7 +269,8 @@ Antes de modificar Supabase se debe crear y verificar un backup.
   puede editarla.
 - El atleta puede revocar el acceso compartido y ningún permiso se transfiere
   automáticamente a un coach futuro.
-- Archivar una rutina no elimina ni modifica sus actividades históricas.
+- Eliminar una rutina personal o archivar una rutina del coach no elimina ni
+  modifica las actividades históricas.
 - Los permisos se calculan desde datos persistidos y no solo desde la ruta visible.
 - Agenda, workout, reload, historial y responsive continúan funcionando.
 - La migración conserva usuarios, rutinas, entrenamientos y actividades actuales.
