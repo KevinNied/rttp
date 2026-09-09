@@ -112,6 +112,35 @@ function resumenActividad(actividad: CompletedActivity) {
   };
 }
 
+function groupExerciseSets(sets: CompletedActivity["sets"]) {
+  return sets.reduce<
+    {
+      id: string;
+      name: string;
+      sets: CompletedActivity["sets"];
+    }[]
+  >((groups, set) => {
+    const existingGroup = groups.find((group) => group.id === set.exerciseId);
+    if (existingGroup) {
+      existingGroup.sets.push(set);
+      return groups;
+    }
+    return [
+      ...groups,
+      {
+        id: set.exerciseId,
+        name: set.exerciseName,
+        sets: [set],
+      },
+    ];
+  }, []);
+}
+
+function setResult(set: CompletedActivity["sets"][number]) {
+  if (set.skipped) return "Omitida";
+  return `${set.reps} reps${set.weight > 0 ? ` · ${set.weight} kg` : ""}`;
+}
+
 function ActivityChip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.04] px-2.5 py-1 text-[10px] text-white/45">
@@ -154,6 +183,7 @@ function ActivityCopy({
 
 function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
   const { sections, seriesCompletadas } = resumenActividad(actividad);
+  const [openSectionId, setOpenSectionId] = useState(sections[0]?.id ?? "");
   const duracion =
     actividad.durationSeconds ??
     (actividad.durationMinutes ? actividad.durationMinutes * 60 : null);
@@ -198,56 +228,118 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
 
       {sections.length > 0 && (
         <div className="space-y-2">
-          <div className="text-xs font-medium text-white/60">
-            Detalle de la sesión
-          </div>
-          {sections.map((section, index) => (
-            <div
-              key={section.id}
-              className="overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]"
-            >
-              <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
-                <div className="text-[11px] font-medium text-white/70">
-                  {section.name}
-                </div>
-                <div className="text-[9px] uppercase tracking-wider text-white/25">
-                  {section.sets.length}{" "}
-                  {section.sets.length === 1 ? "serie" : "series"}
-                </div>
+          <div className="flex items-end justify-between gap-4 px-1">
+            <div>
+              <div className="text-sm font-medium text-white/75">
+                Detalle de la sesión
               </div>
-              <div className="divide-y divide-white/[0.05]">
-                {section.sets.map((serie) => (
-                  <div
-                    key={serie.stepId}
-                    className="flex items-center justify-between gap-3 px-3 py-2.5"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-[11px] text-white/70">
-                        {serie.exerciseName}
-                      </div>
-                      <div className="mt-0.5 text-[9px] text-white/25">
-                        Sección {index + 1} · Serie {serie.iteration}
-                      </div>
-                    </div>
-                    <div
-                      className={cn(
-                        "shrink-0 text-right text-[10px]",
-                        serie.skipped
-                          ? "text-orange-200/45"
-                          : "text-cyan-100/55",
-                      )}
-                    >
-                      {serie.skipped
-                        ? "Omitida"
-                        : `${serie.reps} reps${
-                            serie.weight > 0 ? ` · ${serie.weight} kg` : ""
-                          }`}
-                    </div>
-                  </div>
-                ))}
+              <div className="mt-1 text-xs text-white/35">
+                Abrí una sección para revisar sus ejercicios y cargas.
               </div>
             </div>
-          ))}
+          </div>
+          {sections.map((section) => {
+            const exerciseGroups = groupExerciseSets(section.sets);
+            const isOpen = openSectionId === section.id;
+
+            return (
+              <div
+                key={section.id}
+                className="overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]"
+              >
+                <button
+                  type="button"
+                  aria-expanded={isOpen}
+                  onClick={() =>
+                    setOpenSectionId((current) =>
+                      current === section.id ? "" : section.id,
+                    )
+                  }
+                  className="flex w-full items-center justify-between gap-4 bg-white/[0.03] px-4 py-3.5 text-left transition-colors hover:bg-white/[0.05]"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium text-white/80">
+                      {section.name}
+                    </div>
+                    <div className="mt-1 text-xs text-white/35">
+                      {countLabel(
+                        exerciseGroups.length,
+                        "ejercicio",
+                        "ejercicios",
+                      )}{" "}
+                      · {countLabel(section.sets.length, "serie", "series")}
+                    </div>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "size-4 shrink-0 text-white/35 transition-transform",
+                      isOpen && "rotate-180",
+                    )}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div className="divide-y divide-white/[0.05] border-t border-white/[0.06]">
+                    {exerciseGroups.map((exercise) => {
+                      const completedSets = exercise.sets.filter(
+                        (set) => !set.skipped,
+                      );
+                      const uniqueResults = new Set(
+                        completedSets.map((set) => setResult(set)),
+                      );
+                      const hasUniformResult =
+                        completedSets.length === exercise.sets.length &&
+                        uniqueResults.size === 1;
+
+                      return (
+                        <div
+                          key={exercise.id}
+                          className="grid gap-2 px-4 py-3.5 md:grid-cols-[minmax(12rem,0.75fr)_minmax(0,1.25fr)] md:items-center md:gap-6"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm text-white/75">
+                              {exercise.name}
+                            </div>
+                            <div className="mt-1 text-xs text-white/30">
+                              {countLabel(
+                                exercise.sets.length,
+                                "serie",
+                                "series",
+                              )}
+                            </div>
+                          </div>
+
+                          {hasUniformResult ? (
+                            <div className="text-sm font-medium text-cyan-100/65 md:text-right">
+                              {exercise.sets.length > 1 &&
+                                `${exercise.sets.length} × `}
+                              {setResult(exercise.sets[0])}
+                            </div>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5 md:justify-end">
+                              {exercise.sets.map((set) => (
+                                <span
+                                  key={set.stepId}
+                                  className={cn(
+                                    "rounded-full border px-2.5 py-1 text-xs",
+                                    set.skipped
+                                      ? "border-orange-200/10 bg-orange-200/[0.04] text-orange-100/55"
+                                      : "border-cyan-200/10 bg-cyan-300/[0.04] text-cyan-100/60",
+                                  )}
+                                >
+                                  S{set.iteration} · {setResult(set)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -268,8 +360,18 @@ function DetalleExterno({ actividad }: { actividad: CompletedActivity }) {
         />
       )}
       {!tieneDetalle && (
-        <div className="text-xs text-white/35">
-          Sin detalles adicionales para esta actividad.
+        <div className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-300/[0.07] text-cyan-100/55">
+            <CheckCircle2 className="size-4" />
+          </span>
+          <div>
+            <div className="text-sm font-medium text-white/70">
+              Actividad registrada
+            </div>
+            <p className="mt-1 text-xs leading-relaxed text-white/35">
+              No agregaste notas ni feedback a esta actividad.
+            </p>
+          </div>
         </div>
       )}
     </div>

@@ -30,6 +30,11 @@ Al finalizar una sesión se registra:
 El snapshot permite consultar la sesión aunque la rutina se edite o elimine
 después.
 
+En el historial, el detalle se organiza por secciones desplegables. Cada ejercicio
+aparece una sola vez y agrupa sus series: los resultados repetidos se condensan
+en una única lectura y las cargas variables conservan el detalle de cada serie.
+Esto mantiene legibles tanto las sesiones breves como las rutinas extensas.
+
 El cronómetro comienza al iniciar la rutina y usa una marca temporal, por lo que
 sigue midiendo correctamente entre secciones y mientras la pantalla está
 bloqueada. Al salir de la ejecución se pausa y al retomarla continúa desde el
@@ -58,6 +63,9 @@ Al marcar una actividad externa como realizada se registra:
 - notas;
 - usuario que la marcó como realizada;
 - fecha y hora de finalización.
+
+Cuando una actividad no tiene notas ni feedback, el historial muestra un estado
+compacto de actividad registrada en lugar de simular que falta contenido.
 
 ## Persistencia
 

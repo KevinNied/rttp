@@ -19,6 +19,9 @@ export function PerfilUsuario({
   usuario: User;
   entrenadorAsignado?: User;
 }) {
+  const assignedCoach =
+    usuario.role === "athlete" ? entrenadorAsignado : undefined;
+
   return (
     <div
       className={cn(
@@ -62,15 +65,12 @@ export function PerfilUsuario({
                   Estos datos identifican tu experiencia actual.
                 </p>
                 <dl className="mt-5 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
-                    <dt className="text-xs font-medium uppercase tracking-[0.12em] text-white/50">
-                      Rol
-                    </dt>
-                    <dd className="mt-2 text-base font-medium">
-                      {usuario.role === "coach" ? "Entrenador" : "Atleta"}
-                    </dd>
-                  </div>
-                  <div className="min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
+                  <div
+                    className={cn(
+                      "min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4",
+                      !assignedCoach && "sm:col-span-2",
+                    )}
+                  >
                     <dt className="text-xs font-medium uppercase tracking-[0.12em] text-white/50">
                       Cuenta
                     </dt>
@@ -78,18 +78,17 @@ export function PerfilUsuario({
                       {usuario.email}
                     </dd>
                   </div>
-                  {usuario.role === "athlete" && (
-                    <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 sm:col-span-2">
+                  {assignedCoach && (
+                    <div className="min-w-0 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
                       <dt className="text-xs font-medium uppercase tracking-[0.12em] text-white/50">
                         Entrenador
                       </dt>
                       <dd className="mt-2 min-w-0">
                         <div className="truncate text-base font-medium">
-                          {entrenadorAsignado?.name ?? "Sin asignar"}
+                        {assignedCoach.name}
                         </div>
                         <div className="mt-1 truncate text-sm text-white/55">
-                          {entrenadorAsignado?.email ??
-                            "Entrenás y administrás tus rutinas de forma independiente."}
+                        {assignedCoach.email}
                         </div>
                       </dd>
                     </div>
