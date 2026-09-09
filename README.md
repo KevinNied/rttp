@@ -163,6 +163,17 @@ incluirse en el mismo commit que será desplegado.
 - `localStorage` como caché, sesión actual y migración inicial
 - Vercel
 
+## Arquitectura
+
+El código está separado en capas con dependencias hacia adentro: `src/domain`
+(reglas puras de rutinas y entrenamientos), `src/infrastructure` (persistencia
+del navegador y sincronización con Supabase), `src/application` (navegación,
+hidratación y cola de persistencia), `src/features` (interfaz por funcionalidad)
+y `src/app` (rutas y composición).
+
+El detalle de cada capa y las reglas para extenderlas están documentados en
+[`docs/arquitectura.md`](docs/arquitectura.md).
+
 ## Convenciones de dominio
 
 El código, las rutas públicas, las columnas, las claves JSON y los valores de

@@ -100,9 +100,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Code organization and quality
 
-- `src/app/page.tsx` is currently a large integration surface. Do not add
-  substantial self-contained features there when they can be extracted into
-  focused components, hooks, or domain helpers.
+- `src/app/page.tsx` is the composition root. Keep it limited to session wiring,
+  application commands, and surface selection. Put self-contained features in
+  `src/features`, orchestration in `src/application`, browser persistence in
+  `src/infrastructure`, and pure rules in `src/domain`.
 - Keep small fixes surgical. Do not use a narrow request as justification for an
   unrelated large refactor.
 - Keep domain transformations pure and centralized. UI components should consume
@@ -115,6 +116,50 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   client-generated persistent identifiers.
 - Add comments only when the intent cannot be made clear through naming and
   structure.
+
+## Architecture boundaries
+
+- Dependencies point toward stable business rules:
+  - `src/domain` contains pure entities, value objects, calculations, factories,
+    and invariants. It must not import React, browser APIs, Supabase,
+    `src/application`, `src/infrastructure`, `src/features`, or `src/app`.
+  - `src/infrastructure` implements browser and remote-data adapters. It may
+    depend on domain contracts, but it must not contain React components or
+    product presentation.
+  - `src/application` coordinates use cases, navigation, hydration, and stateful
+    workflows. It may use domain rules and infrastructure adapters, but it must
+    not contain JSX or visual styling.
+  - `src/features` owns presentation and feature-local UI state. It consumes
+    domain and application APIs and must not call Supabase or raw browser
+    persistence directly.
+  - `src/app` is limited to Next.js routes and composition. It wires dependencies
+    and selects feature surfaces instead of implementing them.
+- Apply the Dependency Inversion Principle when an external concern becomes
+  volatile or has multiple implementations: define a narrow port in the domain
+  or application layer, implement it in infrastructure, and wire it at the
+  composition root.
+- Apply the Single Responsibility Principle at module and component level. Split
+  code by cohesive reason to change, not by arbitrary line count.
+- Apply the Open/Closed Principle to workout strategies: extend the discriminated
+  section model, validation, compiler, and editor instead of scattering new
+  conditionals across unrelated screens.
+- Apply Interface Segregation to component props, hooks, and repositories. Expose
+  only the commands and data each consumer needs; avoid passing whole stores or
+  large mutable objects for convenience.
+- Preserve substitutability for adapters and strategies: implementations must
+  honor the same success, failure, idempotency, and persistence semantics as
+  their contracts.
+- Keep state close to its owner. Promote state to an application hook only when
+  multiple feature surfaces coordinate the same workflow; keep transient visual
+  state inside the feature.
+- Prefer pure domain functions and explicit application commands over hidden
+  mutations. Infrastructure errors cross the boundary as typed or normalized
+  failures and remain visible to the user.
+- Avoid circular dependencies, cross-feature deep imports that bypass public
+  APIs, and generic `manager`, `service`, or `utils` modules without one cohesive
+  responsibility.
+- Refactor incrementally by boundary. Preserve behavior first, validate the
+  affected end-to-end flow, and only then remove the previous implementation.
 
 ## Interaction safety
 
@@ -168,6 +213,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Canonical documentation
 
+- Keep layered architecture and dependency rules in
+  [`docs/arquitectura.md`](docs/arquitectura.md).
 - Keep routine architecture decisions in
   [`docs/routine-sections.md`](docs/routine-sections.md).
 - Keep future product ideas in
