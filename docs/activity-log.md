@@ -35,6 +35,11 @@ aparece una sola vez y agrupa sus series: los resultados repetidos se condensan
 en una única lectura y las cargas variables conservan el detalle de cada serie.
 Esto mantiene legibles tanto las sesiones breves como las rutinas extensas.
 
+La Home del atleta resume la semana calendario con un timeline de sesiones
+completadas, en curso, programadas u omitidas. También calcula sesiones, minutos,
+series completadas y una racha de semanas activas desde este historial. La
+semana actual no interrumpe la racha mientras todavía esté abierta.
+
 El cronómetro comienza al iniciar la rutina y usa una marca temporal, por lo que
 sigue midiendo correctamente entre secciones y mientras la pantalla está
 bloqueada. Al salir de la ejecución se pausa y al retomarla continúa desde el
@@ -69,8 +74,9 @@ mínimo en línea junto a sus acciones, en lugar de simular que falta contenido 
 agregar una tarjeta vacía.
 
 El atleta puede eliminar del historial tanto actividades externas como sesiones
-de rutinas RTTP. Eliminar una sesión histórica no elimina la definición
-reutilizable de la rutina.
+de rutinas RTTP. La ocurrencia asociada también se quita de la agenda para que no
+siga apareciendo como completada, pero no se elimina la definición reutilizable
+de la rutina.
 
 ## Persistencia
 

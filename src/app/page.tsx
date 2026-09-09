@@ -376,8 +376,6 @@ export default function Home() {
     );
     persist({ type: "delete-activity", entityId: actividad.id });
 
-    if (actividad.type !== "external") return;
-
     setWorkouts((actuales) =>
       actuales.filter((item) => item.id !== actividad.scheduledWorkoutId),
     );
@@ -723,6 +721,7 @@ export default function Home() {
           users={users}
           routines={rutinasDelAtleta}
           workouts={workouts.filter((item) => item.athleteId === atleta.id)}
+          activities={activities.filter((item) => item.athleteId === atleta.id)}
           onStart={comenzarEntrenamiento}
           onUpdate={actualizarEntrenamiento}
           navigate={navigate}
@@ -780,7 +779,7 @@ export default function Home() {
         description={
           activityPendingDeletion?.type === "external"
             ? "También la vamos a quitar de la agenda para que no quede como actividad completada."
-            : "La actividad se eliminará del historial. La rutina original seguirá disponible."
+            : "También quitaremos esta sesión de la agenda para que no siga apareciendo como completada. La rutina original seguirá disponible."
         }
         confirmLabel="Eliminar actividad"
         destructive
