@@ -1437,6 +1437,7 @@ function FilaEjercicio({
     transition,
     isDragging,
   } = useSortable({ id: item.id, data: { sectionId } });
+  const exerciseLabel = item.name.trim() || "nuevo ejercicio";
 
   return (
     <div
@@ -1455,19 +1456,37 @@ function FilaEjercicio({
         <button
           {...attributes}
           {...listeners}
-          aria-label={`Arrastrar ${item.name}`}
+          aria-label={`Arrastrar ${exerciseLabel}`}
           className="touch-none cursor-grab rounded-lg p-1 text-white/20 transition-colors hover:bg-white/[0.06] hover:text-white/55 active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
         </button>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm xl:text-base">{item.name}</div>
+          <Input
+            id={`exercise-name-${item.id}`}
+            value={item.name}
+            onChange={(event) =>
+              onUpdate({ ...item, name: event.target.value })
+            }
+            onBlur={() => {
+              const trimmedName = item.name.trim();
+              if (trimmedName !== item.name) {
+                onUpdate({ ...item, name: trimmedName });
+              }
+            }}
+            autoFocus={!item.name}
+            aria-label={
+              item.name ? `Nombre de ${item.name}` : "Nombre del nuevo ejercicio"
+            }
+            placeholder="Nombre del ejercicio"
+            className="h-6 rounded-none border-0 bg-transparent p-0 text-sm font-medium shadow-none placeholder:text-white/25 focus-visible:ring-0 dark:bg-transparent xl:text-base"
+          />
           <Input
             value={item.instructions}
             onChange={(event) =>
               onUpdate({ ...item, instructions: event.target.value })
             }
-            aria-label={`Aclaraciones de ${item.name}`}
+            aria-label={`Aclaraciones de ${exerciseLabel}`}
             placeholder="+ Aclaración opcional"
             className="mt-1 h-5 rounded-none border-0 bg-transparent p-0 text-[10px] text-violet-100/55 shadow-none placeholder:text-white/20 focus-visible:ring-0 dark:bg-transparent xl:text-xs"
           />
@@ -1482,7 +1501,7 @@ function FilaEjercicio({
               onUpdate({ ...item, sets: Math.max(1, item.sets - 1) })
             }
             className="rounded-full text-indigo-100/40 hover:bg-indigo-300/10 hover:text-white"
-            aria-label={`Quitar una serie de ${item.name}`}
+            aria-label={`Quitar una serie de ${exerciseLabel}`}
           >
             <Minus />
           </Button>
@@ -1497,7 +1516,7 @@ function FilaEjercicio({
             size="icon-sm"
             onClick={() => onUpdate({ ...item, sets: item.sets + 1 })}
             className="rounded-full text-indigo-100/40 hover:bg-indigo-300/10 hover:text-white"
-            aria-label={`Agregar una serie a ${item.name}`}
+            aria-label={`Agregar una serie a ${exerciseLabel}`}
           >
             <Plus />
           </Button>
@@ -1505,7 +1524,7 @@ function FilaEjercicio({
         <div className="space-y-1">
           <div
             role="group"
-            aria-label={`Tipo de repeticiones de ${item.name}`}
+            aria-label={`Tipo de repeticiones de ${exerciseLabel}`}
             className="grid h-8 w-32 grid-cols-2 rounded-lg border border-white/10 bg-black/25 p-0.5"
           >
             {(["fijas", "rango"] as const).map((tipo) => {
@@ -1558,7 +1577,7 @@ function FilaEjercicio({
                     maxReps: reps,
                   });
                 }}
-                aria-label={`Repeticiones de ${item.name}`}
+                aria-label={`Repeticiones de ${exerciseLabel}`}
                 className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
               <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
@@ -1582,7 +1601,7 @@ function FilaEjercicio({
                       ),
                     })
                   }
-                  aria-label={`Repeticiones mínimas de ${item.name}`}
+                  aria-label={`Repeticiones mínimas de ${exerciseLabel}`}
                   className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
@@ -1604,7 +1623,7 @@ function FilaEjercicio({
                       ),
                     })
                   }
-                  aria-label={`Repeticiones máximas de ${item.name}`}
+                  aria-label={`Repeticiones máximas de ${exerciseLabel}`}
                   className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
                 <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
@@ -1627,7 +1646,7 @@ function FilaEjercicio({
                 weight: Math.max(0, Number(event.target.value)),
               })
             }
-            aria-label={`Peso de ${item.name}`}
+            aria-label={`Peso de ${exerciseLabel}`}
             className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
@@ -1650,7 +1669,7 @@ function FilaEjercicio({
                     : Math.max(0, Number(event.target.value)),
               })
             }
-            aria-label={`Descanso de ${item.name}`}
+            aria-label={`Descanso de ${exerciseLabel}`}
             className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
           <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
@@ -1662,7 +1681,7 @@ function FilaEjercicio({
           size="icon-sm"
           onClick={onDelete}
           className="hidden text-indigo-100/20 hover:bg-red-400/10 hover:text-red-200 md:inline-flex"
-          aria-label={`Eliminar ${item.name}`}
+          aria-label={`Eliminar ${exerciseLabel}`}
         >
           <X />
         </Button>
@@ -2649,6 +2668,9 @@ function HomeEntrenador({
   const [plantillaGuardadaVisible, setPlantillaGuardadaVisible] =
     useState(false);
   const hayCambios = JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
+  const hayEjerciciosSinNombre = rutina.structure.sections.some((section) =>
+    section.exercises.some((exercise) => !exercise.name.trim()),
+  );
   const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
   const rutinasSinEjercicios = rutinasPorAtleta.filter(
     (item) => cantidadEjercicios(item) === 0,
@@ -2773,7 +2795,7 @@ function HomeEntrenador({
     newSectionKind: SectionKind = "sequential",
   ) {
     if (sectionId === "nuevo" && newSectionName) {
-      const id = `seccion-${Date.now()}`;
+      const id = `seccion-${crypto.randomUUID()}`;
       setRutina((actual) => ({
         ...actual,
         structure: {
@@ -2807,6 +2829,35 @@ function HomeEntrenador({
       },
     }));
     setOpenSectionId(sectionId);
+  }
+
+  function agregarEjercicioVacio(sectionId: string) {
+    const ejercicioSinNombre = rutina.structure.sections
+      .find((section) => section.id === sectionId)
+      ?.exercises.find((exercise) => !exercise.name.trim());
+
+    if (ejercicioSinNombre) {
+      setOpenSectionId(sectionId);
+      window.requestAnimationFrame(() => {
+        document
+          .getElementById(`exercise-name-${ejercicioSinNombre.id}`)
+          ?.focus();
+      });
+      return;
+    }
+
+    const item: Exercise = {
+      id: `ejercicio-${crypto.randomUUID()}`,
+      name: "",
+      instructions: "",
+      sets: 3,
+      minReps: 10,
+      maxReps: 10,
+      weight: 0,
+      restSeconds: null,
+    };
+
+    agregarEjercicio(item, sectionId);
   }
 
   function moverEjercicio(event: DragEndEvent) {
@@ -3341,10 +3392,18 @@ function HomeEntrenador({
                       {hayCambios && (
                         <Button
                           onClick={guardar}
+                          disabled={hayEjerciciosSinNombre}
+                          title={
+                            hayEjerciciosSinNombre
+                              ? "Completá el nombre del ejercicio nuevo"
+                              : undefined
+                          }
                           className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110"
                         >
                           <Check />
-                          Guardar cambios
+                          {hayEjerciciosSinNombre
+                            ? "Completá el ejercicio"
+                            : "Guardar cambios"}
                         </Button>
                       )}
                       <Dialog>
@@ -3412,6 +3471,12 @@ function HomeEntrenador({
                       planificación del atleta.
                     </div>
                   )}
+                  {hayEjerciciosSinNombre && (
+                    <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-100/75">
+                      Completá el nombre del ejercicio nuevo para guardar la
+                      rutina.
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="p-0">
                   <DndContext
@@ -3432,21 +3497,14 @@ function HomeEntrenador({
                         }
                         onKindChange={(kind) => updateSectionKind(section.id, kind)}
                         addExercise={
-                          <DialogoEjercicio
-                            key={`add-exercise-${section.id}-${section.exercises.length}`}
-                            sections={rutina.structure.sections}
-                            initialSectionId={section.id}
-                            trigger={
-                              <button
-                                type="button"
-                                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] px-4 py-3 text-xs text-cyan-100/55 transition-colors hover:border-cyan-200/30 hover:bg-cyan-300/[0.06] hover:text-cyan-100"
-                              >
-                                <Plus className="size-3.5" />
-                                Sumar ejercicio
-                              </button>
-                            }
-                            onAdd={agregarEjercicio}
-                          />
+                          <button
+                            type="button"
+                            onClick={() => agregarEjercicioVacio(section.id)}
+                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] px-4 py-3 text-xs text-cyan-100/55 transition-colors hover:border-cyan-200/30 hover:bg-cyan-300/[0.06] hover:text-cyan-100"
+                          >
+                            <Plus className="size-3.5" />
+                            Sumar ejercicio
+                          </button>
                         }
                       >
                         {section.exercises.map((item) => (
@@ -3541,6 +3599,12 @@ function HomeEntrenador({
               </Button>
               <Button
                 onClick={continuarDespuesDeGuardar}
+                disabled={hayEjerciciosSinNombre}
+                title={
+                  hayEjerciciosSinNombre
+                    ? "Completá el nombre del ejercicio nuevo"
+                    : undefined
+                }
                 className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
               >
                 Guardar y continuar
