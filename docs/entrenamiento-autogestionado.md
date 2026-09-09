@@ -1,97 +1,65 @@
-# Entrenamiento autogestionado y coaching opcional
+# Rutinas personales para atletas
 
 ## Objetivo
 
-RTTP deja de asumir que toda experiencia de entrenamiento nace de una relación
-entre coach y atleta. Cualquier persona puede crear rutinas, programarlas,
-entrenarlas y seguir su progreso sin depender de un coach.
+Permitir que una persona con rol `athlete` cree, edite, programe, entrene y siga
+sus propias rutinas sin depender de un coach.
 
-El coaching pasa a ser una capacidad adicional y una relación opcional. Una misma
-cuenta puede entrenar por su cuenta, recibir planificación externa y gestionar a
-otras personas sin perder su espacio personal.
+La relación con un coach pasa a ser opcional para el atleta, pero los roles de la
+aplicación no cambian:
+
+- un `coach` continúa teniendo únicamente su experiencia y workspace de coach;
+- un `athlete` continúa teniendo únicamente su experiencia de atleta;
+- un atleta puede tener un coach asignado o entrenar de forma independiente.
+
+El alcance no convierte a los coaches en atletas, no agrega cuentas híbridas y no
+replantea la navegación del workspace del coach.
 
 ## Principios de producto
 
-- Toda cuenta tiene una experiencia personal de entrenamiento.
-- Tener coach es opcional.
-- Ser coach es una capacidad adicional, no una identidad excluyente.
-- La agenda, el historial y el progreso pertenecen siempre a quien entrena.
-- La procedencia y los permisos de cada rutina deben ser visibles y predecibles.
-- Una rutina asignada por un coach no se modifica accidentalmente desde el espacio
-  personal.
-- El atleta puede independizarse de una planificación mediante una copia propia.
-- Terminar una relación no elimina rutinas utilizadas ni actividades históricas.
+- Todo atleta puede entrenar sin coach.
+- Tener coach amplía la planificación disponible, pero no habilita la capacidad
+  de entrenar.
+- El atleta puede crear y administrar sus propias rutinas desde su sección
+  **Rutinas**.
+- Una rutina creada por un coach es de solo lectura para el atleta.
+- Una rutina creada por el atleta es editable por ese atleta.
+- Agenda, ejecución, historial y progreso siguen perteneciendo al atleta.
+- La interfaz debe comunicar claramente quién creó cada rutina y qué acciones
+  están permitidas.
 
-## Identidad y capacidades
+## Roles
 
-El perfil deja de usar un rol exclusivo `coach | athlete`. Toda persona puede
-entrenar y algunas cuentas habilitan además la capacidad de coaching.
+El contrato conserva los roles actuales:
 
 ```ts
-type Profile = {
-  id: number;
-  name: string;
-  email: string;
-  capabilities: {
-    coaching: boolean;
-  };
-};
+type Role = "coach" | "athlete";
 ```
 
-La capacidad de coaching habilita un workspace adicional. No reemplaza la Home
-personal ni modifica la propiedad del historial de la cuenta.
+### Coach
 
-En una primera versión cualquier usuario puede activar esta capacidad desde su
-perfil. La verificación profesional, los planes pagos y los límites comerciales
-quedan fuera de alcance.
+- Gestiona únicamente a sus atletas asignados.
+- Crea y edita rutinas para esos atletas.
+- Usa el workspace de coach.
+- No recibe una experiencia personal de atleta como parte de este alcance.
 
-## Relación de coaching
+### Atleta
 
-La relación deja de almacenarse como una lista dentro del coach y pasa a ser una
-entidad independiente.
+- Usa la experiencia de atleta.
+- Puede existir sin estar incluido en la lista de ningún coach.
+- Puede crear rutinas personales.
+- Puede usar rutinas personales y rutinas creadas por su coach.
+- Solo puede editar las rutinas que creó.
 
-```ts
-type CoachingRelationship = {
-  id: string;
-  coachId: number;
-  athleteId: number;
-  status: "pending" | "active" | "ended";
-  permissions: {
-    viewPersonalRoutines: boolean;
-    viewFullHistory: boolean;
-  };
-  createdAt: string;
-  endedAt: string | null;
-};
-```
+## Autoría y permisos de rutina
 
-El modelo soporta más de un coach por persona. La primera interfaz puede destacar
-uno principal, pero no debe introducir una restricción que obligue a migrar el
-dominio para sumar especialistas después.
-
-### Visibilidad predeterminada
-
-- El coach ve y administra las rutinas que creó para esa persona.
-- El coach ve las actividades realizadas sobre sus rutinas asignadas.
-- Las rutinas personales y el resto del historial permanecen privados.
-- El atleta puede conceder acceso adicional mediante los permisos de la relación.
-- Finalizar la relación revoca el acceso futuro del coach.
-
-## Propiedad de rutinas
-
-Una rutina necesita identificar quién la ejecuta, quién la creó, quién la
-administra y de dónde proviene.
+La rutina necesita guardar quién la creó.
 
 ```ts
-type RoutineOrigin = "personal" | "coach" | "copied";
-
 type Routine = {
   id: string;
   athleteId: number;
   createdById: number;
-  managedById: number;
-  origin: RoutineOrigin;
-  sourceRoutineId: string | null;
   title: string;
   objective: string;
   durationMinutes: number | null;
@@ -99,44 +67,21 @@ type Routine = {
 };
 ```
 
-`athleteId` sigue representando a la persona que ejecuta la rutina. No implica que
-esa persona tenga un rol exclusivo de atleta.
+- `athleteId` identifica a la persona que usa y ejecuta la rutina.
+- `createdById` identifica al usuario que creó la rutina.
+- Si `createdById === athleteId`, la rutina es personal y el atleta puede editarla.
+- Si `createdById` pertenece a un coach, el atleta puede verla, programarla y
+  entrenarla, pero no editar su contenido.
+- El coach solo puede editar una rutina que haya creado para uno de sus atletas
+  asignados.
 
-### Rutina personal
+En la primera versión no se agregan `origin`, `managedById`, capacidades de
+cuenta ni relaciones nuevas si `createdById` y la asignación actual alcanzan para
+expresar el comportamiento aprobado.
 
-- `athleteId`, `createdById` y `managedById` pertenecen al mismo usuario.
-- El usuario puede editar, programar, duplicar y eliminar la rutina.
+## Experiencia del atleta
 
-### Rutina asignada
-
-- `athleteId` pertenece a quien entrena.
-- `createdById` y `managedById` pertenecen al coach.
-- El atleta puede ejecutarla y programarla, pero no modificar el contenido.
-- El coach puede actualizarla mientras la relación esté activa.
-
-### Copia personal
-
-- El atleta puede duplicar una rutina asignada.
-- La copia no recibe futuras modificaciones del coach.
-- El atleta pasa a crear y administrar la nueva rutina.
-- `sourceRoutineId` conserva la trazabilidad sin crear dependencia funcional.
-
-## Matriz inicial de permisos
-
-| Acción | Personal | Asignada por coach | Copia personal |
-| --- | --- | --- | --- |
-| Ver y entrenar | Atleta | Atleta | Atleta |
-| Programar | Atleta | Atleta o coach | Atleta |
-| Editar contenido | Atleta | Coach | Atleta |
-| Duplicar | Atleta | Atleta o coach | Atleta |
-| Eliminar del espacio personal | Atleta | Coach mientras la relación esté activa | Atleta |
-| Consultar actividad | Atleta | Atleta y coach relacionado | Atleta |
-
-Las acciones del coach están condicionadas por una relación activa.
-
-## Experiencia personal
-
-La navegación principal de toda cuenta conserva:
+La navegación principal no cambia:
 
 - Inicio;
 - Rutinas;
@@ -144,136 +89,109 @@ La navegación principal de toda cuenta conserva:
 - Progreso;
 - Perfil.
 
-La pantalla de rutinas deja de asumir que todos los planes fueron asignados.
-Presenta una biblioteca única con filtros:
+La creación y edición se agregan dentro de **Rutinas**.
 
-- **Todas**;
-- **Mis rutinas**;
-- **Asignadas**.
+### Biblioteca
 
-Cada rutina muestra su procedencia:
+Cada tarjeta debe mostrar el origen de forma legible:
 
-- Personal;
-- Asignada por `{coach}`;
-- Copiada de `{rutina}`.
+- **Creada por vos**;
+- **Creada por {coach}**.
 
-El editor existente se reutiliza para rutinas personales. La disponibilidad de
-acciones depende de permisos, no de montar un editor diferente para cada tipo de
-usuario.
+La acción principal depende del permiso:
 
-## Workspace de coach
+- rutina personal: ver, editar, programar, entrenar y eliminar;
+- rutina del coach: ver, programar y entrenar;
+- las acciones todavía no aprobadas, como duplicar o desvincular, no se incorporan
+  por inferencia.
 
-Una cuenta con capacidad de coaching puede alternar explícitamente entre:
+### Editor
 
-- **Mi entrenamiento**;
-- **Workspace de coach**.
+El atleta reutiliza el editor de rutinas existente con la misma estructura de
+secciones y ejercicios.
 
-El espacio personal es la entrada predeterminada. El workspace profesional
-mantiene la gestión de personas, plantillas, rutinas, agenda e historial
-permitido.
+El editor debe:
 
-Activar la capacidad de coaching no crea atletas automáticamente ni cambia la
-experiencia personal.
+- ser mobile-first;
+- mantener guardado explícito y protección de cambios sin guardar;
+- usar las mismas reglas de validación que el editor del coach;
+- quedar disponible únicamente para rutinas creadas por el atleta actual;
+- mantener las rutinas del coach en una vista de solo lectura.
+
+## Atleta sin coach
+
+Un atleta sin coach conserva acceso completo a:
+
+- Home;
+- creación y biblioteca de rutinas;
+- agenda;
+- ejecución;
+- historial y progreso;
+- perfil.
+
+La ausencia de coach debe mostrarse como un estado normal, no como una cuenta
+incompleta o bloqueada.
+
+Los mensajes actuales que presuponen un entrenador deben adaptarse. Por ejemplo,
+una rutina vacía creada por el atleta no debe decir “Tu entrenador todavía no
+cargó ejercicios”.
 
 ## Agenda, ejecución e historial
 
-- Las rutinas personales y asignadas se programan con el mismo flujo.
-- Cada entrenamiento pertenece a la persona que lo ejecuta.
-- El motor de workout no cambia según el origen de la rutina.
-- El snapshot histórico conserva origen, creador y administrador al comenzar o
-  completar la sesión.
-- Editar, copiar o perder acceso a la rutina original no modifica actividades
-  históricas.
-- El progreso personal agrega todas las actividades del usuario.
-- El coach solo consulta el alcance concedido por la relación.
+- Las rutinas propias y las creadas por un coach se programan con el mismo flujo.
+- El motor de workout no cambia según el creador.
+- Cada actividad histórica sigue perteneciendo al atleta que entrenó.
+- El snapshot histórico debe conservar `createdById` para explicar el origen de la
+  rutina aunque luego cambie la relación con el coach.
+- Editar una rutina personal o una rutina del coach no modifica actividades
+  históricas anteriores.
 
-## Ciclo de vida de la relación
+## Persistencia y migración
 
-### Inicio
+La implementación requiere:
 
-1. Un coach invita a una persona existente o crea una invitación por email.
-2. La persona acepta la relación.
-3. El coach puede asignar rutinas y consultar el alcance autorizado.
+1. agregar `created_by_id` a `routines`;
+2. agregar `createdById` al contrato TypeScript, mappers y payloads;
+3. incluir la autoría en snapshots de actividad cuando corresponda;
+4. actualizar RPC, migraciones y outbox;
+5. inferir el creador de las rutinas existentes sin perder datos;
+6. mantener `profiles.role` y `profiles.athlete_ids`;
+7. permitir perfiles `athlete` que no aparezcan en `athlete_ids` de ningún coach;
+8. aplicar permisos de edición tanto en la UI como en la futura RLS.
 
-La creación automática de cuentas sin aceptación se mantiene únicamente como
-compatibilidad temporal mientras no exista Supabase Auth.
+Antes de modificar Supabase se debe crear y verificar un backup.
 
-### Finalización
+## Primera versión propuesta
 
-- La relación pasa a `ended`; no se elimina.
-- El coach pierde permisos de lectura y escritura.
-- Las actividades históricas permanecen intactas.
-- Las rutinas asignadas quedan disponibles como referencia entrenable de solo
-  lectura.
-- El atleta puede convertir una rutina asignada en copia personal editable.
-- No se reciben futuras actualizaciones del coach.
+- Botón para crear rutina dentro de la biblioteca del atleta.
+- Editor completo para rutinas personales.
+- Autor visible en todas las rutinas.
+- Rutinas del coach en modo de solo lectura.
+- Edición y eliminación de rutinas personales.
+- Atleta funcional sin coach.
+- Migración de datos existentes.
+- Validación con atleta sin coach, atleta con coach y coach asignado.
 
-## Onboarding
+## Decisiones pendientes antes de implementar
 
-Una persona sin coach puede:
+Todavía requieren confirmación explícita:
 
-- crear una rutina desde cero;
-- comenzar desde una plantilla inicial;
-- programar una rutina;
-- entrenar inmediatamente;
-- conectar un coach más adelante.
-
-El acceso inicial no pregunta de forma excluyente “atleta o coach”. La capacidad
-de coaching se activa después desde el perfil.
-
-## Cambios de persistencia
-
-La implementación requerirá:
-
-1. reemplazar `profiles.role` y `profiles.athlete_ids` por capacidades y relaciones;
-2. crear `coaching_relationships`;
-3. agregar a `routines`:
-   - `created_by_id`;
-   - `managed_by_id`;
-   - `origin`;
-   - `source_routine_id`;
-4. migrar las relaciones actuales sin perder usuarios;
-5. inferir el creador y administrador de las rutinas existentes;
-6. incorporar los metadatos de origen a snapshots y plantillas;
-7. actualizar RPC, mappers, outbox y futura RLS;
-8. mantener identificadores y actividades históricas existentes.
-
-La migración debe ejecutarse después de crear y verificar un backup completo.
-
-## Primera versión funcional
-
-La primera entrega incluye:
-
-- espacio personal para todas las cuentas;
-- creación, edición, duplicación y eliminación de rutinas personales;
-- biblioteca con filtros y procedencia;
-- asignaciones del coach en modo lectura para el atleta;
-- duplicación de una asignación como rutina personal;
-- alternancia entre espacio personal y workspace de coach;
-- relación de coaching independiente;
-- migración de usuarios y rutinas actuales;
-- permisos aplicados en UI y persistencia.
-
-Quedan fuera de esta primera versión:
-
-- marketplace o biblioteca pública;
-- colaboración simultánea sobre una rutina;
-- monetización y límites de planes;
-- verificación profesional;
-- comentarios en tiempo real entre coach y atleta;
-- sincronización automática entre una asignación y una copia personal;
-- invitaciones reales hasta incorporar Supabase Auth.
+- visibilidad del coach sobre las rutinas creadas por el atleta;
+- posibilidad de duplicar una rutina del coach como rutina personal;
+- capacidad del atleta para ocultar o quitar una rutina asignada;
+- comportamiento de rutinas del coach cuando termina la relación;
+- organización visual de rutinas propias y asignadas;
+- asignación de `createdById` a las rutinas existentes durante la migración;
+- disponibilidad de plantillas para atletas;
+- creación inicial de atletas independientes mientras no existe Supabase Auth.
 
 ## Criterios de aceptación
 
-- Una persona sin coach puede completar el flujo crear → programar → entrenar →
-  consultar historial.
-- Una cuenta con capacidad de coaching conserva su espacio personal.
-- Un coach puede asignar una rutina sin apropiarse del historial completo del
-  atleta.
-- El atleta no puede editar directamente una rutina administrada por el coach.
-- El atleta puede crear una copia personal independiente.
-- Las vistas muestran claramente procedencia y permisos.
-- Finalizar una relación no elimina rutinas utilizadas ni actividades.
-- Las cuentas y rutinas actuales se migran sin perder datos.
-- Los flujos funcionan con reload, outbox, mobile y desktop.
+- Un atleta sin coach puede crear, editar, programar y completar una rutina.
+- Un atleta con coach puede combinar rutinas propias y rutinas asignadas.
+- El atleta no puede editar directamente una rutina creada por su coach.
+- El coach conserva el flujo actual para crear y editar rutinas de sus atletas.
+- Cada rutina muestra quién la creó.
+- Los permisos se calculan desde datos persistidos y no solo desde la ruta visible.
+- Agenda, workout, reload, historial y responsive continúan funcionando.
+- La migración conserva usuarios, rutinas, entrenamientos y actividades actuales.

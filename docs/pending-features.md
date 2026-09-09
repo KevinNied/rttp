@@ -15,9 +15,9 @@ No representa trabajo comprometido ni un orden definitivo de implementación.
 
 ### Objetivo
 
-Convertir RTTP en una plataforma de entrenamiento personal donde toda cuenta
-pueda crear, programar y ejecutar sus propias rutinas. Tener coach pasa a ser una
-relación opcional y ser coach, una capacidad adicional.
+Permitir que una persona con rol `athlete` cree, programe y ejecute sus propias
+rutinas. Tener coach pasa a ser opcional para el atleta, pero los roles
+`coach | athlete` continúan siendo exclusivos.
 
 La definición completa del nuevo modelo de identidad, relaciones, propiedad,
 permisos, navegación, migración y primera versión está documentada en
@@ -25,14 +25,13 @@ permisos, navegación, migración y primera versión está documentada en
 
 ### Decisiones base
 
-- Toda cuenta tiene un espacio personal de entrenamiento.
-- La capacidad de coaching no reemplaza la experiencia personal.
+- El coach continúa teniendo únicamente su workspace de coach.
+- El atleta continúa teniendo únicamente su experiencia de atleta.
+- Un atleta puede existir y entrenar sin coach.
 - Las rutinas personales son administradas por su creador.
 - Las rutinas asignadas son administradas por el coach y de solo lectura para el
   atleta.
-- Una asignación puede duplicarse como copia personal independiente.
-- La relación de coaching es una entidad opcional, revocable y preparada para
-  múltiples coaches.
+- Cada rutina guarda `createdById` para definir autoría y permisos.
 - Agenda, historial y progreso pertenecen a quien realiza el entrenamiento.
 
 ## Progreso por ejercicio

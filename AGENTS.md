@@ -26,13 +26,21 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Product decision style
 
-- Prefer decisive execution over prolonged specification. When a request is clear
-  enough, make reasonable product and UX assumptions and carry the work through
-  implementation, validation, release, and production verification.
-- Ask before decisions that materially change business behavior, destroy or
-  migrate data, alter workout semantics, or introduce competing product concepts.
-- Do not block implementation on minor visual or technical choices. Choose the
-  option that best preserves simplicity, coherence, and future extensibility.
+- Before implementation, identify and surface unresolved assumptions across
+  product behavior, business rules, permissions, data ownership, migrations,
+  technical design, UX, and edge cases.
+- Ask one focused clarification at a time when more than one reasonable behavior
+  exists. Provide concrete options, explain their consequences, and place the
+  recommended option first.
+- Prefer clarifying too much over silently implementing an interpretation that
+  may not match the user's intent. A broad product goal is not approval for
+  adjacent role, permission, ownership, or workflow changes.
+- Record consequential decisions in the relevant canonical document before
+  implementing a structural feature.
+- Once behavior and scope are clear, execute decisively through implementation,
+  validation, release, and production verification.
+- Routine technical details with no observable product, data, or maintenance
+  tradeoff may be decided autonomously using repository conventions.
 - When the user requests only an audit, review, or recommendations, do not
   implement changes until they are explicitly approved.
 
