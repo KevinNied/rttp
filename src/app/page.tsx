@@ -1446,7 +1446,7 @@ function FilaEjercicio({
         transition,
       }}
       className={cn(
-        "mx-3 my-2 grid gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-3 py-3 shadow-sm md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center xl:mx-4 xl:my-3 xl:gap-5 xl:px-4 xl:py-4",
+        "mx-3 my-2 grid gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-3 py-3 shadow-sm xl:mx-4 xl:my-3 xl:grid-cols-[minmax(10rem,1fr)_auto] xl:items-center xl:gap-5 xl:px-4 xl:py-4",
         isDragging &&
           "relative z-20 border-cyan-300/30 bg-app-elevated opacity-70 shadow-2xl",
       )}
@@ -1460,13 +1460,6 @@ function FilaEjercicio({
         >
           <GripVertical className="size-4" />
         </button>
-        <div className="grid size-8 shrink-0 place-items-center rounded-xl bg-violet-300/10 text-[10px] font-medium text-violet-100/60 xl:size-10 xl:text-xs">
-          {item.name
-            .split(" ")
-            .map((palabra) => palabra[0])
-            .join("")
-            .slice(0, 2)}
-        </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm xl:text-base">{item.name}</div>
           <Input
@@ -1480,7 +1473,7 @@ function FilaEjercicio({
           />
         </div>
       </div>
-      <div className="flex flex-wrap items-end justify-between gap-3 md:justify-start">
+      <div className="flex flex-wrap items-end justify-between gap-3 sm:justify-start xl:justify-end">
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -1664,16 +1657,16 @@ function FilaEjercicio({
             descanso (s)
           </div>
         </label>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onDelete}
+          className="hidden text-indigo-100/20 hover:bg-red-400/10 hover:text-red-200 md:inline-flex"
+          aria-label={`Eliminar ${item.name}`}
+        >
+          <X />
+        </Button>
       </div>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={onDelete}
-        className="hidden text-indigo-100/20 hover:bg-red-400/10 hover:text-red-200 md:inline-flex"
-        aria-label={`Eliminar ${item.name}`}
-      >
-        <X />
-      </Button>
     </div>
   );
 }
