@@ -515,21 +515,19 @@ export function HomeHoy({
           </div>
         </div>
 
-        <div className="flex flex-col justify-between rounded-3xl border border-border bg-app-panel p-5 text-foreground shadow-sm dark:border-white/[0.08] dark:text-white dark:shadow-none">
-          <div className="flex items-center gap-3">
-            <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-200">
+        <div className="flex flex-col items-center justify-center rounded-3xl border border-border bg-app-panel p-5 text-center text-foreground shadow-sm dark:border-white/[0.08] dark:text-white dark:shadow-none">
+          <div className="flex flex-col items-center">
+            <div className="grid size-12 place-items-center rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-200">
               <Flame className="size-5" />
             </div>
-            <div>
-              <div className="text-2xl font-medium tabular-nums">
-                {rachaSemanal}
-              </div>
-              <div className="text-xs text-foreground/50 dark:text-white/40">
-                {countLabel(rachaSemanal, "semana activa", "semanas activas")}
-              </div>
+            <div className="mt-3 text-3xl font-semibold leading-none tabular-nums">
+              {rachaSemanal}
+            </div>
+            <div className="mt-1.5 text-xs text-foreground/50 dark:text-white/40">
+              {countLabel(rachaSemanal, "semana activa", "semanas activas")}
             </div>
           </div>
-          <p className="mt-6 text-xs leading-relaxed text-foreground/60 dark:text-white/45">
+          <p className="mt-5 max-w-56 text-xs leading-relaxed text-foreground/60 dark:text-white/45">
             {mensajeSemanal}
           </p>
         </div>

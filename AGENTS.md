@@ -68,6 +68,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   layout. Remaining components should fill or intentionally redistribute the
   freed space instead of leaving dead gaps; verify this at the affected mobile
   and desktop breakpoints.
+- Filling available space does not mean pushing related content to opposite
+  edges. Keep an icon, its value, label, and supporting copy as one visual group,
+  then place that group intentionally with alignment and padding.
 - Keep the visual language premium and restrained: deep neutral and indigo
   surfaces, cyan and violet accents, controlled gradients, generous rounding,
   subtle borders, and decoration only when it improves hierarchy.
