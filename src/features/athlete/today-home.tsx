@@ -8,7 +8,6 @@ import {
   Clock3,
   Dumbbell,
   Flame,
-  ListChecks,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -62,11 +61,6 @@ export function HomeHoy({
   navigate: (path: string) => void;
 }) {
   const hoy = localDate();
-  const fechaLegible = new Intl.DateTimeFormat("es-AR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(new Date(`${hoy}T12:00:00`));
   const workoutIdsConActividad = new Set(
     activities.map((activity) => activity.scheduledWorkoutId),
   );
@@ -89,35 +83,10 @@ export function HomeHoy({
       `${a.date}${a.time ?? ""}`.localeCompare(`${b.date}${b.time ?? ""}`),
     )[0];
   const inicioSemana = startOfWeek(hoy);
-  const finSemana = addDays(inicioSemana, 6);
   const diasDeLaSemana = Array.from({ length: 7 }, (_, index) =>
     addDays(inicioSemana, index),
   );
-  const actividadesDeLaSemana = activities.filter(
-    (activity) => activity.date >= inicioSemana && activity.date <= finSemana,
-  );
-  const minutosDeLaSemana = Math.round(
-    actividadesDeLaSemana.reduce(
-      (total, activity) =>
-        total +
-        (activity.durationSeconds !== null
-          ? activity.durationSeconds / 60
-          : (activity.durationMinutes ?? 0)),
-      0,
-    ),
-  );
-  const seriesDeLaSemana = actividadesDeLaSemana.reduce(
-    (total, activity) =>
-      total + activity.sets.filter((set) => !set.skipped).length,
-    0,
-  );
   const inicioSemanaAnterior = addDays(inicioSemana, -7);
-  const finSemanaAnterior = addDays(inicioSemana, -1);
-  const actividadesSemanaAnterior = activities.filter(
-    (activity) =>
-      activity.date >= inicioSemanaAnterior &&
-      activity.date <= finSemanaAnterior,
-  ).length;
   const semanasConActividad = new Set(
     activities.map((activity) => startOfWeek(activity.date)),
   );
@@ -129,16 +98,6 @@ export function HomeHoy({
     rachaSemanal += 1;
     semanaDeRacha = addDays(semanaDeRacha, -7);
   }
-  const mensajeSemanal =
-    actividadesDeLaSemana.length === 0
-      ? actividadesSemanaAnterior > 0
-        ? "Esta semana todavía está abierta. Tu próxima sesión mantiene el ritmo."
-        : "Tu próximo entrenamiento puede ser el inicio de una nueva racha."
-      : actividadesDeLaSemana.length > actividadesSemanaAnterior
-        ? "Ya superaste la cantidad de sesiones de la semana pasada."
-        : actividadesDeLaSemana.length === actividadesSemanaAnterior
-          ? "Ya igualaste la cantidad de sesiones de la semana pasada."
-          : `Te faltan ${actividadesSemanaAnterior - actividadesDeLaSemana.length} para igualar la semana pasada.`;
 
   return (
     <div className={desktopPageShellClassName}>
@@ -146,9 +105,7 @@ export function HomeHoy({
         <div>
           <div className={pageEyebrowClassName}>Tu día</div>
           <h1 className={pageTitleClassName}>Tu entrenamiento de hoy</h1>
-          <p className={pageDescriptionClassName}>
-            Hola, {atleta.name}. {fechaLegible}
-          </p>
+          <p className={pageDescriptionClassName}>Hola, {atleta.name}.</p>
         </div>
       </div>
 
@@ -538,57 +495,19 @@ export function HomeHoy({
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-          <div className="rounded-3xl border border-border bg-app-panel p-5 text-foreground shadow-sm dark:border-white/[0.08] dark:text-white dark:shadow-none">
-            <div className="flex items-center gap-3">
-              <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-200">
-                <Flame className="size-5" />
+        <div className="rounded-3xl border border-border bg-app-panel p-5 text-foreground shadow-sm xl:self-start dark:border-white/[0.08] dark:text-white dark:shadow-none">
+          <div className="flex items-center gap-3">
+            <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-200">
+              <Flame className="size-5" />
+            </div>
+            <div>
+              <div className="text-2xl font-medium tabular-nums">
+                {rachaSemanal}
               </div>
-              <div>
-                <div className="text-2xl font-medium tabular-nums">
-                  {rachaSemanal}
-                </div>
-                <div className="text-xs text-foreground/50 dark:text-white/40">
-                  {countLabel(rachaSemanal, "semana activa", "semanas activas")}
-                </div>
+              <div className="text-xs text-foreground/50 dark:text-white/40">
+                {countLabel(rachaSemanal, "semana activa", "semanas activas")}
               </div>
             </div>
-            <p className="mt-4 text-xs leading-relaxed text-foreground/60 dark:text-white/45">
-              {mensajeSemanal}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 rounded-3xl border border-border bg-app-panel p-3 text-foreground shadow-sm sm:p-4 dark:border-white/[0.08] dark:text-white dark:shadow-none">
-            {[
-              {
-                value: actividadesDeLaSemana.length,
-                label: "Sesiones",
-                icon: CheckCircle2,
-              },
-              {
-                value: minutosDeLaSemana,
-                label: "Minutos",
-                icon: Clock3,
-              },
-              {
-                value: seriesDeLaSemana,
-                label: "Series",
-                icon: ListChecks,
-              },
-            ].map(({ value, label, icon: MetricIcon }) => (
-              <div
-                key={label}
-                className="min-w-0 rounded-2xl bg-app-elevated px-2 py-3 text-center dark:bg-white/[0.035]"
-              >
-                <MetricIcon className="mx-auto size-3.5 text-cyan-700 dark:text-cyan-200/65" />
-                <div className="mt-2 text-lg font-medium tabular-nums">
-                  {value}
-                </div>
-                <div className="mt-0.5 truncate text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/35">
-                  {label}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </section>

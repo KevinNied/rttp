@@ -36,9 +36,9 @@ en una única lectura y las cargas variables conservan el detalle de cada serie.
 Esto mantiene legibles tanto las sesiones breves como las rutinas extensas.
 
 La Home del atleta resume la semana calendario con un timeline de sesiones
-completadas, en curso, programadas u omitidas. También calcula sesiones, minutos,
-series completadas y una racha de semanas activas desde este historial. La
-semana actual no interrumpe la racha mientras todavía esté abierta.
+completadas, en curso, programadas u omitidas. También muestra una racha de
+semanas activas calculada desde este historial. La semana actual no interrumpe
+la racha mientras todavía esté abierta.
 
 El cronómetro comienza al iniciar la rutina y usa una marca temporal, por lo que
 sigue midiendo correctamente entre secciones y mientras la pantalla está
