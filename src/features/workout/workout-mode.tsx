@@ -12,6 +12,7 @@ import {
   RotateCcw,
   SkipForward,
   TimerReset,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ import {
   TrainingSetRecord,
   WorkoutTimerState,
 } from "@/domain/workout/workout-session";
+import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
 import { CampoPrescripcion } from "@/features/workout/prescription-field";
 import { WorkoutOverviewSheet } from "@/features/workout/workout-overview-sheet";
 import { WorkoutRoundSummary } from "@/features/workout/workout-round-summary";
@@ -46,6 +48,7 @@ export function WorkoutMode({
   restTimer,
   setRestTimer,
   onExit,
+  onCancel,
   onFinish,
 }: {
   rutina: Routine;
@@ -60,6 +63,7 @@ export function WorkoutMode({
   restTimer: RestTimerState | null;
   setRestTimer: React.Dispatch<React.SetStateAction<RestTimerState | null>>;
   onExit: () => void;
+  onCancel: () => void;
   onFinish: () => void;
 }) {
   const pasos = pasosDeRutina(rutina, sesionId);
@@ -68,6 +72,7 @@ export function WorkoutMode({
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [mensaje, setMensaje] = useState("");
+  const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(() =>
     elapsedSecondsForTimer(timer),
   );
@@ -462,14 +467,26 @@ export function WorkoutMode({
               </span>
             </div>
           </div>
-          <WorkoutOverviewSheet
-            rutina={rutina}
-            pasos={pasos}
-            paso={paso}
-            registros={registros}
-            registrosResueltos={registrosResueltos}
-            registrosPospuestos={registrosPospuestos}
-          />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setCancelConfirmationOpen(true)}
+              aria-label="Cancelar entrenamiento"
+              title="Cancelar entrenamiento"
+              className="size-9 rounded-full border border-red-300/10 text-red-200/60 hover:bg-red-400/10 hover:text-red-100"
+            >
+              <X />
+            </Button>
+            <WorkoutOverviewSheet
+              rutina={rutina}
+              pasos={pasos}
+              paso={paso}
+              registros={registros}
+              registrosResueltos={registrosResueltos}
+              registrosPospuestos={registrosPospuestos}
+            />
+          </div>
         </div>
         <Progress
           value={(registrosResueltos / pasos.length) * 100}
@@ -820,6 +837,19 @@ export function WorkoutMode({
           </div>
         )}
       </div>
+      <ConfirmationDialog
+        open={cancelConfirmationOpen}
+        title="¿Cancelar el entrenamiento?"
+        description={`Se eliminará el progreso de “${rutina.title}” y la sesión no aparecerá como completada. Esta acción no se puede deshacer.`}
+        confirmLabel="Cancelar entrenamiento"
+        cancelLabel="Seguir entrenando"
+        destructive
+        onCancel={() => setCancelConfirmationOpen(false)}
+        onConfirm={() => {
+          setCancelConfirmationOpen(false);
+          onCancel();
+        }}
+      />
     </div>
   );
 }

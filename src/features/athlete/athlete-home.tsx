@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Pencil,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -41,6 +42,7 @@ import {
 import { OverviewRutina } from "@/features/athlete/routine-overview";
 import { DialogoNuevaRutina } from "@/features/routine-editor/new-routine-dialog";
 import { SelectorRutina } from "@/features/routine-editor/routine-selector";
+import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
 import {
   desktopPageShellClassName,
   pageDescriptionClassName,
@@ -66,6 +68,7 @@ export function HomeAtleta({
   onDuplicate,
   onArchive,
   onRestore,
+  onDelete,
   progreso,
   onReset,
 }: {
@@ -83,10 +86,13 @@ export function HomeAtleta({
   onDuplicate: (routine: Routine) => void;
   onArchive: (routine: Routine) => void;
   onRestore: (routine: Routine) => void;
+  onDelete: (id: string) => void;
   progreso: number;
   onReset: () => void;
 }) {
   const [filter, setFilter] = useState<RoutineFilter>("all");
+  const [routinePendingDeletion, setRoutinePendingDeletion] =
+    useState<Routine | null>(null);
   const activeRoutines = routines.filter((item) => item.archivedAt === null);
   const archivedRoutines = routines.filter((item) => item.archivedAt !== null);
   const hasCoachRoutines = routines.some(
@@ -113,6 +119,10 @@ export function HomeAtleta({
     !readOnly &&
     visibleRoutine !== undefined &&
     canAthleteEditRoutine(visibleRoutine, athlete.id);
+  const deletable =
+    !readOnly &&
+    visibleRoutine !== undefined &&
+    isAthleteOwnedRoutine(visibleRoutine);
   const authorLabel = (routine: Routine) =>
     routineCreatorLabel(routine, users, viewer);
 
@@ -287,16 +297,28 @@ export function HomeAtleta({
                     lectura.
                   </div>
                 ) : visibleRoutine.archivedAt ? (
-                  <Button
-                    onClick={() => {
-                      onRestore(visibleRoutine);
-                      setFilter("all");
-                    }}
-                    className="mt-6 h-11 w-full rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 sm:w-auto sm:px-7"
-                  >
-                    <RotateCcw />
-                    Restaurar rutina
-                  </Button>
+                  <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <Button
+                      onClick={() => {
+                        onRestore(visibleRoutine);
+                        setFilter("all");
+                      }}
+                      className="h-11 rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 sm:px-7"
+                    >
+                      <RotateCcw />
+                      Restaurar rutina
+                    </Button>
+                    {deletable && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => setRoutinePendingDeletion(visibleRoutine)}
+                        className="h-11 rounded-full text-red-200/65 hover:bg-red-400/10 hover:text-red-100"
+                      >
+                        <Trash2 />
+                        Eliminar
+                      </Button>
+                    )}
+                  </div>
                 ) : (
                   <>
                     <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
@@ -339,6 +361,18 @@ export function HomeAtleta({
                         <Archive />
                         Archivar
                       </Button>
+                      {deletable && (
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            setRoutinePendingDeletion(visibleRoutine)
+                          }
+                          className="h-11 rounded-full text-red-200/65 hover:bg-red-400/10 hover:text-red-100"
+                        >
+                          <Trash2 />
+                          Eliminar
+                        </Button>
+                      )}
                     </div>
                     {routineIncomplete && (
                       <p className="mt-3 max-w-md text-[11px] leading-relaxed text-amber-100/70">
@@ -413,6 +447,23 @@ export function HomeAtleta({
           </div>
         )}
       </div>
+      <ConfirmationDialog
+        open={routinePendingDeletion !== null}
+        title={
+          routinePendingDeletion
+            ? `¿Eliminar “${routinePendingDeletion.title}”?`
+            : "¿Eliminar rutina?"
+        }
+        description="La rutina y sus entrenamientos programados se eliminarán definitivamente. Las actividades que ya completaste seguirán en tu historial."
+        confirmLabel="Eliminar rutina"
+        destructive
+        onCancel={() => setRoutinePendingDeletion(null)}
+        onConfirm={() => {
+          if (!routinePendingDeletion) return;
+          onDelete(routinePendingDeletion.id);
+          setRoutinePendingDeletion(null);
+        }}
+      />
     </div>
   );
 }

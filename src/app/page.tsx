@@ -488,17 +488,18 @@ export default function Home() {
 
   function eliminarRutina(id: string) {
     const rutinaAEliminar = routines.find((item) => item.id === id);
-    if (
-      !usuario ||
-      usuario.role !== "coach" ||
-      !rutinaAEliminar ||
-      !canCoachEditRoutine(rutinaAEliminar, usuario)
-    ) {
+    const puedeEliminar =
+      usuario &&
+      rutinaAEliminar &&
+      (usuario.role === "coach"
+        ? canCoachEditRoutine(rutinaAEliminar, usuario)
+        : rutinaAEliminar.athleteId === usuario.id &&
+          rutinaAEliminar.createdById === usuario.id);
+    if (!puedeEliminar || !rutinaAEliminar) {
       setSyncError("No tenés permiso para eliminar esta rutina.");
       return;
     }
     const restantes = rutinasDelAtleta.filter((item) => item.id !== id);
-    if (restantes.length === 0) return;
     const idsDeEntrenamientos = workouts
       .filter((item) => item.origin === "routine" && item.routineId === id)
       .map((item) => item.id);
@@ -512,7 +513,15 @@ export default function Home() {
         (item) => item.origin !== "routine" || item.routineId !== id,
       ),
     );
-    setRutinaId(restantes[0].id);
+    const siguienteRutina =
+      restantes.find((item) => item.archivedAt === null) ?? restantes[0];
+    setRutinaId(siguienteRutina?.id ?? "");
+    if (
+      entrenamientoActivoId &&
+      idsDeEntrenamientos.includes(entrenamientoActivoId)
+    ) {
+      setEntrenamientoActivoId(null);
+    }
     setRegistros((actuales) =>
       recordsWithoutSessions(actuales, idsDeEntrenamientos),
     );
@@ -729,6 +738,8 @@ export default function Home() {
           onDuplicateRoutine={duplicarRutinaPersonal}
           onArchiveRoutine={archivarRutina}
           onRestoreRoutine={restaurarRutina}
+          onDeleteRoutine={eliminarRutina}
+          onCancelWorkout={eliminarEntrenamiento}
           onCloseScheduled={() => setEntrenamientoActivoId(null)}
           onWorkoutModeChange={setWorkoutImmersive}
           onDirtyChange={setEditorDirty}

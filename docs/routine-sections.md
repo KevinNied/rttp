@@ -105,6 +105,12 @@ sin multiplicar tipos innecesariamente.
 - Una rutina puede mezclar ambas estrategias.
 - El descanso opcional de cada ejercicio puede cargarse en segundos o minutos,
   pero se conserva en segundos dentro del modelo canónico.
+- El atleta puede eliminar definitivamente las rutinas que creó, incluso si
+  están archivadas o son su último plan. Se eliminan sus entrenamientos
+  programados o en curso, pero se conservan los snapshots del historial.
+- Una sesión en curso se puede cancelar desde el modo entrenamiento. Al
+  cancelarla se eliminan el cronómetro, el progreso y la agenda asociada sin
+  crear una actividad completada.
 - El drag-and-drop funciona dentro de una sección y entre secciones.
 - Las secciones secuenciales completan todas las series de cada ejercicio juntas.
 - Las secciones por rondas conservan la alternancia.

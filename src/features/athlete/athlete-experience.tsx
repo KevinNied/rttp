@@ -44,6 +44,8 @@ export function ExperienciaAtleta({
   onDuplicateRoutine,
   onArchiveRoutine,
   onRestoreRoutine,
+  onDeleteRoutine,
+  onCancelWorkout,
   onCloseScheduled,
   onWorkoutModeChange,
   onDirtyChange,
@@ -74,6 +76,8 @@ export function ExperienciaAtleta({
   onDuplicateRoutine: (routine: Routine) => Routine | null;
   onArchiveRoutine: (routine: Routine) => void;
   onRestoreRoutine: (routine: Routine) => void;
+  onDeleteRoutine: (id: string) => void;
+  onCancelWorkout: (id: string) => void;
   onCloseScheduled: () => void;
   onWorkoutModeChange: (active: boolean) => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -168,6 +172,7 @@ export function ExperienciaAtleta({
 
   function iniciar() {
     if (!rutina) return;
+    completedSessionRef.current = false;
     if (entrenamiento && rutina) {
       const enCurso = { ...entrenamiento, status: "in-progress" as const };
       setTimer(workoutPersistence.resumeTimer(enCurso.id));
@@ -217,6 +222,33 @@ export function ExperienciaAtleta({
     setPantalla("home");
   }
 
+  function cancelarEntrenamiento() {
+    if (!sesionId) return;
+    completedSessionRef.current = true;
+    onCancelWorkout(sesionId);
+    setEntrenamiento(undefined);
+    setPantalla("home");
+    setIndiceActivo(0);
+    setRestTimer(null);
+    setFinishedElapsedSeconds(0);
+    setFeedback("");
+    onCloseScheduled();
+  }
+
+  function eliminarRutina(id: string) {
+    if (entrenamiento?.origin === "routine" && entrenamiento.routineId === id) {
+      completedSessionRef.current = true;
+      setEntrenamiento(undefined);
+      setPantalla("home");
+      setIndiceActivo(0);
+      setTimer(null);
+      setRestTimer(null);
+      setFinishedElapsedSeconds(0);
+      setFeedback("");
+    }
+    onDeleteRoutine(id);
+  }
+
   if (routineBeingEdited) {
     return (
       <AthleteRoutineEditor
@@ -246,6 +278,7 @@ export function ExperienciaAtleta({
         restTimer={restTimer}
         setRestTimer={setRestTimer}
         onExit={cerrarEntrenamiento}
+        onCancel={cancelarEntrenamiento}
         onFinish={() => {
           setFinishedElapsedSeconds(workoutPersistence.pauseTimer(sesionId));
           setRestTimer(null);
@@ -328,6 +361,7 @@ export function ExperienciaAtleta({
       }}
       onArchive={onArchiveRoutine}
       onRestore={onRestoreRoutine}
+      onDelete={eliminarRutina}
       progreso={progreso}
       onReset={reset}
     />

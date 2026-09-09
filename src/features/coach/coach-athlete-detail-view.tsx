@@ -300,18 +300,13 @@ export function CoachAthleteDetailView({
                   {canEditRoutine && (
                     <Dialog>
                       <DialogTrigger
-                        disabled={routines.length <= 1}
                         render={
                           <Button
                             variant="ghost"
                             size="icon"
                             aria-label="Eliminar rutina"
-                            title={
-                              routines.length <= 1
-                                ? "Creá otra rutina antes de eliminar esta"
-                                : "Eliminar rutina"
-                            }
-                            className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200 disabled:opacity-20"
+                            title="Eliminar rutina"
+                            className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200"
                           />
                         }
                       >
