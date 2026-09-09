@@ -61,6 +61,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   value.
 - Use progressive disclosure: show the minimum necessary to execute the current
   task, with overview and detail available on demand.
+- Interpret requests to remove UI semantically: retain supporting context that
+  belongs to the requested datum unless the user explicitly asks to remove that
+  context too.
+- When removing cards or controls from a grid or stack, rebalance the remaining
+  layout. Remaining components should fill or intentionally redistribute the
+  freed space instead of leaving dead gaps; verify this at the affected mobile
+  and desktop breakpoints.
 - Keep the visual language premium and restrained: deep neutral and indigo
   surfaces, cyan and violet accents, controlled gradients, generous rounding,
   subtle borders, and decoration only when it improves hierarchy.

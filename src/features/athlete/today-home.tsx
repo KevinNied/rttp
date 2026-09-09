@@ -86,7 +86,17 @@ export function HomeHoy({
   const diasDeLaSemana = Array.from({ length: 7 }, (_, index) =>
     addDays(inicioSemana, index),
   );
+  const finSemana = addDays(inicioSemana, 6);
+  const actividadesDeLaSemana = activities.filter(
+    (activity) => activity.date >= inicioSemana && activity.date <= finSemana,
+  );
   const inicioSemanaAnterior = addDays(inicioSemana, -7);
+  const finSemanaAnterior = addDays(inicioSemana, -1);
+  const actividadesSemanaAnterior = activities.filter(
+    (activity) =>
+      activity.date >= inicioSemanaAnterior &&
+      activity.date <= finSemanaAnterior,
+  ).length;
   const semanasConActividad = new Set(
     activities.map((activity) => startOfWeek(activity.date)),
   );
@@ -98,6 +108,16 @@ export function HomeHoy({
     rachaSemanal += 1;
     semanaDeRacha = addDays(semanaDeRacha, -7);
   }
+  const mensajeSemanal =
+    actividadesDeLaSemana.length === 0
+      ? actividadesSemanaAnterior > 0
+        ? "Esta semana todavía está abierta. Tu próxima sesión mantiene el ritmo."
+        : "Tu próximo entrenamiento puede ser el inicio de una nueva racha."
+      : actividadesDeLaSemana.length > actividadesSemanaAnterior
+        ? "Ya superaste la cantidad de sesiones de la semana pasada."
+        : actividadesDeLaSemana.length === actividadesSemanaAnterior
+          ? "Ya igualaste la cantidad de sesiones de la semana pasada."
+          : `Te faltan ${actividadesSemanaAnterior - actividadesDeLaSemana.length} para igualar la semana pasada.`;
 
   return (
     <div className={desktopPageShellClassName}>
@@ -495,7 +515,7 @@ export function HomeHoy({
           </div>
         </div>
 
-        <div className="rounded-3xl border border-border bg-app-panel p-5 text-foreground shadow-sm xl:self-start dark:border-white/[0.08] dark:text-white dark:shadow-none">
+        <div className="flex flex-col justify-between rounded-3xl border border-border bg-app-panel p-5 text-foreground shadow-sm dark:border-white/[0.08] dark:text-white dark:shadow-none">
           <div className="flex items-center gap-3">
             <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-200">
               <Flame className="size-5" />
@@ -509,6 +529,9 @@ export function HomeHoy({
               </div>
             </div>
           </div>
+          <p className="mt-6 text-xs leading-relaxed text-foreground/60 dark:text-white/45">
+            {mensajeSemanal}
+          </p>
         </div>
       </section>
     </div>
