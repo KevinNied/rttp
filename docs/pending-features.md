@@ -32,6 +32,9 @@ permisos, navegación, migración y primera versión está documentada en
 - Las rutinas asignadas son administradas por el coach y de solo lectura para el
   atleta.
 - Cada rutina guarda `createdById` para definir autoría y permisos.
+- Las tarjetas y vistas de detalle o revisión muestran quién creó la rutina.
+- Las rutinas personales son privadas por defecto y el atleta puede compartirlas
+  explícitamente con su coach en modo de solo lectura.
 - Agenda, historial y progreso pertenecen a quien realiza el entrenamiento.
 
 ## Progreso por ejercicio

@@ -24,6 +24,9 @@ replantea la navegación del workspace del coach.
   **Rutinas**.
 - Una rutina creada por un coach es de solo lectura para el atleta.
 - Una rutina creada por el atleta es editable por ese atleta.
+- Las rutinas personales son privadas para el coach por defecto.
+- El atleta puede compartir explícitamente una rutina personal con su coach en
+  modo de solo lectura.
 - Agenda, ejecución, historial y progreso siguen perteneciendo al atleta.
 - La interfaz debe comunicar claramente quién creó cada rutina y qué acciones
   están permitidas.
@@ -74,6 +77,10 @@ type Routine = {
   entrenarla, pero no editar su contenido.
 - El coach solo puede editar una rutina que haya creado para uno de sus atletas
   asignados.
+- El coach no puede descubrir una rutina personal del atleta mientras este no la
+  haya compartido explícitamente.
+- Compartir una rutina personal no transfiere su autoría ni concede permisos de
+  edición al coach.
 
 En la primera versión no se agregan `origin`, `managedById`, capacidades de
 cuenta ni relaciones nuevas si `createdById` y la asignación actual alcanzan para
@@ -93,17 +100,32 @@ La creación y edición se agregan dentro de **Rutinas**.
 
 ### Biblioteca
 
+La biblioteca usa una única lista con tres filtros:
+
+- **Todas**;
+- **Mías**;
+- **Coach**.
+
+**Todas** es la vista inicial. Los filtros no reemplazan la indicación de autor
+en cada rutina.
+
 Cada tarjeta debe mostrar el origen de forma legible:
 
 - **Creada por vos**;
 - **Creada por {coach}**.
 
+La vista de detalle o revisión también debe mostrar quién creó la rutina. La
+autoría no puede depender únicamente de una tarjeta previa, un filtro o el
+contexto de navegación.
+
 La acción principal depende del permiso:
 
 - rutina personal: ver, editar, programar, entrenar y eliminar;
-- rutina del coach: ver, programar y entrenar;
-- las acciones todavía no aprobadas, como duplicar o desvincular, no se incorporan
-  por inferencia.
+- rutina del coach: ver, programar, entrenar y duplicar;
+- duplicar crea una rutina personal independiente, con el atleta como autor y sin
+  sincronización posterior con la original del coach;
+- el atleta puede archivar una rutina del coach en su propia biblioteca y
+  restaurarla después, sin borrar la rutina ni modificar la asignación del coach.
 
 ### Editor
 
@@ -117,6 +139,17 @@ El editor debe:
 - usar las mismas reglas de validación que el editor del coach;
 - quedar disponible únicamente para rutinas creadas por el atleta actual;
 - mantener las rutinas del coach en una vista de solo lectura.
+
+### Compartir con el coach
+
+- Una rutina personal comienza privada.
+- El atleta puede compartirla explícitamente con su coach asignado.
+- La rutina compartida aparece al coach en modo de solo lectura.
+- El atleta puede identificar claramente si la rutina está privada o compartida.
+- El atleta puede revocar el acceso en cualquier momento.
+- El permiso de compartir solo está disponible cuando existe un coach asignado.
+- Cambiar o perder el coach asignado revoca el acceso anterior; compartir con un
+  futuro coach siempre requiere una nueva acción explícita.
 
 ## Atleta sin coach
 
@@ -132,6 +165,10 @@ Un atleta sin coach conserva acceso completo a:
 La ausencia de coach debe mostrarse como un estado normal, no como una cuenta
 incompleta o bloqueada.
 
+Mientras no exista Supabase Auth, el acceso conserva el flujo local por email. Se
+agregan perfiles `athlete` que no estén incluidos en `athleteIds` de ningún coach;
+no se crea un registro público provisional que luego deba reemplazarse.
+
 Los mensajes actuales que presuponen un entrenador deben adaptarse. Por ejemplo,
 una rutina vacía creada por el atleta no debe decir “Tu entrenador todavía no
 cargó ejercicios”.
@@ -145,6 +182,17 @@ cargó ejercicios”.
   rutina aunque luego cambie la relación con el coach.
 - Editar una rutina personal o una rutina del coach no modifica actividades
   históricas anteriores.
+- “Eliminar” una rutina personal la archiva y permite restaurarla; no elimina sus
+  actividades ni rompe las referencias históricas.
+
+### Fin de la relación con el coach
+
+- Las rutinas creadas por el coach permanecen en la biblioteca del atleta en modo
+  de solo lectura.
+- El atleta puede seguir programándolas, entrenarlas, duplicarlas o archivarlas.
+- El ex-coach pierde inmediatamente el acceso al atleta y a sus rutinas.
+- Las rutinas personales compartidas dejan de estar disponibles para el ex-coach.
+- La autoría visible continúa identificando al coach original.
 
 ## Persistencia y migración
 
@@ -154,36 +202,60 @@ La implementación requiere:
 2. agregar `createdById` al contrato TypeScript, mappers y payloads;
 3. incluir la autoría en snapshots de actividad cuando corresponda;
 4. actualizar RPC, migraciones y outbox;
-5. inferir el creador de las rutinas existentes sin perder datos;
+5. asignar como creador de cada rutina existente al único coach actualmente
+   relacionado con su atleta;
 6. mantener `profiles.role` y `profiles.athlete_ids`;
 7. permitir perfiles `athlete` que no aparezcan en `athlete_ids` de ningún coach;
 8. aplicar permisos de edición tanto en la UI como en la futura RLS.
+
+Si una rutina existente no tiene un único coach inferible, la migración debe
+detenerse para resolver ese registro explícitamente. No se atribuye la rutina al
+atleta ni a un coach arbitrario como fallback.
 
 Antes de modificar Supabase se debe crear y verificar un backup.
 
 ## Primera versión propuesta
 
 - Botón para crear rutina dentro de la biblioteca del atleta.
+- Creación desde una rutina en blanco y mediante duplicación de una rutina
+  existente.
 - Editor completo para rutinas personales.
-- Autor visible en todas las rutinas.
+- Autor visible en tarjetas y vistas de detalle o revisión.
+- Rutinas personales privadas por defecto y compartibles explícitamente con el
+  coach en modo de solo lectura.
 - Rutinas del coach en modo de solo lectura.
 - Edición y eliminación de rutinas personales.
+- Archivado restaurable en lugar de borrado físico.
 - Atleta funcional sin coach.
 - Migración de datos existentes.
 - Validación con atleta sin coach, atleta con coach y coach asignado.
 
 ## Decisiones pendientes antes de implementar
 
-Todavía requieren confirmación explícita:
+Confirmado:
 
-- visibilidad del coach sobre las rutinas creadas por el atleta;
-- posibilidad de duplicar una rutina del coach como rutina personal;
-- capacidad del atleta para ocultar o quitar una rutina asignada;
-- comportamiento de rutinas del coach cuando termina la relación;
-- organización visual de rutinas propias y asignadas;
-- asignación de `createdById` a las rutinas existentes durante la migración;
-- disponibilidad de plantillas para atletas;
-- creación inicial de atletas independientes mientras no existe Supabase Auth.
+- las rutinas personales son privadas por defecto y el atleta puede compartirlas
+  explícitamente con su coach en modo de solo lectura;
+- las tarjetas y vistas de detalle o revisión muestran quién creó la rutina.
+
+Decisión propuesta para validar:
+
+- el atleta puede duplicar una rutina del coach como copia personal independiente
+  y editable; la copia no modifica ni se sincroniza con la original;
+- el atleta puede archivar y restaurar una rutina asignada en su propia biblioteca,
+  sin eliminarla ni modificar el trabajo del coach;
+- al terminar la relación, las rutinas del coach permanecen disponibles para el
+  atleta en modo de solo lectura y el ex-coach pierde todo acceso;
+- la biblioteca usa una sola lista con filtros **Todas**, **Mías** y **Coach**, y
+  mantiene el autor visible en cada resultado;
+- las rutinas existentes se atribuyen al único coach relacionado con su atleta y
+  cualquier caso ambiguo se resuelve explícitamente antes de migrar;
+- la primera versión ofrece creación en blanco y duplicación, sin catálogo de
+  plantillas;
+- mientras no exista Supabase Auth, los atletas independientes se representan
+  mediante perfiles accesibles por el flujo local de email y sin coach asignado;
+- eliminar una rutina personal la archiva de forma restaurable y conserva sus
+  actividades históricas.
 
 ## Criterios de aceptación
 
@@ -192,6 +264,11 @@ Todavía requieren confirmación explícita:
 - El atleta no puede editar directamente una rutina creada por su coach.
 - El coach conserva el flujo actual para crear y editar rutinas de sus atletas.
 - Cada rutina muestra quién la creó.
+- El coach solo puede ver una rutina personal cuando el atleta la comparte y nunca
+  puede editarla.
+- El atleta puede revocar el acceso compartido y ningún permiso se transfiere
+  automáticamente a un coach futuro.
+- Archivar una rutina no elimina ni modifica sus actividades históricas.
 - Los permisos se calculan desde datos persistidos y no solo desde la ruta visible.
 - Agenda, workout, reload, historial y responsive continúan funcionando.
 - La migración conserva usuarios, rutinas, entrenamientos y actividades actuales.
