@@ -377,12 +377,12 @@ export function ActivityHistory({
   activities,
   embedded = false,
   onDeleteActivity,
-  canDeleteExternalActivities = false,
+  canDeleteActivities = false,
 }: {
   activities: CompletedActivity[];
   embedded?: boolean;
   onDeleteActivity?: (activity: CompletedActivity) => void;
-  canDeleteExternalActivities?: boolean;
+  canDeleteActivities?: boolean;
 }) {
   const [filtro, setFiltro] = useState<FiltroActividad>("todas");
   const [expandidaId, setExpandidaId] = useState("");
@@ -644,9 +644,7 @@ export function ActivityHistory({
                         ) : (
                           <DetalleExterno actividad={actividad} />
                         )}
-                        {actividad.type === "external" &&
-                          canDeleteExternalActivities &&
-                          onDeleteActivity && (
+                        {canDeleteActivities && onDeleteActivity && (
                             <div
                               className={cn(
                                 "flex justify-end",
@@ -664,7 +662,7 @@ export function ActivityHistory({
                                 Eliminar actividad
                               </button>
                             </div>
-                          )}
+                        )}
                       </div>
                     )}
                   </div>

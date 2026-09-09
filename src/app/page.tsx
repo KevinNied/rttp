@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { ActivityHistory } from "@/components/activity-history";
 import { SportsSchedule } from "@/features/schedule/sports-schedule";
@@ -92,6 +92,15 @@ export default function Home() {
   const [activityPendingDeletion, setActivityPendingDeletion] =
     useState<CompletedActivity | null>(null);
   const [logoutConfirmationOpen, setLogoutConfirmationOpen] = useState(false);
+
+  useEffect(() => {
+    if (!editorDirty) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [editorDirty]);
   const usuario = users.find((item) => item.id === userId) ?? null;
   const atletasDelCoach = users.filter(
     (item) => item.role === "athlete" && usuario?.athleteIds?.includes(item.id),
@@ -705,7 +714,7 @@ export default function Home() {
         <ActivityHistory
           activities={activities.filter((item) => item.athleteId === atleta.id)}
           onDeleteActivity={eliminarActividad}
-          canDeleteExternalActivities={usuario.role !== "coach"}
+          canDeleteActivities={usuario.role !== "coach"}
         />
       ) : vistaAtleta === "inicio" && !entrenamientoActivo ? (
         <HomeHoy
@@ -771,7 +780,7 @@ export default function Home() {
         description={
           activityPendingDeletion?.type === "external"
             ? "También la vamos a quitar de la agenda para que no quede como actividad completada."
-            : "La actividad se eliminará del historial."
+            : "La actividad se eliminará del historial. La rutina original seguirá disponible."
         }
         confirmLabel="Eliminar actividad"
         destructive

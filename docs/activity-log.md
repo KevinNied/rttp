@@ -68,6 +68,10 @@ Cuando una actividad no tiene notas ni feedback, el historial muestra un estado
 mínimo en línea junto a sus acciones, en lugar de simular que falta contenido o
 agregar una tarjeta vacía.
 
+El atleta puede eliminar del historial tanto actividades externas como sesiones
+de rutinas RTTP. Eliminar una sesión histórica no elimina la definición
+reutilizable de la rutina.
+
 ## Persistencia
 
 Supabase es la fuente principal y `rttp-actividades-v1` funciona como caché local
