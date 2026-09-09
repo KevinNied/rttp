@@ -3,6 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Minus, Plus, X } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,19 @@ export function FilaEjercicio({
     isDragging,
   } = useSortable({ id: item.id, data: { sectionId } });
   const exerciseLabel = item.name.trim() || "nuevo ejercicio";
+  const [restUnit, setRestUnit] = useState<"seconds" | "minutes">(() =>
+    item.restSeconds !== null &&
+    item.restSeconds >= 60 &&
+    item.restSeconds % 60 === 0
+      ? "minutes"
+      : "seconds",
+  );
+  const restValue =
+    item.restSeconds === null
+      ? ""
+      : restUnit === "minutes"
+        ? item.restSeconds / 60
+        : item.restSeconds;
 
   return (
     <div
@@ -84,33 +98,35 @@ export function FilaEjercicio({
         </div>
       </div>
       <div className="flex flex-wrap items-end justify-between gap-3 sm:justify-start xl:justify-end">
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() =>
-              onUpdate({ ...item, sets: Math.max(1, item.sets - 1) })
-            }
-            className="rounded-full text-indigo-100/40 hover:bg-indigo-300/10 hover:text-white"
-            aria-label={`Quitar una serie de ${exerciseLabel}`}
-          >
-            <Minus />
-          </Button>
-          <div className="w-10 text-center">
-            <div className="text-sm">{item.sets}</div>
-            <div className="text-xs uppercase text-indigo-100/55">
-              series
+        <div className="w-24 text-center">
+          <div className="flex h-8 items-center rounded-lg border border-white/10 bg-black/25">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                onUpdate({ ...item, sets: Math.max(1, item.sets - 1) })
+              }
+              className="rounded-lg text-indigo-100/50 hover:bg-indigo-300/10 hover:text-white"
+              aria-label={`Quitar una serie de ${exerciseLabel}`}
+            >
+              <Minus />
+            </Button>
+            <div className="min-w-0 flex-1 text-center text-xs tabular-nums">
+              {item.sets}
             </div>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onUpdate({ ...item, sets: item.sets + 1 })}
+              className="rounded-lg text-indigo-100/50 hover:bg-indigo-300/10 hover:text-white"
+              aria-label={`Agregar una serie a ${exerciseLabel}`}
+            >
+              <Plus />
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => onUpdate({ ...item, sets: item.sets + 1 })}
-            className="rounded-full text-indigo-100/40 hover:bg-indigo-300/10 hover:text-white"
-            aria-label={`Agregar una serie a ${exerciseLabel}`}
-          >
-            <Plus />
-          </Button>
+          <div className="mt-1 text-xs uppercase text-indigo-100/55">
+            series
+          </div>
         </div>
         <div className="space-y-1">
           <div
@@ -244,27 +260,61 @@ export function FilaEjercicio({
             peso (kg)
           </div>
         </label>
-        <label className="w-20 text-center">
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            placeholder="—"
-            value={item.restSeconds ?? ""}
-            onChange={(event) =>
-              onUpdate({
-                ...item,
-                restSeconds:
-                  event.target.value === ""
-                    ? null
-                    : Math.max(0, Number(event.target.value)),
-              })
-            }
-            aria-label={`Descanso de ${exerciseLabel}`}
-            className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-          />
+        <label className="w-32 text-center">
+          <div className="flex h-8 overflow-hidden rounded-lg border border-white/10 bg-black/25">
+            <Input
+              type="number"
+              inputMode={restUnit === "minutes" ? "decimal" : "numeric"}
+              min={0}
+              step={restUnit === "minutes" ? "0.5" : "5"}
+              placeholder="—"
+              value={restValue}
+              onChange={(event) => {
+                if (event.target.value === "") {
+                  onUpdate({ ...item, restSeconds: null });
+                  return;
+                }
+                const value = Math.max(0, Number(event.target.value));
+                onUpdate({
+                  ...item,
+                  restSeconds: Math.round(
+                    restUnit === "minutes" ? value * 60 : value,
+                  ),
+                });
+              }}
+              aria-label={`Descanso de ${exerciseLabel}`}
+              className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-2 text-center text-xs tabular-nums shadow-none focus-visible:ring-0 dark:bg-transparent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+            />
+            <div
+              role="group"
+              aria-label={`Unidad de descanso de ${exerciseLabel}`}
+              className="grid w-16 shrink-0 grid-cols-2 border-l border-white/10 p-0.5"
+            >
+              {(["seconds", "minutes"] as const).map((unit) => (
+                <button
+                  key={unit}
+                  type="button"
+                  aria-label={
+                    unit === "seconds"
+                      ? "Usar segundos para el descanso"
+                      : "Usar minutos para el descanso"
+                  }
+                  aria-pressed={restUnit === unit}
+                  onClick={() => setRestUnit(unit)}
+                  className={cn(
+                    "rounded text-[10px] transition-colors",
+                    restUnit === unit
+                      ? "bg-white/10 text-white"
+                      : "text-white/45 hover:text-white/75",
+                  )}
+                >
+                  {unit === "seconds" ? "s" : "min"}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="mt-1 text-xs uppercase text-indigo-100/55">
-            descanso (s)
+            descanso
           </div>
         </label>
         <Button

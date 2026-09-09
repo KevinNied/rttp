@@ -49,6 +49,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Favor direct manipulation and low-friction interactions. Prefer inline creation
   and editing for simple entities; reserve dialogs for multi-step, consequential,
   or destructive actions.
+- Never use native browser `alert`, `confirm`, or `prompt` dialogs. Use RTTP-styled
+  inline states or application dialogs so appearance and behavior stay consistent.
 - Preserve primary content before decorative elements. Names, status, progress,
   and next actions must never disappear because an avatar, badge, icon, or control
   consumes the available width.

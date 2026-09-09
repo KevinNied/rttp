@@ -65,7 +65,8 @@ Al marcar una actividad externa como realizada se registra:
 - fecha y hora de finalización.
 
 Cuando una actividad no tiene notas ni feedback, el historial muestra un estado
-compacto de actividad registrada en lugar de simular que falta contenido.
+mínimo en línea junto a sus acciones, en lugar de simular que falta contenido o
+agregar una tarjeta vacía.
 
 ## Persistencia
 

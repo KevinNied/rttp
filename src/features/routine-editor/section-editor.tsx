@@ -44,6 +44,7 @@ export function SeccionEditor({
       )}
     >
       <button
+        id={`section-toggle-${section.id}`}
         onClick={onToggle}
         className={cn(
           "flex w-full items-center justify-between px-4 py-3 text-left transition-colors xl:px-5 xl:py-4",

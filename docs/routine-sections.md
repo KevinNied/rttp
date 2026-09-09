@@ -99,8 +99,12 @@ sin multiplicar tipos innecesariamente.
 
 ## Criterios de aceptación
 
-- El coach puede crear secciones secuenciales y por rondas.
+- Atletas y coaches pueden crear secciones secuenciales y por rondas mediante un
+  editor inline, sin abandonar el contexto de la rutina.
+- La sección recién creada queda abierta y lista para sumar su primer ejercicio.
 - Una rutina puede mezclar ambas estrategias.
+- El descanso opcional de cada ejercicio puede cargarse en segundos o minutos,
+  pero se conserva en segundos dentro del modelo canónico.
 - El drag-and-drop funciona dentro de una sección y entre secciones.
 - Las secciones secuenciales completan todas las series de cada ejercicio juntas.
 - Las secciones por rondas conservan la alternancia.

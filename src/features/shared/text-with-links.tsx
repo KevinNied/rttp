@@ -1,5 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
+import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
+
 export function TextWithLinks({
   children,
   className,
@@ -7,6 +11,7 @@ export function TextWithLinks({
   children: string;
   className?: string;
 }) {
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const urlPattern = /\b(?:https?:\/\/|www\.)[^\s<]+/gi;
   const parts: React.ReactNode[] = [];
   let cursor = 0;
@@ -38,9 +43,8 @@ export function TextWithLinks({
         rel="noopener noreferrer"
         onClick={(event) => {
           event.stopPropagation();
-          if (!window.confirm(`¿Querés abrir este enlace?\n\n${href}`)) {
-            event.preventDefault();
-          }
+          event.preventDefault();
+          setPendingHref(href);
         }}
         className="font-medium text-cyan-200 underline decoration-cyan-200/35 underline-offset-2 transition-colors hover:text-cyan-100"
       >
@@ -52,5 +56,25 @@ export function TextWithLinks({
   }
 
   parts.push(children.slice(cursor));
-  return <span className={className}>{parts}</span>;
+  return (
+    <>
+      <span className={className}>{parts}</span>
+      <ConfirmationDialog
+        open={pendingHref !== null}
+        title="Abrir enlace externo"
+        description={
+          <span className="break-all">
+            Vas a salir de RTTP para visitar {pendingHref}.
+          </span>
+        }
+        confirmLabel="Abrir enlace"
+        onCancel={() => setPendingHref(null)}
+        onConfirm={() => {
+          if (!pendingHref) return;
+          window.open(pendingHref, "_blank", "noopener,noreferrer");
+          setPendingHref(null);
+        }}
+      />
+    </>
+  );
 }

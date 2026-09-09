@@ -112,15 +112,6 @@ export function HomeEntrenador({
   );
 
   useEffect(() => {
-    if (!hayCambios) return;
-    const advertirSalida = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-    };
-    window.addEventListener("beforeunload", advertirSalida);
-    return () => window.removeEventListener("beforeunload", advertirSalida);
-  }, [hayCambios]);
-
-  useEffect(() => {
     onDirtyChange(hayCambios);
     return () => onDirtyChange(false);
   }, [hayCambios, onDirtyChange]);

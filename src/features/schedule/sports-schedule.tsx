@@ -734,7 +734,7 @@ export function SportsSchedule({
       {!embedded && (
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200/60">
               {modoCoach
                 ? `Planificación de ${atleta.name}`
                 : "Tu semana deportiva"}

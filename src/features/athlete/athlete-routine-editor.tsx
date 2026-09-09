@@ -10,11 +10,12 @@ import { countLabel } from "@/lib/format";
 import { Routine, User } from "@/lib/rttp-data";
 
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
-import { DialogoEjercicio } from "@/features/routine-editor/exercise-dialog";
 import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
+import { InlineSectionCreator } from "@/features/routine-editor/inline-section-creator";
 import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
 import { SeccionEditor } from "@/features/routine-editor/section-editor";
 import { useRoutineEditor } from "@/features/routine-editor/use-routine-editor";
+import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
 import { desktopPageShellClassName } from "@/features/shared/page-shell";
 
 export function AthleteRoutineEditor({
@@ -40,11 +41,12 @@ export function AthleteRoutineEditor({
     actualizarEjercicio,
     eliminarEjercicio,
     updateSectionKind,
-    agregarEjercicio,
     agregarEjercicioVacio,
+    addSection,
     moverEjercicio,
   } = editor;
   const [savedVisible, setSavedVisible] = useState(false);
+  const [closeConfirmationOpen, setCloseConfirmationOpen] = useState(false);
   const hasChanges = JSON.stringify(rutina) !== JSON.stringify(savedRoutine);
   const hasUnnamedExercises = rutina.structure.sections.some((section) =>
     section.exercises.some((exercise) => !exercise.name.trim()),
@@ -53,15 +55,6 @@ export function AthleteRoutineEditor({
   const isShared = coach
     ? rutina.sharedWithCoachId === coach.id
     : false;
-
-  useEffect(() => {
-    if (!hasChanges) return;
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-    };
-    window.addEventListener("beforeunload", warnBeforeUnload);
-    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
-  }, [hasChanges]);
 
   useEffect(() => {
     onDirtyChange(hasChanges);
@@ -75,12 +68,8 @@ export function AthleteRoutineEditor({
   }
 
   function close() {
-    if (
-      hasChanges &&
-      !window.confirm(
-        "Tenés cambios sin guardar. ¿Querés descartarlos y volver a tus rutinas?",
-      )
-    ) {
+    if (hasChanges) {
+      setCloseConfirmationOpen(true);
       return;
     }
     onClose();
@@ -230,24 +219,24 @@ export function AthleteRoutineEditor({
             ))}
 
             <div className="border-t border-white/[0.06] p-3">
-              <DialogoEjercicio
-                sections={rutina.structure.sections}
-                initialSectionId="nuevo"
-                trigger={
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-200/15 bg-violet-300/[0.025] px-4 py-3 text-xs text-violet-100/55 transition-colors hover:border-violet-200/30 hover:bg-violet-300/[0.06] hover:text-violet-100"
-                  >
-                    <Plus className="size-3.5" />
-                    Crear sección
-                  </button>
-                }
-                onAdd={agregarEjercicio}
-              />
+              <InlineSectionCreator onCreate={addSection} />
             </div>
           </DndContext>
         </CardContent>
       </Card>
+      <ConfirmationDialog
+        open={closeConfirmationOpen}
+        title="Tenés cambios sin guardar"
+        description="Si volvés a tus rutinas ahora, se descartarán los cambios de esta edición."
+        confirmLabel="Descartar y volver"
+        cancelLabel="Seguir editando"
+        destructive
+        onCancel={() => setCloseConfirmationOpen(false)}
+        onConfirm={() => {
+          setCloseConfirmationOpen(false);
+          onClose();
+        }}
+      />
     </div>
   );
 }

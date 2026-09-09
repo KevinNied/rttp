@@ -54,6 +54,7 @@ import { HomeHoy } from "@/features/athlete/today-home";
 import { PerfilUsuario } from "@/features/athlete/user-profile";
 import { HomeEntrenador } from "@/features/coach/coach-home";
 import { LandingAcceso } from "@/features/landing/access-landing";
+import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
 import { AppShell } from "@/features/shell/app-shell";
 
 export default function Home() {
@@ -88,6 +89,9 @@ export default function Home() {
   const [vistaPrevia, setVistaPrevia] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
   const [workoutImmersive, setWorkoutImmersive] = useState(false);
+  const [activityPendingDeletion, setActivityPendingDeletion] =
+    useState<CompletedActivity | null>(null);
+  const [logoutConfirmationOpen, setLogoutConfirmationOpen] = useState(false);
   const usuario = users.find((item) => item.id === userId) ?? null;
   const atletasDelCoach = users.filter(
     (item) => item.role === "athlete" && usuario?.athleteIds?.includes(item.id),
@@ -351,16 +355,13 @@ export default function Home() {
   }
 
   function eliminarActividad(actividad: CompletedActivity) {
-    if (
-      !window.confirm(
-        actividad.type === "external"
-          ? `¿Querés eliminar "${actividad.title}" del historial?\n\nTambién la vamos a quitar de la agenda para que no quede como actividad completada.`
-          : `¿Querés eliminar "${actividad.title}" del historial?`,
-      )
-    ) {
-      return;
-    }
+    setActivityPendingDeletion(actividad);
+  }
 
+  function confirmarEliminarActividad() {
+    if (!activityPendingDeletion) return;
+    const actividad = activityPendingDeletion;
+    setActivityPendingDeletion(null);
     setActivities((actuales) =>
       actuales.filter((item) => item.id !== actividad.id),
     );
@@ -604,12 +605,8 @@ export default function Home() {
   }
 
   function intentarSalir() {
-    if (
-      editorDirty &&
-      !window.confirm(
-        "Tenés cambios sin guardar. ¿Querés descartarlos y cerrar sesión?",
-      )
-    ) {
+    if (editorDirty) {
+      setLogoutConfirmationOpen(true);
       return;
     }
     salir();
@@ -630,27 +627,28 @@ export default function Home() {
   const mostrandoAtleta = usuario.role === "athlete" || vistaPrevia;
 
   return (
-    <AppShell
-      usuario={usuario}
-      vistaPrevia={vistaPrevia}
-      workoutImmersive={workoutImmersive}
-      vistaEntrenador={vistaEntrenador}
-      vistaAtleta={vistaAtleta}
-      syncError={syncError}
-      onClosePreview={() => setVistaPrevia(false)}
-      onLogout={intentarSalir}
-      navigate={navigate}
-    >
-      {(!mostrandoAtleta && vistaEntrenador === "profile") ||
-      (mostrandoAtleta && vistaAtleta === "profile" && !entrenamientoActivo) ? (
-        <PerfilUsuario
-          usuario={usuario}
-          entrenadorAsignado={
-            usuario.role === "athlete" ? entrenadorDelAtleta : undefined
-          }
-        />
-      ) : !mostrandoAtleta ? (
-        <HomeEntrenador
+    <>
+      <AppShell
+        usuario={usuario}
+        vistaPrevia={vistaPrevia}
+        workoutImmersive={workoutImmersive}
+        vistaEntrenador={vistaEntrenador}
+        vistaAtleta={vistaAtleta}
+        syncError={syncError}
+        onClosePreview={() => setVistaPrevia(false)}
+        onLogout={intentarSalir}
+        navigate={navigate}
+      >
+        {(!mostrandoAtleta && vistaEntrenador === "profile") ||
+        (mostrandoAtleta && vistaAtleta === "profile" && !entrenamientoActivo) ? (
+          <PerfilUsuario
+            usuario={usuario}
+            entrenadorAsignado={
+              usuario.role === "athlete" ? entrenadorDelAtleta : undefined
+            }
+          />
+        ) : !mostrandoAtleta ? (
+          <HomeEntrenador
           key={`${atleta.id}-${rutina?.id ?? "sin-rutina"}`}
           entrenador={usuario}
           users={users}
@@ -736,8 +734,39 @@ export default function Home() {
           onDirtyChange={setEditorDirty}
           registros={registros}
           setRegistros={setRegistros}
-        />
-      )}
-    </AppShell>
+          />
+        )}
+      </AppShell>
+      <ConfirmationDialog
+        open={logoutConfirmationOpen}
+        title="Tenés cambios sin guardar"
+        description="Si cerrás sesión ahora, se descartarán los cambios de esta edición."
+        confirmLabel="Descartar y cerrar sesión"
+        cancelLabel="Seguir editando"
+        destructive
+        onCancel={() => setLogoutConfirmationOpen(false)}
+        onConfirm={() => {
+          setLogoutConfirmationOpen(false);
+          salir();
+        }}
+      />
+      <ConfirmationDialog
+        open={activityPendingDeletion !== null}
+        title={
+          activityPendingDeletion
+            ? `¿Eliminar “${activityPendingDeletion.title}”?`
+            : "¿Eliminar actividad?"
+        }
+        description={
+          activityPendingDeletion?.type === "external"
+            ? "También la vamos a quitar de la agenda para que no quede como actividad completada."
+            : "La actividad se eliminará del historial."
+        }
+        confirmLabel="Eliminar actividad"
+        destructive
+        onCancel={() => setActivityPendingDeletion(null)}
+        onConfirm={confirmarEliminarActividad}
+      />
+    </>
   );
 }

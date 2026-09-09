@@ -157,6 +157,29 @@ export function useRoutineEditor(rutinaGuardada: Routine) {
     agregarEjercicio(item, sectionId);
   }
 
+  function addSection(name: string, kind: SectionKind) {
+    const id = `seccion-${crypto.randomUUID()}`;
+    setRutina((current) => ({
+      ...current,
+      structure: {
+        ...current.structure,
+        sections: [
+          ...current.structure.sections,
+          {
+            id,
+            name,
+            kind,
+            role: "custom",
+            presentation: "standard",
+            exercises: [],
+          },
+        ],
+      },
+    }));
+    setOpenSectionId(id);
+    return id;
+  }
+
   function moverEjercicio(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -255,8 +278,8 @@ export function useRoutineEditor(rutinaGuardada: Routine) {
     actualizarEjercicio,
     eliminarEjercicio,
     updateSectionKind,
-    agregarEjercicio,
     agregarEjercicioVacio,
+    addSection,
     moverEjercicio,
   };
 }

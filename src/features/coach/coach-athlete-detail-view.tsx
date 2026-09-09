@@ -38,9 +38,9 @@ import {
   routineCreatorLabel,
 } from "@/domain/routine/routine-access";
 import { OverviewRutina } from "@/features/athlete/routine-overview";
-import { DialogoEjercicio } from "@/features/routine-editor/exercise-dialog";
 import { DialogoNuevaRutina } from "@/features/routine-editor/new-routine-dialog";
 import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
+import { InlineSectionCreator } from "@/features/routine-editor/inline-section-creator";
 import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
 import { SeccionEditor } from "@/features/routine-editor/section-editor";
 import { SelectorRutina } from "@/features/routine-editor/routine-selector";
@@ -110,8 +110,8 @@ export function CoachAthleteDetailView({
     actualizarEjercicio,
     eliminarEjercicio,
     updateSectionKind,
-    agregarEjercicio,
     agregarEjercicioVacio,
+    addSection,
     moverEjercicio,
   } = editor;
   const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
@@ -438,24 +438,8 @@ export function CoachAthleteDetailView({
                       ))}
                   </SeccionEditor>
                 ))}
-                <div
-                  key={`new-section-control-${rutina.structure.sections.length}`}
-                  className="border-t border-white/[0.06] p-3"
-                >
-                  <DialogoEjercicio
-                    sections={rutina.structure.sections}
-                    initialSectionId="nuevo"
-                    trigger={
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-200/15 bg-violet-300/[0.025] px-4 py-4 text-xs text-violet-100/55 transition-colors hover:border-violet-200/30 hover:bg-violet-300/[0.06] hover:text-violet-100"
-                      >
-                        <Plus className="size-3.5" />
-                        Crear sección
-                      </button>
-                    }
-                    onAdd={agregarEjercicio}
-                  />
+                <div className="border-t border-white/[0.06] p-3">
+                  <InlineSectionCreator onCreate={addSection} />
                 </div>
                 </DndContext>
               ) : (

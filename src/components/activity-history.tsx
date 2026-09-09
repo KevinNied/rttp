@@ -143,8 +143,8 @@ function setResult(set: CompletedActivity["sets"][number]) {
 
 function ActivityChip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.04] px-2.5 py-1 text-[10px] text-white/45">
-      <span className="text-white/35">{icon}</span>
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-app-elevated px-2.5 py-1 text-[10px] text-foreground/65 dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-white/45">
+      <span className="text-foreground/50 dark:text-white/35">{icon}</span>
       {label}
     </span>
   );
@@ -164,19 +164,23 @@ function ActivityCopy({
       className={cn(
         "rounded-2xl border p-3.5",
         tone === "accent"
-          ? "border-cyan-200/10 bg-cyan-300/[0.04]"
-          : "border-white/[0.07] bg-white/[0.025]",
+          ? "border-cyan-200/25 bg-app-surface dark:border-cyan-200/10 dark:bg-cyan-300/[0.04]"
+          : "border-border bg-app-surface dark:border-white/[0.07] dark:bg-white/[0.025]",
       )}
     >
       <div
         className={cn(
           "text-[9px] uppercase tracking-wider",
-          tone === "accent" ? "text-cyan-100/35" : "text-white/25",
+          tone === "accent"
+            ? "text-cyan-700/70 dark:text-cyan-100/35"
+            : "text-foreground/45 dark:text-white/25",
         )}
       >
         {title}
       </div>
-      <p className="mt-2 text-xs leading-relaxed text-white/58">{body}</p>
+      <p className="mt-2 text-xs leading-relaxed text-foreground/70 dark:text-white/60">
+        {body}
+      </p>
     </div>
   );
 }
@@ -192,25 +196,25 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
     <div className="space-y-3">
       <div className="grid gap-2 sm:grid-cols-3">
         {duracion !== null && (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
+          <div className="rounded-2xl border border-border bg-app-surface p-3 dark:border-white/[0.07] dark:bg-white/[0.025]">
             <div className="text-lg font-light tabular-nums">
               {formatDuration(duracion)}
             </div>
-            <div className="text-[9px] uppercase tracking-wider text-white/25">
+            <div className="text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/25">
               {actividad.type === "routine" ? "Tiempo real" : "Duración"}
             </div>
           </div>
         )}
-        <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
+        <div className="rounded-2xl border border-border bg-app-surface p-3 dark:border-white/[0.07] dark:bg-white/[0.025]">
           <div className="text-lg font-light">{seriesCompletadas}</div>
-          <div className="text-[9px] uppercase tracking-wider text-white/25">
+          <div className="text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/25">
             Series
           </div>
         </div>
         {actividad.effort && (
-          <div className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3">
+          <div className="rounded-2xl border border-border bg-app-surface p-3 dark:border-white/[0.07] dark:bg-white/[0.025]">
             <div className="text-lg font-light">{actividad.effort}/5</div>
-            <div className="text-[9px] uppercase tracking-wider text-white/25">
+            <div className="text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/25">
               Esfuerzo
             </div>
           </div>
@@ -230,10 +234,10 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
         <div className="space-y-2">
           <div className="flex items-end justify-between gap-4 px-1">
             <div>
-              <div className="text-sm font-medium text-white/75">
+              <div className="text-sm font-medium text-foreground/80 dark:text-white/75">
                 Detalle de la sesión
               </div>
-              <div className="mt-1 text-xs text-white/35">
+              <div className="mt-1 text-xs text-foreground/50 dark:text-white/35">
                 Abrí una sección para revisar sus ejercicios y cargas.
               </div>
             </div>
@@ -245,7 +249,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
             return (
               <div
                 key={section.id}
-                className="overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]"
+                className="overflow-hidden rounded-2xl border border-border bg-app-panel dark:border-white/[0.07] dark:bg-white/[0.02]"
               >
                 <button
                   type="button"
@@ -255,13 +259,13 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                       current === section.id ? "" : section.id,
                     )
                   }
-                  className="flex w-full items-center justify-between gap-4 bg-white/[0.03] px-4 py-3.5 text-left transition-colors hover:bg-white/[0.05]"
+                  className="flex w-full items-center justify-between gap-4 bg-app-elevated/70 px-4 py-3.5 text-left transition-colors hover:bg-app-elevated dark:bg-white/[0.03] dark:hover:bg-white/[0.05]"
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-white/80">
+                    <div className="truncate text-sm font-medium text-foreground/85 dark:text-white/80">
                       {section.name}
                     </div>
-                    <div className="mt-1 text-xs text-white/35">
+                    <div className="mt-1 text-xs text-foreground/50 dark:text-white/35">
                       {countLabel(
                         exerciseGroups.length,
                         "ejercicio",
@@ -272,14 +276,14 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                   </div>
                   <ChevronDown
                     className={cn(
-                      "size-4 shrink-0 text-white/35 transition-transform",
+                      "size-4 shrink-0 text-foreground/50 transition-transform dark:text-white/35",
                       isOpen && "rotate-180",
                     )}
                   />
                 </button>
 
                 {isOpen && (
-                  <div className="divide-y divide-white/[0.05] border-t border-white/[0.06]">
+                  <div className="divide-y divide-border border-t border-border dark:divide-white/[0.05] dark:border-white/[0.06]">
                     {exerciseGroups.map((exercise) => {
                       const completedSets = exercise.sets.filter(
                         (set) => !set.skipped,
@@ -297,10 +301,10 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                           className="grid gap-2 px-4 py-3.5 md:grid-cols-[minmax(12rem,0.75fr)_minmax(0,1.25fr)] md:items-center md:gap-6"
                         >
                           <div className="min-w-0">
-                            <div className="text-sm text-white/75">
+                            <div className="text-sm text-foreground/80 dark:text-white/75">
                               {exercise.name}
                             </div>
-                            <div className="mt-1 text-xs text-white/30">
+                            <div className="mt-1 text-xs text-foreground/45 dark:text-white/30">
                               {countLabel(
                                 exercise.sets.length,
                                 "serie",
@@ -310,7 +314,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                           </div>
 
                           {hasUniformResult ? (
-                            <div className="text-sm font-medium text-cyan-100/65 md:text-right">
+                            <div className="text-sm font-medium text-cyan-700 dark:text-cyan-100/65 md:text-right">
                               {exercise.sets.length > 1 &&
                                 `${exercise.sets.length} × `}
                               {setResult(exercise.sets[0])}
@@ -360,18 +364,9 @@ function DetalleExterno({ actividad }: { actividad: CompletedActivity }) {
         />
       )}
       {!tieneDetalle && (
-        <div className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-cyan-300/[0.07] text-cyan-100/55">
-            <CheckCircle2 className="size-4" />
-          </span>
-          <div>
-            <div className="text-sm font-medium text-white/70">
-              Actividad registrada
-            </div>
-            <p className="mt-1 text-xs leading-relaxed text-white/35">
-              No agregaste notas ni feedback a esta actividad.
-            </p>
-          </div>
+        <div className="inline-flex items-center gap-2 text-xs text-foreground/60 dark:text-white/40">
+          <CheckCircle2 className="size-3.5 text-cyan-200/80 dark:text-cyan-100/50" />
+          <span>Sin notas adicionales</span>
         </div>
       )}
     </div>
@@ -422,13 +417,13 @@ export function ActivityHistory({
     >
       {!embedded && (
         <div className="mb-6">
-          <div className="mb-2 text-[10px] uppercase tracking-[0.2em] text-cyan-200/60">
+          <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-200/60">
             Tu recorrido
           </div>
           <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
             Actividades realizadas
           </h1>
-          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/35 md:text-sm">
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-foreground/50 dark:text-white/35 md:text-sm">
             Abrí solo la actividad que quieras revisar para mantener el
             historial más ágil.
           </p>
@@ -436,13 +431,13 @@ export function ActivityHistory({
       )}
 
       {activities.length === 0 ? (
-        <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-white/[0.09] bg-white/[0.02] px-6 text-center">
+        <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-border bg-app-panel px-6 text-center dark:border-white/[0.09] dark:bg-white/[0.02]">
           <div>
-            <Activity className="mx-auto size-6 text-white/20" />
+            <Activity className="mx-auto size-6 text-foreground/30 dark:text-white/20" />
             <h2 className="mt-3 text-sm font-medium">
               Todavía no hay actividades
             </h2>
-            <p className="mt-2 text-xs text-white/30">
+            <p className="mt-2 text-xs text-foreground/45 dark:text-white/30">
               Cuando completes una rutina o actividad aparecerá acá.
             </p>
           </div>
@@ -468,21 +463,21 @@ export function ActivityHistory({
               <div
                 key={label as string}
                 className={cn(
-                  "rounded-2xl border border-white/[0.07] bg-white/[0.025] p-3.5",
+                  "rounded-2xl border border-border bg-app-panel p-3.5 shadow-sm dark:border-white/[0.07] dark:bg-white/[0.025] dark:shadow-none",
                   index === 2 && "col-span-2 sm:col-span-1",
                 )}
               >
                 <div className="text-xl font-light md:text-2xl">
                   {valor as number}
                 </div>
-                <div className="mt-1 text-[9px] uppercase tracking-wider text-white/30">
+                <div className="mt-1 text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/30">
                   {label as string}
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="mb-4 flex gap-1 rounded-2xl bg-white/[0.025] p-1 sm:w-fit">
+          <div className="mb-4 flex gap-1 rounded-2xl border border-border bg-app-panel p-1 shadow-sm sm:w-fit dark:border-transparent dark:bg-white/[0.025] dark:shadow-none">
             {[
               ["todas", "Todas"],
               ["routines", "Rutinas"],
@@ -494,8 +489,8 @@ export function ActivityHistory({
                 className={cn(
                   "flex-1 rounded-xl px-4 py-2 text-[10px] transition-colors sm:flex-none",
                   filtro === value
-                    ? "bg-white/[0.08] text-white"
-                    : "text-white/30 hover:text-white/60",
+                    ? "bg-app-elevated text-foreground shadow-sm dark:bg-white/[0.08] dark:text-white dark:shadow-none"
+                    : "text-foreground/60 hover:bg-app-elevated/70 hover:text-foreground dark:text-white/30 dark:hover:bg-white/[0.04] dark:hover:text-white/60",
                 )}
               >
                 {label}
@@ -504,7 +499,7 @@ export function ActivityHistory({
           </div>
 
           {visibles.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-white/[0.08] py-12 text-center text-xs text-white/30">
+            <div className="rounded-2xl border border-dashed border-border py-12 text-center text-xs text-foreground/45 dark:border-white/[0.08] dark:text-white/30">
               No hay actividades en esta categoría.
             </div>
           ) : (
@@ -514,6 +509,10 @@ export function ActivityHistory({
                 const categoria = categoriaActividad(actividad.category);
                 const { resumen, seriesCompletadas } =
                   resumenActividad(actividad);
+                const externalWithoutDetails =
+                  actividad.type === "external" &&
+                  !actividad.notes &&
+                  !actividad.feedback;
 
                 return (
                   <div
@@ -521,8 +520,8 @@ export function ActivityHistory({
                     className={cn(
                       "overflow-hidden rounded-3xl border transition-colors",
                       expandida
-                        ? "border-cyan-200/20 bg-cyan-300/[0.05]"
-                        : "border-white/[0.07] bg-white/[0.025] hover:bg-white/[0.04]",
+                        ? "border-primary/30 bg-app-panel shadow-sm ring-1 ring-primary/5 dark:border-cyan-200/20 dark:bg-cyan-300/[0.05] dark:shadow-none dark:ring-0"
+                        : "border-border bg-app-panel shadow-sm hover:bg-app-surface dark:border-white/[0.07] dark:bg-white/[0.025] dark:shadow-none dark:hover:bg-white/[0.04]",
                     )}
                   >
                     <button
@@ -539,8 +538,8 @@ export function ActivityHistory({
                           className={cn(
                             "mt-0.5 grid size-10 shrink-0 place-items-center rounded-2xl",
                             actividad.type === "routine"
-                              ? "bg-cyan-300/10 text-cyan-200"
-                              : "bg-violet-300/10 text-violet-200",
+                              ? "bg-app-elevated text-cyan-700 dark:bg-cyan-300/10 dark:text-cyan-200"
+                              : "bg-app-elevated text-violet-700 dark:bg-violet-300/10 dark:text-violet-200",
                           )}
                         >
                           {actividad.type === "routine" ? (
@@ -553,15 +552,15 @@ export function ActivityHistory({
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start gap-3">
                             <div className="min-w-0 flex-1">
-                              <div className="truncate text-sm font-medium text-white/80">
+                              <div className="truncate text-sm font-medium text-foreground/85 dark:text-white/80">
                                 {actividad.title}
                               </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/30">
+                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-foreground/45 dark:text-white/30">
                                 <span className="inline-flex items-center gap-1.5 capitalize">
                                   <CalendarDays className="size-3" />
                                   {fechaActividad(actividad.date)}
                                 </span>
-                                <span className="inline-flex items-center gap-1.5 text-white/25">
+                                <span className="inline-flex items-center gap-1.5 text-foreground/40 dark:text-white/25">
                                   <CheckCircle2 className="size-3" />
                                   {actividad.type === "routine"
                                     ? "Rutina completada"
@@ -571,12 +570,12 @@ export function ActivityHistory({
                             </div>
 
                             <div className="flex items-center gap-2 pl-2">
-                              <span className="hidden text-[10px] text-white/25 sm:inline">
+                              <span className="hidden text-[10px] text-foreground/40 dark:text-white/25 sm:inline">
                                 {expandida ? "Ocultar" : "Ver detalle"}
                               </span>
                               <ChevronDown
                                 className={cn(
-                                  "size-4 shrink-0 text-white/35 transition-transform",
+                                  "size-4 shrink-0 text-foreground/50 transition-transform dark:text-white/35",
                                   expandida && "rotate-180",
                                 )}
                               />
@@ -633,7 +632,13 @@ export function ActivityHistory({
                     </button>
 
                     {expandida && (
-                      <div className="border-t border-white/[0.07] px-3.5 pb-3.5 pt-0 md:px-4 md:pb-4">
+                      <div
+                        className={cn(
+                          "border-t border-white/[0.07] px-3.5 pb-3.5 pt-3.5 md:px-4 md:pb-4 md:pt-4",
+                          externalWithoutDetails &&
+                            "flex flex-wrap items-center justify-between gap-3",
+                        )}
+                      >
                         {actividad.type === "routine" ? (
                           <DetalleRutina actividad={actividad} />
                         ) : (
@@ -642,11 +647,18 @@ export function ActivityHistory({
                         {actividad.type === "external" &&
                           canDeleteExternalActivities &&
                           onDeleteActivity && (
-                            <div className="mt-4 flex justify-end border-t border-white/[0.06] pt-4">
+                            <div
+                              className={cn(
+                                "flex justify-end",
+                                externalWithoutDetails
+                                  ? "ml-auto"
+                                  : "mt-4 border-t border-white/[0.06] pt-4",
+                              )}
+                            >
                               <button
                                 type="button"
                                 onClick={() => onDeleteActivity(actividad)}
-                                className="inline-flex h-9 items-center gap-2 rounded-full border border-red-300/15 bg-red-300/10 px-3.5 text-[11px] font-medium text-red-100/85 transition-colors hover:bg-red-300/15 hover:text-red-50"
+                                className="inline-flex h-9 items-center gap-2 rounded-full border border-destructive/25 bg-destructive/10 px-3.5 text-[11px] font-medium text-destructive transition-colors hover:bg-destructive/15 dark:border-red-300/15 dark:bg-red-300/10 dark:text-red-100/85 dark:hover:bg-red-300/15 dark:hover:text-red-50"
                               >
                                 <Trash2 className="size-3.5" />
                                 Eliminar actividad
