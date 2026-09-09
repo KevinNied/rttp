@@ -105,6 +105,9 @@ function DialogoEntrenamiento({
   onCreate: (item: NewScheduledWorkout) => void;
   onUpdate: (item: ScheduledWorkout) => void;
 }) {
+  const activeRoutines = routines.filter(
+    (routine) => routine.archivedAt === null,
+  );
   const [open, setOpen] = useState(openInitially);
   const [origin, setOrigen] = useState<"routine" | "external">(
     item?.origin ?? "routine",
@@ -112,7 +115,7 @@ function DialogoEntrenamiento({
   const [routineId, setRutinaId] = useState(
     item?.origin === "routine"
       ? item.routineId
-      : (rutinaInicialId ?? routines[0]?.id ?? ""),
+      : (rutinaInicialId ?? activeRoutines[0]?.id ?? ""),
   );
   const [title, setTitulo] = useState(
     item?.origin === "external" ? item.title : "",
@@ -127,7 +130,7 @@ function DialogoEntrenamiento({
       item?.durationMinutes ??
         routines.find((rutina) => rutina.id === rutinaInicialId)
           ?.durationMinutes ??
-        routines[0]?.durationMinutes ??
+        activeRoutines[0]?.durationMinutes ??
         "",
     ),
   );
@@ -143,7 +146,7 @@ function DialogoEntrenamiento({
     setRutinaId(
       item?.origin === "routine"
         ? item.routineId
-        : (rutinaInicialId ?? routines[0]?.id ?? ""),
+        : (rutinaInicialId ?? activeRoutines[0]?.id ?? ""),
     );
     setTitulo(item?.origin === "external" ? item.title : "");
     setCategoria(item?.origin === "external" ? item.category : "running");
@@ -154,7 +157,7 @@ function DialogoEntrenamiento({
         item?.durationMinutes ??
           routines.find((rutina) => rutina.id === rutinaInicialId)
             ?.durationMinutes ??
-          routines[0]?.durationMinutes ??
+          activeRoutines[0]?.durationMinutes ??
           "",
       ),
     );
@@ -256,11 +259,11 @@ function DialogoEntrenamiento({
                 }}
                 className="h-10 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
               >
-                {routines.map((rutina) => (
-                  <option key={rutina.id} value={rutina.id}>
-                    {rutina.title}
-                  </option>
-                ))}
+                {activeRoutines.map((rutina) => (
+                    <option key={rutina.id} value={rutina.id}>
+                      {rutina.title}
+                    </option>
+                  ))}
               </select>
             </label>
           ) : (
@@ -610,6 +613,9 @@ export function SportsSchedule({
   onStart: (item: ScheduledWorkout) => void;
 }) {
   const hoy = localDate();
+  const activeRoutines = routines.filter(
+    (routine) => routine.archivedAt === null,
+  );
   const [semana, setSemana] = useState(startOfWeek(hoy));
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoy);
   const [dropDraft, setDropDraft] = useState<{
@@ -663,7 +669,7 @@ export function SportsSchedule({
             Programar entrenamiento
           </Button>
         }
-        routines={routines}
+        routines={activeRoutines}
         atleta={atleta}
         usuarioActual={usuarioActual}
         fechaInicial={fechaSeleccionada}
@@ -891,7 +897,7 @@ export function SportsSchedule({
             </div>
           )}
           <div className="mt-4 space-y-2">
-            {routines.map((rutina) => (
+            {activeRoutines.map((rutina) => (
               <Card
                 key={rutina.id}
                 draggable

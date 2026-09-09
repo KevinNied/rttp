@@ -87,7 +87,7 @@ export function LandingAcceso({
             <DialogHeader>
               <DialogTitle>Ingresá a RTTP</DialogTitle>
               <DialogDescription className="text-white/40">
-                Usá el email que registró tu entrenador.
+                Usá el email asociado a tu perfil.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={ingresar} className="space-y-4">

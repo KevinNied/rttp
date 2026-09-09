@@ -19,9 +19,11 @@ import { Routine, User } from "@/lib/rttp-data";
 
 export function DialogoNuevaRutina({
   atleta,
+  createdById,
   onCreate,
 }: {
   atleta: User;
+  createdById: number;
   onCreate: (rutina: Routine) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -44,6 +46,9 @@ export function DialogoNuevaRutina({
     onCreate({
       id: `rutina-${atleta.id}-${timestamp}`,
       athleteId: atleta.id,
+      createdById,
+      sharedWithCoachId: null,
+      archivedAt: null,
       title: title.trim(),
       objective: objective.trim() || "Entrenamiento personalizado",
       durationMinutes: durationMinutes.trim()

@@ -25,6 +25,7 @@ import {
   cantidadEjercicios,
   rutinaTieneEjercicios,
 } from "@/domain/routine/routine-metrics";
+import { routineCreatorLabel } from "@/domain/routine/routine-access";
 import { OverviewRutina } from "@/features/athlete/overview-rutina";
 import {
   desktopPageShellClassName,
@@ -36,6 +37,8 @@ import { TextWithLinks } from "@/features/shared/text-with-links";
 
 export function HomeHoy({
   atleta,
+  viewer,
+  users,
   routines,
   workouts,
   onStart,
@@ -43,6 +46,8 @@ export function HomeHoy({
   navigate,
 }: {
   atleta: User;
+  viewer: User;
+  users: User[];
   routines: Routine[];
   workouts: ScheduledWorkout[];
   onStart: (item: ScheduledWorkout) => void;
@@ -193,6 +198,11 @@ export function HomeHoy({
                         {entrenamiento.origin === "routine" && rutina && (
                           <OverviewRutina
                             rutina={rutina}
+                            authorLabel={routineCreatorLabel(
+                              rutina,
+                              users,
+                              viewer,
+                            )}
                             className="h-11 w-full justify-center px-5 text-xs sm:w-auto"
                           />
                         )}

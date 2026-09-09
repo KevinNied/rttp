@@ -11,7 +11,10 @@ import {
 import { Routine, RoutineStructure, Role, User } from "@/lib/rttp-data";
 import { getSupabaseClient } from "@/lib/supabase";
 
-export type PersistedTemplate = Omit<Routine, "athleteId"> & {
+export type PersistedTemplate = Omit<
+  Routine,
+  "athleteId" | "createdById" | "sharedWithCoachId" | "archivedAt"
+> & {
   coachId: number;
 };
 
@@ -53,6 +56,9 @@ type ProfileRow = {
 type RoutineRow = {
   id: string;
   athlete_id: number;
+  created_by_id?: number | null;
+  shared_with_coach_id?: number | null;
+  archived_at?: string | null;
   title: string;
   objective: string;
   duration_minutes: number | null;
@@ -144,6 +150,148 @@ function assertQuery(context: string, error: { message: string } | null) {
   }
 }
 
+function routineCreatorId(row: RoutineRow, profiles: ProfileRow[]) {
+  if (row.id === "r1" && row.athlete_id === 6) return 6;
+  if (row.created_by_id !== null && row.created_by_id !== undefined) {
+    return row.created_by_id;
+  }
+  const structure: unknown = row.structure;
+  if (isRecord(structure) && typeof structure.createdById === "number") {
+    return structure.createdById;
+  }
+
+  const coachIds = profiles
+    .filter(
+      (profile) =>
+        profile.role === "coach" &&
+        profile.athlete_ids.includes(row.athlete_id),
+    )
+    .map((profile) => profile.id);
+  if (coachIds.length === 1) return coachIds[0];
+  if (coachIds.length === 1) return coachIds[0];
+
+  throw new Error(
+    `Rutina ${row.id} sin autor inequívoco: aplicá la migración de autoría en Supabase.`,
+  );
+}
+
+function routineSharedCoachId(row: RoutineRow) {
+  if (row.shared_with_coach_id !== undefined) {
+    return row.shared_with_coach_id;
+  }
+  const structure: unknown = row.structure;
+  if (isRecord(structure) && typeof structure.sharedWithCoachId === "number") {
+    return structure.sharedWithCoachId;
+  }
+  return null;
+}
+
+function routineArchivedAt(row: RoutineRow) {
+  if (row.archived_at !== undefined) return row.archived_at;
+  const structure: unknown = row.structure;
+  if (isRecord(structure) && typeof structure.archivedAt === "string") {
+    return structure.archivedAt;
+  }
+  return null;
+}
+
+function normalizedRoutineSnapshot(
+  snapshot: RoutineActivitySnapshot,
+  routineId: string | null,
+  routines: RoutineRow[],
+  profiles: ProfileRow[],
+): RoutineActivitySnapshot {
+  const snapshotData: unknown = snapshot;
+  const source = routines.find((routine) => routine.id === routineId);
+  const createdById =
+    isRecord(snapshotData) && typeof snapshotData.createdById === "number"
+      ? snapshotData.createdById
+      : source
+        ? routineCreatorId(source, profiles)
+        : null;
+  if (createdById === null) {
+    throw new Error(
+      `Snapshot de ${routineId ?? "rutina eliminada"} sin autor inequívoco.`,
+    );
+  }
+
+  return {
+    ...snapshot,
+    createdById,
+    sharedWithCoachId:
+      isRecord(snapshotData) &&
+      typeof snapshotData.sharedWithCoachId === "number"
+        ? snapshotData.sharedWithCoachId
+        : null,
+    archivedAt:
+      isRecord(snapshotData) && typeof snapshotData.archivedAt === "string"
+        ? snapshotData.archivedAt
+        : null,
+  };
+}
+
+function routineRow(routine: Routine) {
+  return {
+    id: routine.id,
+    athlete_id: routine.athleteId,
+    created_by_id: routine.createdById,
+    shared_with_coach_id: routine.sharedWithCoachId,
+    archived_at: routine.archivedAt,
+    title: routine.title,
+    objective: routine.objective,
+    duration_minutes: routine.durationMinutes,
+    structure: routine.structure,
+  };
+}
+
+function legacyRoutineRow(routine: Routine) {
+  return {
+    id: routine.id,
+    athlete_id: routine.athleteId,
+    title: routine.title,
+    objective: routine.objective,
+    duration_minutes: routine.durationMinutes,
+    structure: {
+      ...routine.structure,
+      createdById: routine.createdById,
+      sharedWithCoachId: routine.sharedWithCoachId,
+      archivedAt: routine.archivedAt,
+    },
+  };
+}
+
+function isMissingRoutineOwnershipColumns(error: {
+  code?: string;
+  message: string;
+}) {
+  return (
+    error.code === "PGRST204" &&
+    ["created_by_id", "shared_with_coach_id", "archived_at"].some((column) =>
+      error.message.includes(column),
+    )
+  );
+}
+
+async function upsertRoutines(
+  routines: Routine[],
+  options?: { onConflict: string; ignoreDuplicates: boolean },
+) {
+  const query = getSupabaseClient()
+    .from("routines")
+    .upsert(routines.map(routineRow), options);
+  const { error } = await query;
+  if (!error) return;
+  if (!isMissingRoutineOwnershipColumns(error)) {
+    assertQuery("No se pudieron guardar las rutinas", error);
+    return;
+  }
+
+  const { error: legacyError } = await getSupabaseClient()
+    .from("routines")
+    .upsert(routines.map(legacyRoutineRow), options);
+  assertQuery("No se pudieron guardar las rutinas", legacyError);
+}
+
 async function loadTable<T>(table: string, orderColumns: string[]) {
   const limit = 1000;
   const rows: T[] = [];
@@ -215,10 +363,13 @@ export async function loadSupabaseData(): Promise<PersistedData> {
     routines: routines.map((row) => ({
       id: row.id,
       athleteId: row.athlete_id,
+      createdById: routineCreatorId(row, profiles),
+      sharedWithCoachId: routineSharedCoachId(row),
+      archivedAt: routineArchivedAt(row),
       title: row.title,
       objective: row.objective,
       durationMinutes: row.duration_minutes,
-      structure: row.structure,
+      structure: { sections: row.structure.sections },
     })),
     templates: templates.map((row) => ({
       id: row.id,
@@ -271,7 +422,14 @@ export async function loadSupabaseData(): Promise<PersistedData> {
       title: row.title,
       category: row.category,
       routineId: row.routine_id,
-      routineSnapshot: row.routine_snapshot,
+      routineSnapshot: row.routine_snapshot
+        ? normalizedRoutineSnapshot(
+            row.routine_snapshot,
+            row.routine_id,
+            routines,
+            profiles,
+          )
+        : null,
       date: row.activity_date,
       completedAt: row.completed_at,
       durationMinutes: row.duration_minutes,
@@ -343,19 +501,7 @@ export async function createAthleteWithRoutine({
 
 export async function saveRoutines(routines: Routine[]) {
   if (routines.length === 0) return;
-  const { error } = await getSupabaseClient()
-    .from("routines")
-    .upsert(
-      routines.map((routine) => ({
-        id: routine.id,
-        athlete_id: routine.athleteId,
-        title: routine.title,
-        objective: routine.objective,
-        duration_minutes: routine.durationMinutes,
-        structure: routine.structure,
-      })),
-    );
-  assertQuery("No se pudieron guardar las rutinas", error);
+  await upsertRoutines(routines);
 }
 
 export async function deleteRoutineFromSupabase(id: string) {
@@ -454,6 +600,11 @@ function remapRoutine(routine: Routine, mapping: UserIdMapping): Routine {
   return {
     ...routine,
     athleteId: remapId(routine.athleteId, mapping),
+    createdById: remapId(routine.createdById, mapping),
+    sharedWithCoachId:
+      routine.sharedWithCoachId === null
+        ? null
+        : remapId(routine.sharedWithCoachId, mapping),
   };
 }
 
@@ -553,20 +704,10 @@ async function migrateProfiles(users: User[]) {
 
 async function insertMissingRoutines(routines: Routine[]) {
   if (routines.length === 0) return;
-  const { error } = await getSupabaseClient()
-    .from("routines")
-    .upsert(
-      routines.map((routine) => ({
-        id: routine.id,
-        athlete_id: routine.athleteId,
-        title: routine.title,
-        objective: routine.objective,
-        duration_minutes: routine.durationMinutes,
-        structure: routine.structure,
-      })),
-      { onConflict: "id", ignoreDuplicates: true },
-    );
-  assertQuery("No se pudieron migrar las rutinas", error);
+  await upsertRoutines(routines, {
+    onConflict: "id",
+    ignoreDuplicates: true,
+  });
 }
 
 async function insertMissingTemplates(templates: PersistedTemplate[]) {

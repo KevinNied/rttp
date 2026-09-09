@@ -25,9 +25,11 @@ import { TextWithLinks } from "@/features/shared/text-with-links";
 
 export function OverviewRutina({
   rutina,
+  authorLabel,
   className,
 }: {
   rutina: Routine;
+  authorLabel: string;
   className?: string;
 }) {
   const ejercicios = cantidadEjercicios(rutina);
@@ -63,6 +65,7 @@ export function OverviewRutina({
             {rutina.title}
           </DialogTitle>
           <DialogDescription className="text-white/40">
+            <span className="mb-1 block text-cyan-100/60">{authorLabel}</span>
             {countLabel(
               rutina.structure.sections.length,
               "sección",
@@ -84,9 +87,9 @@ export function OverviewRutina({
                   Rutina en preparación
                 </h3>
                 <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-white/38">
-                  Tu entrenador todavía no cargó ejercicios en esta rutina.
-                  Cuando la complete, vas a poder revisar el detalle y
-                  arrancarla desde la app.
+                  Esta rutina todavía no tiene ejercicios. Cuando esté
+                  completa, vas a poder revisar el detalle y arrancarla desde
+                  la app.
                 </p>
               </div>
             </div>

@@ -18,6 +18,8 @@ import { Routine, User } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
 import { RoutineTemplate } from "@/domain/routine/routine-factory";
+import { nuevaRutinaBase } from "@/domain/routine/routine-factory";
+import { canCoachEditRoutine } from "@/domain/routine/routine-access";
 import { CoachView } from "@/application/navigation/routes";
 import { useRoutineEditor } from "@/features/routine-editor/use-routine-editor";
 import {
@@ -69,7 +71,7 @@ export function HomeEntrenador({
   templates: RoutineTemplate[];
   vista: CoachView;
   detalleAtleta: boolean;
-  rutina: Routine;
+  rutina?: Routine;
   onSelectAtleta: (id: number) => void;
   onSelect: (id: string) => void;
   onSaveRutina: (rutina: Routine) => void;
@@ -86,7 +88,11 @@ export function HomeEntrenador({
   verComoAtleta: () => void;
   navigate: (path: string) => void;
 }) {
-  const editor = useRoutineEditor(rutinaGuardada);
+  const [rutinaVacia] = useState<Routine>(() => ({
+    ...nuevaRutinaBase(entrenador.id),
+    athleteId: atleta.id,
+  }));
+  const editor = useRoutineEditor(rutinaGuardada ?? rutinaVacia);
   const { rutina, setRutina, setOpenSectionId } = editor;
   const [seccionDetalle, setSeccionDetalle] =
     useState<CoachDetailSection>("routines");
@@ -96,7 +102,11 @@ export function HomeEntrenador({
   const [guardadoVisible, setGuardadoVisible] = useState(false);
   const [plantillaGuardadaVisible, setPlantillaGuardadaVisible] =
     useState(false);
-  const hayCambios = JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
+  const hayCambios =
+    rutinaGuardada !== undefined &&
+    JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
+  const rutinaEditable =
+    rutinaGuardada && canCoachEditRoutine(rutinaGuardada, entrenador);
   const hayEjerciciosSinNombre = rutina.structure.sections.some((section) =>
     section.exercises.some((exercise) => !exercise.name.trim()),
   );
@@ -136,7 +146,7 @@ export function HomeEntrenador({
   }
 
   function descartarYContinuar() {
-    setRutina(rutinaGuardada);
+    if (rutinaGuardada) setRutina(rutinaGuardada);
     accionPendiente?.();
     setAccionPendiente(null);
   }
@@ -173,7 +183,7 @@ export function HomeEntrenador({
 
       {vista === "routines" && (
         <CoachTemplatesView
-          rutina={rutina}
+          rutina={rutinaEditable ? rutina : undefined}
           templates={templates}
           atletas={atletas}
           plantillaGuardadaVisible={plantillaGuardadaVisible}
@@ -191,6 +201,7 @@ export function HomeEntrenador({
       {detalleAtleta && (
         <CoachAthleteDetailView
           editor={editor}
+          hasRoutine={rutinaGuardada !== undefined}
           entrenador={entrenador}
           atleta={atleta}
           routines={routines}

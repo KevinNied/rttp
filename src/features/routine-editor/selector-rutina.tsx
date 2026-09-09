@@ -10,11 +10,13 @@ export function SelectorRutina({
   routines,
   rutinaActiva,
   onSelect,
+  authorLabel,
   desktopVertical = false,
 }: {
   routines: Routine[];
-  rutinaActiva: Routine;
+  rutinaActiva?: Routine;
   onSelect: (id: string) => void;
+  authorLabel?: (routine: Routine) => string;
   desktopVertical?: boolean;
 }) {
   return (
@@ -31,7 +33,7 @@ export function SelectorRutina({
           className={cn(
             "rounded-2xl border p-3 text-left transition-all",
             desktopVertical && "xl:p-4",
-            rutina.id === rutinaActiva.id
+            rutina.id === rutinaActiva?.id
               ? index % 2 === 0
                 ? "border-blue-300/35 bg-blue-400/[0.10]"
                 : "border-violet-300/35 bg-violet-400/[0.10]"
@@ -61,6 +63,11 @@ export function SelectorRutina({
           >
             {countLabel(cantidadEjercicios(rutina), "ejercicio")}
           </div>
+          {authorLabel && (
+            <div className="mt-1 truncate text-[9px] text-cyan-100/45">
+              {authorLabel(rutina)}
+            </div>
+          )}
         </button>
       ))}
     </div>

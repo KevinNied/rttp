@@ -11,32 +11,6 @@ No representa trabajo comprometido ni un orden definitivo de implementación.
 - Definir una primera versión acotada antes de comenzar el desarrollo.
 - Mover la funcionalidad a su documentación específica cuando se implemente.
 
-## Rutinas creadas por atletas
-
-### Objetivo
-
-Permitir que una persona con rol `athlete` cree, programe y ejecute sus propias
-rutinas. Tener coach pasa a ser opcional para el atleta, pero los roles
-`coach | athlete` continúan siendo exclusivos.
-
-La definición completa del nuevo modelo de identidad, relaciones, propiedad,
-permisos, navegación, migración y primera versión está documentada en
-[`entrenamiento-autogestionado.md`](entrenamiento-autogestionado.md).
-
-### Decisiones base
-
-- El coach continúa teniendo únicamente su workspace de coach.
-- El atleta continúa teniendo únicamente su experiencia de atleta.
-- Un atleta puede existir y entrenar sin coach.
-- Las rutinas personales son administradas por su creador.
-- Las rutinas asignadas son administradas por el coach y de solo lectura para el
-  atleta.
-- Cada rutina guarda `createdById` para definir autoría y permisos.
-- Las tarjetas y vistas de detalle o revisión muestran quién creó la rutina.
-- Las rutinas personales son privadas por defecto y el atleta puede compartirlas
-  explícitamente con su coach en modo de solo lectura.
-- Agenda, historial y progreso pertenecen a quien realiza el entrenamiento.
-
 ## Progreso por ejercicio
 
 ### Objetivo

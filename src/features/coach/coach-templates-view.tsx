@@ -37,7 +37,7 @@ export function CoachTemplatesView({
   onDeleteTemplate,
   navegar,
 }: {
-  rutina: Routine;
+  rutina?: Routine;
   templates: RoutineTemplate[];
   atletas: User[];
   plantillaGuardadaVisible: boolean;
@@ -60,15 +60,23 @@ export function CoachTemplatesView({
             independiente para el atleta.
           </p>
         </div>
-      <DialogoGuardarPlantilla rutina={rutina} onSave={onSaveTemplate} />
+       {rutina && (
+         <DialogoGuardarPlantilla rutina={rutina} onSave={onSaveTemplate} />
+       )}
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-2 text-[10px] text-white/55">
-        <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5">
-          Rutina fuente:{" "}
-          <strong className="font-medium text-white/80">
-            {rutina.title}
-          </strong>
-        </span>
+       {rutina ? (
+         <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5">
+           Rutina fuente:{" "}
+           <strong className="font-medium text-white/80">
+             {rutina.title}
+           </strong>
+         </span>
+       ) : (
+         <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5">
+           Creá o abrí una rutina para guardarla como plantilla.
+         </span>
+       )}
         {plantillaGuardadaVisible && (
           <span
             role="status"

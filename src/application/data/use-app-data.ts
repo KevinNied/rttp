@@ -126,6 +126,14 @@ export function useAppData(athleteRouteId: number): AppDataStore {
   }, [athleteRouteId]);
 
   const persist = useCallback((newMutation: NewSupabaseMutation) => {
+    if (!remoteDataAppliedRef.current) {
+      setSyncError((current) =>
+        current ??
+        "La persistencia remota no está disponible. Recargá antes de guardar cambios.",
+      );
+      return;
+    }
+
     const mutation: SupabaseMutation = {
       ...newMutation,
       id: crypto.randomUUID(),

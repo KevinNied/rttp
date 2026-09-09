@@ -63,6 +63,8 @@ type Routine = {
   id: string;
   athleteId: number;
   createdById: number;
+  sharedWithCoachId: number | null;
+  archivedAt: string | null;
   title: string;
   objective: string;
   durationMinutes: number | null;
@@ -196,17 +198,19 @@ cargó ejercicios”.
 
 ## Persistencia y migración
 
-La implementación requiere:
+La implementación incorpora:
 
-1. agregar `created_by_id` a `routines`;
-2. agregar `createdById` al contrato TypeScript, mappers y payloads;
-3. incluir la autoría en snapshots de actividad cuando corresponda;
-4. actualizar RPC, migraciones y outbox;
-5. asignar como creador de cada rutina existente al único coach actualmente
-   relacionado con su atleta;
-6. mantener `profiles.role` y `profiles.athlete_ids`;
-7. permitir perfiles `athlete` que no aparezcan en `athlete_ids` de ningún coach;
-8. aplicar permisos de edición tanto en la UI como en la futura RLS.
+1. `created_by_id`, `shared_with_coach_id` y `archived_at` en `routines`;
+2. los campos equivalentes en el contrato TypeScript, mappers y payloads;
+3. la autoría en snapshots de actividad;
+4. el RPC de creación de atletas y la outbox actualizados;
+5. la atribución de cada rutina existente al único coach actualmente relacionado
+   con su atleta;
+6. `profiles.role` y `profiles.athlete_ids` sin alterar el modelo de roles;
+7. perfiles `athlete` que no aparecen en `athlete_ids` de ningún coach;
+8. permisos de edición aplicados en dominio, aplicación y UI;
+9. una compatibilidad transitoria que guarda estos metadatos dentro de `structure`
+   hasta aplicar la migración relacional en Supabase.
 
 Si una rutina existente no tiene un único coach inferible, la migración debe
 detenerse para resolver ese registro explícitamente. No se atribuye la rutina al
@@ -214,7 +218,7 @@ atleta ni a un coach arbitrario como fallback.
 
 Antes de modificar Supabase se debe crear y verificar un backup.
 
-## Primera versión propuesta
+## Primera versión implementada
 
 - Botón para crear rutina dentro de la biblioteca del atleta.
 - Creación desde una rutina en blanco y mediante duplicación de una rutina
@@ -230,16 +234,11 @@ Antes de modificar Supabase se debe crear y verificar un backup.
 - Migración de datos existentes.
 - Validación con atleta sin coach, atleta con coach y coach asignado.
 
-## Decisiones pendientes antes de implementar
-
-Confirmado:
+## Decisiones confirmadas
 
 - las rutinas personales son privadas por defecto y el atleta puede compartirlas
   explícitamente con su coach en modo de solo lectura;
 - las tarjetas y vistas de detalle o revisión muestran quién creó la rutina.
-
-Decisión propuesta para validar:
-
 - el atleta puede duplicar una rutina del coach como copia personal independiente
   y editable; la copia no modifica ni se sincroniza con la original;
 - el atleta puede archivar y restaurar una rutina asignada en su propia biblioteca,

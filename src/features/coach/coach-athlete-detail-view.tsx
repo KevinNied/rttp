@@ -33,6 +33,11 @@ import { Routine, User } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
+import {
+  canCoachEditRoutine,
+  routineCreatorLabel,
+} from "@/domain/routine/routine-access";
+import { OverviewRutina } from "@/features/athlete/overview-rutina";
 import { DialogoDetallesRutina } from "@/features/routine-editor/dialogo-detalles-rutina";
 import { DialogoEjercicio } from "@/features/routine-editor/dialogo-ejercicio";
 import { DialogoNuevaRutina } from "@/features/routine-editor/dialogo-nueva-rutina";
@@ -51,6 +56,7 @@ export type CoachDetailSection = "routines" | "agenda" | "activities";
 
 export function CoachAthleteDetailView({
   editor,
+  hasRoutine,
   entrenador,
   atleta,
   routines,
@@ -73,6 +79,7 @@ export function CoachAthleteDetailView({
   onDeleteEntrenamiento,
 }: {
   editor: RoutineEditor;
+  hasRoutine: boolean;
   entrenador: User;
   atleta: User;
   routines: Routine[];
@@ -108,6 +115,8 @@ export function CoachAthleteDetailView({
     moverEjercicio,
   } = editor;
   const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
+  const canEditRoutine = canCoachEditRoutine(rutina, entrenador);
+  const authorLabel = routineCreatorLabel(rutina, [entrenador, atleta], entrenador);
 
   return (
     <section id="routines-entrenador" className="scroll-mt-24">
@@ -141,7 +150,11 @@ export function CoachAthleteDetailView({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {seccionDetalle === "routines" && (
-            <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
+            <DialogoNuevaRutina
+              atleta={atleta}
+              createdById={entrenador.id}
+              onCreate={crearYEditar}
+            />
           )}
           <Button
             onClick={() => navegar(verComoAtleta)}
@@ -184,7 +197,22 @@ export function CoachAthleteDetailView({
         })}
       </div>
 
-      {seccionDetalle === "routines" && (
+      {seccionDetalle === "routines" && !hasRoutine && (
+        <div className="grid min-h-80 place-items-center rounded-3xl border border-dashed border-white/[0.09] bg-white/[0.02] px-6 text-center">
+          <div className="max-w-sm">
+            <Dumbbell className="mx-auto size-8 text-cyan-200/60" />
+            <h2 className="mt-4 text-xl font-medium">
+              Todavía no hay rutinas visibles
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-white/40">
+              Creá el primer plan para {atleta.name}. Sus rutinas personales
+              seguirán siendo privadas hasta que decida compartirlas.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {seccionDetalle === "routines" && hasRoutine && (
         <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
           <div className="xl:sticky xl:top-24">
             <div className="mb-3 hidden items-center justify-between xl:flex">
@@ -199,6 +227,9 @@ export function CoachAthleteDetailView({
               routines={routines}
               rutinaActiva={rutina}
               onSelect={(id) => navegar(() => onSelect(id))}
+              authorLabel={(item) =>
+                routineCreatorLabel(item, [entrenador, atleta], entrenador)
+              }
               desktopVertical
             />
           </div>
@@ -217,19 +248,28 @@ export function CoachAthleteDetailView({
                       : ""}{" "}
                     · {countLabel(ejerciciosRutinaActiva, "ejercicio")}
                   </p>
+                  <p className="mt-1 text-[10px] text-cyan-100/55">
+                    {authorLabel}
+                  </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  {!hayCambios && (
+                  {canEditRoutine && !hayCambios && (
                     <div className="flex items-center gap-1 text-[10px] text-cyan-200/55">
                       <Check className="size-3" />
                       {guardadoVisible ? "Cambios guardados" : "Guardado"}
                     </div>
                   )}
-                  <DialogoDetallesRutina
+                  <OverviewRutina
                     rutina={rutina}
-                    onUpdate={setRutina}
+                    authorLabel={authorLabel}
                   />
-                  {hayCambios && (
+                  {canEditRoutine && (
+                    <DialogoDetallesRutina
+                      rutina={rutina}
+                      onUpdate={setRutina}
+                    />
+                  )}
+                  {canEditRoutine && hayCambios && (
                     <Button
                       onClick={guardar}
                       disabled={hayEjerciciosSinNombre}
@@ -246,124 +286,133 @@ export function CoachAthleteDetailView({
                         : "Guardar cambios"}
                     </Button>
                   )}
-                  <Dialog>
-                    <DialogTrigger
-                      disabled={routines.length <= 1}
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Eliminar rutina"
-                          title={
-                            routines.length <= 1
-                              ? "Creá otra rutina antes de eliminar esta"
-                              : "Eliminar rutina"
-                          }
-                          className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200 disabled:opacity-20"
-                        />
-                      }
-                    >
-                      <Trash2 />
-                    </DialogTrigger>
-                    <DialogContent className="border-white/10 bg-app-panel text-white">
-                      <DialogHeader>
-                        <DialogTitle>
-                          ¿Eliminar “{rutina.title}”?
-                        </DialogTitle>
-                        <DialogDescription className="text-white/40">
-                          La rutina dejará de estar disponible para{" "}
-                          {atleta.name}. También se quitarán sus
-                          entrenamientos programados. Esta acción no se
-                          puede deshacer.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <DialogClose
-                          render={
-                            <Button
-                              variant="ghost"
-                              className="text-white/50"
-                            />
-                          }
-                        >
-                          Cancelar
-                        </DialogClose>
-                        <DialogClose
-                          render={
-                            <Button
-                              variant="destructive"
-                              onClick={() => onDeleteRutina(rutina.id)}
-                              className="bg-red-500 text-white hover:bg-red-400"
-                            />
-                          }
-                        >
-                          Eliminar rutina
-                        </DialogClose>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  {canEditRoutine && (
+                    <Dialog>
+                      <DialogTrigger
+                        disabled={routines.length <= 1}
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Eliminar rutina"
+                            title={
+                              routines.length <= 1
+                                ? "Creá otra rutina antes de eliminar esta"
+                                : "Eliminar rutina"
+                            }
+                            className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200 disabled:opacity-20"
+                          />
+                        }
+                      >
+                        <Trash2 />
+                      </DialogTrigger>
+                      <DialogContent className="border-white/10 bg-app-panel text-white">
+                        <DialogHeader>
+                          <DialogTitle>
+                            ¿Eliminar “{rutina.title}”?
+                          </DialogTitle>
+                          <DialogDescription className="text-white/40">
+                            La rutina dejará de estar disponible para{" "}
+                            {atleta.name}. También se quitarán sus entrenamientos
+                            programados. Esta acción no se puede deshacer.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <DialogClose
+                            render={
+                              <Button
+                                variant="ghost"
+                                className="text-white/50"
+                              />
+                            }
+                          >
+                            Cancelar
+                          </DialogClose>
+                          <DialogClose
+                            render={
+                              <Button
+                                variant="destructive"
+                                onClick={() => onDeleteRutina(rutina.id)}
+                                className="bg-red-500 text-white hover:bg-red-400"
+                              />
+                            }
+                          >
+                            Eliminar rutina
+                          </DialogClose>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  )}
                 </div>
               </div>
-              {ejerciciosRutinaActiva === 0 && (
-                <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-100/75">
-                  Esta rutina todavía no tiene ejercicios. Sumá contenido
-                  antes de usarla como referencia o seguir avanzando con la
-                  planificación del atleta.
+              {!canEditRoutine && (
+                <div className="mt-4 rounded-2xl border border-violet-200/12 bg-violet-300/[0.06] px-4 py-3 text-xs leading-relaxed text-violet-100/70">
+                  {atleta.name} compartió esta rutina para que puedas revisarla.
+                  Solo el atleta puede editarla.
                 </div>
               )}
-              {hayEjerciciosSinNombre && (
+              {ejerciciosRutinaActiva === 0 && (
                 <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-100/75">
-                  Completá el nombre del ejercicio nuevo para guardar la
-                  rutina.
+                  {canEditRoutine
+                    ? "Esta rutina todavía no tiene ejercicios. Sumá contenido antes de usarla como referencia o seguir avanzando con la planificación del atleta."
+                    : "Esta rutina compartida todavía no tiene ejercicios."}
+                </div>
+              )}
+              {canEditRoutine && hayEjerciciosSinNombre && (
+                <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-100/75">
+                  Completá el nombre del ejercicio nuevo para guardar la rutina.
                 </div>
               )}
             </CardHeader>
             <CardContent className="p-0">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={moverEjercicio}
-              >
-                {rutina.structure.sections.map((section, index) => (
-                  <SeccionEditor
-                    key={section.id}
-                    section={section}
-                    index={index}
-                    abierto={openSectionId === section.id}
-                    onToggle={() =>
-                      setOpenSectionId((actual) =>
-                        actual === section.id ? null : section.id,
-                      )
-                    }
-                    onKindChange={(kind) => updateSectionKind(section.id, kind)}
-                    addExercise={
-                      <button
-                        type="button"
-                        onClick={() => agregarEjercicioVacio(section.id)}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] px-4 py-3 text-xs text-cyan-100/55 transition-colors hover:border-cyan-200/30 hover:bg-cyan-300/[0.06] hover:text-cyan-100"
-                      >
-                        <Plus className="size-3.5" />
-                        Sumar ejercicio
-                      </button>
-                    }
-                  >
-                    {section.exercises.map((item) => (
-                      <FilaEjercicio
-                        key={item.id}
-                        item={item}
-                        sectionId={section.id}
-                        onUpdate={(siguiente) =>
-                          actualizarEjercicio(
-                            section.id,
-                            item.id,
-                            siguiente,
-                          )
-                        }
-                        onDelete={() =>
-                          eliminarEjercicio(section.id, item.id)
-                        }
-                      />
-                    ))}
+              {canEditRoutine ? (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={moverEjercicio}
+                >
+                  {rutina.structure.sections.map((section, index) => (
+                    <SeccionEditor
+                      key={section.id}
+                      section={section}
+                      index={index}
+                      abierto={openSectionId === section.id}
+                      onToggle={() =>
+                        setOpenSectionId((actual) =>
+                          actual === section.id ? null : section.id,
+                        )
+                      }
+                      onKindChange={(kind) =>
+                        updateSectionKind(section.id, kind)
+                      }
+                      addExercise={
+                        <button
+                          type="button"
+                          onClick={() => agregarEjercicioVacio(section.id)}
+                          className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] px-4 py-3 text-xs text-cyan-100/55 transition-colors hover:border-cyan-200/30 hover:bg-cyan-300/[0.06] hover:text-cyan-100"
+                        >
+                          <Plus className="size-3.5" />
+                          Sumar ejercicio
+                        </button>
+                      }
+                    >
+                      {section.exercises.map((item) => (
+                        <FilaEjercicio
+                          key={item.id}
+                          item={item}
+                          sectionId={section.id}
+                          onUpdate={(siguiente) =>
+                            actualizarEjercicio(
+                              section.id,
+                              item.id,
+                              siguiente,
+                            )
+                          }
+                          onDelete={() =>
+                            eliminarEjercicio(section.id, item.id)
+                          }
+                        />
+                      ))}
                   </SeccionEditor>
                 ))}
                 <div
@@ -385,7 +434,14 @@ export function CoachAthleteDetailView({
                     onAdd={agregarEjercicio}
                   />
                 </div>
-              </DndContext>
+                </DndContext>
+              ) : (
+                <div className="p-5 text-sm text-white/50 md:p-7">
+                  Abrí <span className="text-white/75">Vista general</span> para
+                  revisar todas las secciones y ejercicios sin modificar el
+                  plan personal del atleta.
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

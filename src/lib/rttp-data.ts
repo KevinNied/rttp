@@ -49,6 +49,9 @@ export type RoutineStructure = {
 export type Routine = {
   id: string;
   athleteId: number;
+  createdById: number;
+  sharedWithCoachId: number | null;
+  archivedAt: string | null;
   title: string;
   objective: string;
   durationMinutes: number | null;
@@ -144,12 +147,21 @@ export const initialUsers: User[] = [
     email: "athlete@test.com",
     role: "athlete",
   },
+  {
+    id: 6,
+    name: "Ana",
+    email: "a@b.c",
+    role: "athlete",
+  },
 ];
 
 const kevinRoutines: Routine[] = [
   {
     id: "kevin-dia-1",
     athleteId: 1,
+    createdById: 2,
+    sharedWithCoachId: null,
+    archivedAt: null,
     title: "Fuerza de tren inferior",
     objective: "Glúteos, cuádriceps e isquiotibiales",
     durationMinutes: 65,
@@ -286,6 +298,9 @@ const kevinRoutines: Routine[] = [
   {
     id: "kevin-dia-2",
     athleteId: 1,
+    createdById: 2,
+    sharedWithCoachId: null,
+    archivedAt: null,
     title: "Fuerza unilateral",
     objective: "Control, estabilidad y fuerza de piernas",
     durationMinutes: 68,
@@ -572,6 +587,9 @@ const nachoRoutines: Routine[] = [
   {
     id: "nacho-dia-1",
     athleteId: 3,
+    createdById: 2,
+    sharedWithCoachId: null,
+    archivedAt: null,
     title: "Pierna",
     objective: "Enfoque en cuádriceps y estabilidad",
     durationMinutes: 60,
@@ -635,6 +653,9 @@ const nachoRoutines: Routine[] = [
   {
     id: "nacho-dia-2",
     athleteId: 3,
+    createdById: 2,
+    sharedWithCoachId: null,
+    archivedAt: null,
     title: "Torso",
     objective: "Fuerza y volumen",
     durationMinutes: 65,
@@ -708,6 +729,9 @@ const nachoRoutines: Routine[] = [
   {
     id: "nacho-dia-3",
     athleteId: 3,
+    createdById: 2,
+    sharedWithCoachId: null,
+    archivedAt: null,
     title: "Pierna",
     objective: "Enfoque en cadena posterior",
     durationMinutes: 65,
@@ -783,6 +807,9 @@ const nachoRoutines: Routine[] = [
   {
     id: "nacho-dia-4",
     athleteId: 3,
+    createdById: 2,
+    sharedWithCoachId: null,
+    archivedAt: null,
     title: "Torso",
     objective: "Fuerza de tren superior",
     durationMinutes: 60,
@@ -858,6 +885,9 @@ const nachoRoutines: Routine[] = [
   {
     id: "nacho-dia-5",
     athleteId: 3,
+    createdById: 2,
+    sharedWithCoachId: null,
+    archivedAt: null,
     title: "Full body",
     objective: "Trabajo completo de fuerza y estabilidad",
     durationMinutes: 60,
@@ -932,6 +962,9 @@ const testRoutines: Routine[] = [
   {
     id: "test-dia-1",
     athleteId: 5,
+    createdById: 4,
+    sharedWithCoachId: null,
+    archivedAt: null,
     title: "Rutina de prueba",
     objective: "Espacio aislado para probar RTTP",
     durationMinutes: 30,
@@ -952,8 +985,37 @@ const testRoutines: Routine[] = [
   },
 ];
 
+const independentRoutines: Routine[] = [
+  {
+    id: "ana-rutina-personal",
+    athleteId: 6,
+    createdById: 6,
+    sharedWithCoachId: null,
+    archivedAt: null,
+    title: "Mi primera rutina",
+    objective: "Entrenamiento personal",
+    durationMinutes: 30,
+    structure: createStructure([
+      individualSection(
+        "ana-bloque-1",
+        "Bloque principal",
+        exercise({
+          id: "ana-sentadilla",
+          name: "Sentadilla goblet",
+          sets: 3,
+          reps: [8, 10],
+          weight: 8,
+          restSeconds: 60,
+          instructions: "Controlá la bajada y mantené el torso firme",
+        }),
+      ),
+    ]),
+  },
+];
+
 export const initialRoutines = [
   ...kevinRoutines,
   ...nachoRoutines,
   ...testRoutines,
+  ...independentRoutines,
 ];

@@ -15,11 +15,17 @@ import { createAthleteWithRoutine } from "@/lib/rttp-supabase";
 import { supabaseConfigured } from "@/lib/supabase";
 
 import {
+  duplicateRoutineForAthlete,
   idPlantilla,
   nuevaRutinaBase,
   rutinaDesdePlantilla,
   snapshotRoutine,
 } from "@/domain/routine/routine-factory";
+import {
+  canAthleteEditRoutine,
+  canCoachEditRoutine,
+  visibleRoutinesForCoach,
+} from "@/domain/routine/routine-access";
 import { rutinaTieneEjercicios } from "@/domain/routine/routine-metrics";
 import {
   recordsWithoutSession,
@@ -96,11 +102,16 @@ export default function Home() {
         (item) => item.role === "coach" && item.athleteIds?.includes(atleta.id),
       )
     : undefined;
-  const rutinasDelAtleta = atleta
+  const todasLasRutinasDelAtleta = atleta
     ? routines.filter((item) => item.athleteId === atleta.id)
     : [];
+  const rutinasDelAtleta =
+    atleta && usuario?.role === "coach"
+      ? visibleRoutinesForCoach(routines, usuario, atleta.id)
+      : todasLasRutinasDelAtleta;
   const rutina =
     rutinasDelAtleta.find((item) => item.id === routineId) ??
+    rutinasDelAtleta.find((item) => item.archivedAt === null) ??
     rutinasDelAtleta[0];
   const entrenamientoActivo = workouts.find(
     (item) => item.id === entrenamientoActivoId,
@@ -127,12 +138,42 @@ export default function Home() {
   useRoleRedirect({ hydrated, pathname, user: usuario, replaceNavigate });
 
   function guardarRutina(rutinaGuardada: Routine) {
+    if (!usuario) return;
+    const rutinaPersistida = routines.find(
+      (item) => item.id === rutinaGuardada.id,
+    );
+    if (
+      !rutinaPersistida ||
+      rutinaGuardada.athleteId !== rutinaPersistida.athleteId ||
+      rutinaGuardada.createdById !== rutinaPersistida.createdById
+    ) {
+      setSyncError("No se pudo validar la identidad de la rutina.");
+      return;
+    }
+    const canSave =
+      usuario.role === "athlete"
+        ? canAthleteEditRoutine(rutinaPersistida, usuario.id)
+        : canCoachEditRoutine(rutinaPersistida, usuario);
+    const rutinaValidada =
+      usuario.role === "athlete" &&
+      rutinaGuardada.sharedWithCoachId !== entrenadorDelAtleta?.id
+        ? { ...rutinaGuardada, sharedWithCoachId: null }
+        : rutinaGuardada;
+    const coachPreservedOwnershipState =
+      usuario.role !== "coach" ||
+      (rutinaValidada.sharedWithCoachId ===
+        rutinaPersistida.sharedWithCoachId &&
+        rutinaValidada.archivedAt === rutinaPersistida.archivedAt);
+    if (!canSave || !coachPreservedOwnershipState) {
+      setSyncError("No tenés permiso para editar esta rutina.");
+      return;
+    }
     setRoutines((actuales) =>
       actuales.map((item) =>
-        item.id === rutinaGuardada.id ? rutinaGuardada : item,
+        item.id === rutinaValidada.id ? rutinaValidada : item,
       ),
     );
-    persist({ type: "save-routines", data: [rutinaGuardada] });
+    persist({ type: "save-routines", data: [rutinaValidada] });
   }
 
   function acceder(email: string) {
@@ -145,10 +186,16 @@ export default function Home() {
       usuarioEncontrado.role === "athlete"
         ? usuarioEncontrado.id
         : (usuarioEncontrado.athleteIds?.[0] ?? 1);
-    const primeraRutina = routines.find((item) => item.athleteId === athleteId);
+    const rutinasDisponibles =
+      usuarioEncontrado.role === "coach"
+        ? visibleRoutinesForCoach(routines, usuarioEncontrado, athleteId)
+        : routines.filter((item) => item.athleteId === athleteId);
+    const primeraRutina =
+      rutinasDisponibles.find((item) => item.archivedAt === null) ??
+      rutinasDisponibles[0];
     setUserId(usuarioEncontrado.id);
     setAtletaSeleccionadoId(athleteId);
-    setRutinaId(primeraRutina?.id ?? initialRoutines[0].id);
+    setRutinaId(primeraRutina?.id ?? "");
     setVistaPrevia(false);
     persistCurrentUser(usuarioEncontrado.id);
     replaceNavigate(usuarioEncontrado.role === "coach" ? "/coach" : "/");
@@ -156,14 +203,37 @@ export default function Home() {
   }
 
   function seleccionarAtleta(id: number) {
-    const primeraRutina = routines.find((item) => item.athleteId === id);
+    const rutinasDisponibles =
+      usuario?.role === "coach"
+        ? visibleRoutinesForCoach(routines, usuario, id)
+        : routines.filter((item) => item.athleteId === id);
+    const primeraRutina =
+      rutinasDisponibles.find((item) => item.archivedAt === null) ??
+      rutinasDisponibles[0];
     setAtletaSeleccionadoId(id);
     persistSelectedAthlete(id);
-    if (primeraRutina) setRutinaId(primeraRutina.id);
+    setRutinaId(primeraRutina?.id ?? "");
     setRegistros({});
   }
 
   function crearRutina(rutinaNueva: Routine) {
+    if (
+      !usuario ||
+      rutinaNueva.createdById !== usuario.id ||
+      rutinaNueva.sharedWithCoachId !== null ||
+      rutinaNueva.archivedAt !== null
+    ) {
+      setSyncError("No se pudo validar la autoría de la rutina.");
+      return;
+    }
+    const canCreate =
+      usuario.role === "athlete"
+        ? rutinaNueva.athleteId === usuario.id
+        : usuario.athleteIds?.includes(rutinaNueva.athleteId) === true;
+    if (!canCreate) {
+      setSyncError("No tenés permiso para crear esta rutina.");
+      return;
+    }
     setRoutines((actuales) => [...actuales, rutinaNueva]);
     setRutinaId(rutinaNueva.id);
     persist({ type: "save-routines", data: [rutinaNueva] });
@@ -319,13 +389,22 @@ export default function Home() {
   }
 
   function guardarComoPlantilla(rutina: Routine, title: string) {
-    if (!usuario || usuario.role !== "coach") return;
+    if (
+      !usuario ||
+      usuario.role !== "coach" ||
+      !canCoachEditRoutine(rutina, usuario)
+    ) {
+      setSyncError("Solo podés crear plantillas desde rutinas propias.");
+      return;
+    }
     const id = idPlantilla(usuario.id);
     const plantilla = {
-      ...rutina,
       id,
       coachId: usuario.id,
       title,
+      objective: rutina.objective,
+      durationMinutes: rutina.durationMinutes,
+      structure: rutina.structure,
     };
     setTemplates((actuales) => [...actuales, plantilla]);
     persist({ type: "save-templates", data: [plantilla] });
@@ -336,7 +415,11 @@ export default function Home() {
       (item) => item.id === plantillaId && item.coachId === usuario?.id,
     );
     if (!plantilla) return;
-    const rutinaNueva = rutinaDesdePlantilla(plantilla, athleteId);
+    const rutinaNueva = rutinaDesdePlantilla(
+      plantilla,
+      athleteId,
+      usuario?.id ?? plantilla.coachId,
+    );
     setRoutines((actuales) => [...actuales, rutinaNueva]);
     persist({ type: "save-routines", data: [rutinaNueva] });
     seleccionarAtleta(athleteId);
@@ -361,7 +444,7 @@ export default function Home() {
     if (!supabaseConfigured) {
       return "La base de datos no está configurada.";
     }
-    const rutinaBase = nuevaRutinaBase();
+    const rutinaBase = nuevaRutinaBase(usuario.id);
 
     let id: number;
     try {
@@ -399,6 +482,16 @@ export default function Home() {
   }
 
   function eliminarRutina(id: string) {
+    const rutinaAEliminar = routines.find((item) => item.id === id);
+    if (
+      !usuario ||
+      usuario.role !== "coach" ||
+      !rutinaAEliminar ||
+      !canCoachEditRoutine(rutinaAEliminar, usuario)
+    ) {
+      setSyncError("No tenés permiso para eliminar esta rutina.");
+      return;
+    }
     const restantes = rutinasDelAtleta.filter((item) => item.id !== id);
     if (restantes.length === 0) return;
     const idsDeEntrenamientos = workouts
@@ -419,6 +512,82 @@ export default function Home() {
       recordsWithoutSessions(actuales, idsDeEntrenamientos),
     );
     persist({ type: "delete-routine", entityId: id });
+  }
+
+  function duplicarRutinaPersonal(rutinaOrigen: Routine) {
+    const rutinaPersistida = routines.find(
+      (item) => item.id === rutinaOrigen.id,
+    );
+    if (
+      !usuario ||
+      usuario.role !== "athlete" ||
+      !rutinaPersistida ||
+      rutinaPersistida.athleteId !== usuario.id ||
+      rutinaPersistida.createdById === usuario.id ||
+      rutinaPersistida.archivedAt !== null
+    ) {
+      setSyncError("No tenés permiso para duplicar esta rutina.");
+      return null;
+    }
+    const copia = duplicateRoutineForAthlete(rutinaPersistida, usuario.id);
+    setRoutines((actuales) => [...actuales, copia]);
+    setRutinaId(copia.id);
+    persist({ type: "save-routines", data: [copia] });
+    return copia;
+  }
+
+  function archivarRutina(rutinaAArchivar: Routine) {
+    const rutinaPersistida = routines.find(
+      (item) => item.id === rutinaAArchivar.id,
+    );
+    if (
+      !usuario ||
+      usuario.role !== "athlete" ||
+      !rutinaPersistida ||
+      rutinaPersistida.athleteId !== usuario.id
+    ) {
+      setSyncError("No tenés permiso para archivar esta rutina.");
+      return;
+    }
+    const actualizada = {
+      ...rutinaPersistida,
+      sharedWithCoachId: null,
+      archivedAt: new Date().toISOString(),
+    };
+    setRoutines((actuales) =>
+      actuales.map((item) =>
+        item.id === actualizada.id ? actualizada : item,
+      ),
+    );
+    const siguiente = todasLasRutinasDelAtleta.find(
+      (item) => item.id !== actualizada.id && item.archivedAt === null,
+    );
+    if (siguiente) setRutinaId(siguiente.id);
+    persist({ type: "save-routines", data: [actualizada] });
+  }
+
+  function restaurarRutina(rutinaArchivada: Routine) {
+    const rutinaPersistida = routines.find(
+      (item) => item.id === rutinaArchivada.id,
+    );
+    if (
+      !usuario ||
+      usuario.role !== "athlete" ||
+      !rutinaPersistida ||
+      rutinaPersistida.athleteId !== usuario.id ||
+      rutinaPersistida.archivedAt === null
+    ) {
+      setSyncError("No tenés permiso para restaurar esta rutina.");
+      return;
+    }
+    const actualizada = { ...rutinaPersistida, archivedAt: null };
+    setRoutines((actuales) =>
+      actuales.map((item) =>
+        item.id === actualizada.id ? actualizada : item,
+      ),
+    );
+    setRutinaId(actualizada.id);
+    persist({ type: "save-routines", data: [actualizada] });
   }
 
   function salir() {
@@ -450,7 +619,7 @@ export default function Home() {
     return <LandingAcceso onAccess={acceder} />;
   }
 
-  if (!atleta || !rutina) {
+  if (!atleta) {
     return <LandingAcceso onAccess={acceder} />;
   }
 
@@ -478,17 +647,13 @@ export default function Home() {
         />
       ) : !mostrandoAtleta ? (
         <HomeEntrenador
-          key={`${atleta.id}-${rutina.id}`}
+          key={`${atleta.id}-${rutina?.id ?? "sin-rutina"}`}
           entrenador={usuario}
           users={users}
           atletas={atletasDelCoach}
           atleta={atleta}
           routines={rutinasDelAtleta}
-          rutinasPorAtleta={routines.filter((item) =>
-            atletasDelCoach.some(
-              (atletaActual) => atletaActual.id === item.athleteId,
-            ),
-          )}
+          rutinasPorAtleta={visibleRoutinesForCoach(routines, usuario)}
           workouts={workouts.filter((item) => item.athleteId === atleta.id)}
           activities={activities.filter((item) => item.athleteId === atleta.id)}
           templates={templates.filter(
@@ -534,6 +699,8 @@ export default function Home() {
       ) : vistaAtleta === "inicio" && !entrenamientoActivo ? (
         <HomeHoy
           atleta={atleta}
+          viewer={usuario}
+          users={users}
           routines={rutinasDelAtleta}
           workouts={workouts.filter((item) => item.athleteId === atleta.id)}
           onStart={comenzarEntrenamiento}
@@ -542,8 +709,11 @@ export default function Home() {
         />
       ) : (
         <ExperienciaAtleta
-          key={`${rutinaDeEntrenamiento.id}-${entrenamientoActivo?.id ?? "routines"}`}
+          key={`${atleta.id}-${entrenamientoActivo?.id ?? "routines"}`}
           atleta={atleta}
+          viewer={usuario}
+          users={users}
+          coach={entrenadorDelAtleta}
           routines={rutinasDelAtleta}
           rutina={rutinaDeEntrenamiento}
           entrenamientoInicial={entrenamientoActivo}
@@ -552,8 +722,14 @@ export default function Home() {
           onCreateEntrenamiento={crearEntrenamiento}
           onUpdateEntrenamiento={actualizarEntrenamiento}
           onCompleteRoutine={registrarActividadRutina}
+          onSaveRoutine={guardarRutina}
+          onCreateRoutine={crearRutina}
+          onDuplicateRoutine={duplicarRutinaPersonal}
+          onArchiveRoutine={archivarRutina}
+          onRestoreRoutine={restaurarRutina}
           onCloseScheduled={() => setEntrenamientoActivoId(null)}
           onWorkoutModeChange={setWorkoutImmersive}
+          onDirtyChange={setEditorDirty}
           registros={registros}
           setRegistros={setRegistros}
         />

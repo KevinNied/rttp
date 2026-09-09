@@ -34,6 +34,8 @@ Supabase.
   `rounds`.
 - `routine/routine-factory.ts`: plantillas, copias independientes desde una
   plantilla, snapshot histórico y rutina base para un atleta nuevo.
+- `routine/routine-access.ts`: autoría, permisos de edición y visibilidad de
+  rutinas personales o creadas por un coach.
 - `workout/workout-session.ts`: tipos y cálculos de la sesión de entrenamiento
   (cronómetro, descanso, registros por sesión).
 - `workout/workout-activity.ts`: series completadas u omitidas que se guardan en
@@ -87,7 +89,8 @@ Supabase.
 - `features/coach`: `HomeEntrenador` y sus vistas de resumen, atletas,
   plantillas y detalle del atleta.
 - `features/athlete`: inicio del día, rutinas asignadas, vista general, perfil y
-  `ExperienciaAtleta`, que coordina inicio, ejecución y cierre de la rutina.
+  `ExperienciaAtleta`, que coordina biblioteca personal, edición, inicio,
+  ejecución y cierre de la rutina.
 - `features/workout`: modo de ejecución, campos de prescripción, hoja de vista
   general, hoja de omisión, vista rápida por rondas y cierre de rutina.
 
