@@ -79,7 +79,7 @@ export function FilaEjercicio({
             }
             aria-label={`Aclaraciones de ${exerciseLabel}`}
             placeholder="+ Aclaración opcional"
-            className="mt-1 h-5 rounded-none border-0 bg-transparent p-0 text-[10px] text-violet-100/55 shadow-none placeholder:text-white/20 focus-visible:ring-0 dark:bg-transparent xl:text-xs"
+            className="mt-1 h-7 rounded-none border-0 bg-transparent p-0 text-xs text-violet-100/70 shadow-none placeholder:text-white/45 focus-visible:ring-0 dark:bg-transparent xl:text-sm"
           />
         </div>
       </div>
@@ -98,7 +98,7 @@ export function FilaEjercicio({
           </Button>
           <div className="w-10 text-center">
             <div className="text-sm">{item.sets}</div>
-            <div className="text-[8px] uppercase text-indigo-100/25">
+            <div className="text-xs uppercase text-indigo-100/55">
               series
             </div>
           </div>
@@ -142,10 +142,10 @@ export function FilaEjercicio({
                     });
                   }}
                   className={cn(
-                    "rounded-md text-[9px] transition-colors",
+                    "rounded-md text-xs transition-colors",
                     seleccionado
                       ? "bg-white/10 text-white shadow-sm"
-                      : "text-white/35 hover:text-white/65",
+                      : "text-white/60 hover:text-white/80",
                   )}
                 >
                   {tipo === "fijas" ? "Fijas" : "Rango"}
@@ -171,7 +171,7 @@ export function FilaEjercicio({
                 aria-label={`Repeticiones de ${exerciseLabel}`}
                 className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
               />
-              <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+              <div className="mt-1 text-xs uppercase text-indigo-100/55">
                 reps.
               </div>
             </label>
@@ -195,7 +195,7 @@ export function FilaEjercicio({
                   aria-label={`Repeticiones mínimas de ${exerciseLabel}`}
                   className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
-                <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+                <div className="mt-1 text-xs uppercase text-indigo-100/55">
                   mín.
                 </div>
               </label>
@@ -217,7 +217,7 @@ export function FilaEjercicio({
                   aria-label={`Repeticiones máximas de ${exerciseLabel}`}
                   className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                 />
-                <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+                <div className="mt-1 text-xs uppercase text-indigo-100/55">
                   máx.
                 </div>
               </label>
@@ -240,7 +240,7 @@ export function FilaEjercicio({
             aria-label={`Peso de ${exerciseLabel}`}
             className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
-          <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+          <div className="mt-1 text-xs uppercase text-indigo-100/55">
             peso (kg)
           </div>
         </label>
@@ -263,7 +263,7 @@ export function FilaEjercicio({
             aria-label={`Descanso de ${exerciseLabel}`}
             className="h-8 border-white/10 bg-black/25 text-center text-xs tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
           />
-          <div className="mt-1 text-[8px] uppercase text-indigo-100/25">
+          <div className="mt-1 text-xs uppercase text-indigo-100/55">
             descanso (s)
           </div>
         </label>

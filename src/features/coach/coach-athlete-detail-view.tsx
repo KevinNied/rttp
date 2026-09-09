@@ -38,10 +38,10 @@ import {
   routineCreatorLabel,
 } from "@/domain/routine/routine-access";
 import { OverviewRutina } from "@/features/athlete/overview-rutina";
-import { DialogoDetallesRutina } from "@/features/routine-editor/dialogo-detalles-rutina";
 import { DialogoEjercicio } from "@/features/routine-editor/dialogo-ejercicio";
 import { DialogoNuevaRutina } from "@/features/routine-editor/dialogo-nueva-rutina";
 import { FilaEjercicio } from "@/features/routine-editor/fila-ejercicio";
+import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
 import { SeccionEditor } from "@/features/routine-editor/seccion-editor";
 import { SelectorRutina } from "@/features/routine-editor/selector-rutina";
 import { RoutineEditor } from "@/features/routine-editor/use-routine-editor";
@@ -116,6 +116,7 @@ export function CoachAthleteDetailView({
   } = editor;
   const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
   const canEditRoutine = canCoachEditRoutine(rutina, entrenador);
+  const invalidRoutineTitle = !rutina.title.trim();
   const authorLabel = routineCreatorLabel(rutina, [entrenador, atleta], entrenador);
 
   return (
@@ -238,19 +239,31 @@ export function CoachAthleteDetailView({
             <CardHeader className="border-b border-indigo-200/[0.07] p-4 md:p-5 xl:p-6">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div className="text-lg font-medium xl:text-xl">
-                    {rutina.title}
-                  </div>
-                  <p className="mt-1 text-[11px] text-indigo-100/35 xl:text-xs">
-                    <TextWithLinks>{rutina.objective}</TextWithLinks>
-                    {rutina.durationMinutes
-                      ? ` · ${rutina.durationMinutes} min`
-                      : ""}{" "}
-                    · {countLabel(ejerciciosRutinaActiva, "ejercicio")}
-                  </p>
-                  <p className="mt-1 text-[10px] text-cyan-100/55">
-                    {authorLabel}
-                  </p>
+                  {canEditRoutine ? (
+                    <>
+                      <p className="text-xs font-medium uppercase tracking-[0.14em] text-cyan-100/70">
+                        {authorLabel}
+                      </p>
+                      <p className="mt-2 text-sm text-white/60">
+                        {countLabel(ejerciciosRutinaActiva, "ejercicio")} ·
+                        Editá los datos directamente debajo.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-xl font-medium">{rutina.title}</div>
+                      <p className="mt-1 text-sm text-indigo-100/60">
+                        <TextWithLinks>{rutina.objective}</TextWithLinks>
+                        {rutina.durationMinutes
+                          ? ` · ${rutina.durationMinutes} min`
+                          : ""}{" "}
+                        · {countLabel(ejerciciosRutinaActiva, "ejercicio")}
+                      </p>
+                      <p className="mt-2 text-xs text-cyan-100/70">
+                        {authorLabel}
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   {canEditRoutine && !hayCambios && (
@@ -263,27 +276,25 @@ export function CoachAthleteDetailView({
                     rutina={rutina}
                     authorLabel={authorLabel}
                   />
-                  {canEditRoutine && (
-                    <DialogoDetallesRutina
-                      rutina={rutina}
-                      onUpdate={setRutina}
-                    />
-                  )}
                   {canEditRoutine && hayCambios && (
                     <Button
                       onClick={guardar}
-                      disabled={hayEjerciciosSinNombre}
+                      disabled={hayEjerciciosSinNombre || invalidRoutineTitle}
                       title={
                         hayEjerciciosSinNombre
                           ? "Completá el nombre del ejercicio nuevo"
-                          : undefined
+                          : invalidRoutineTitle
+                            ? "Completá el nombre de la rutina"
+                            : undefined
                       }
                       className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110"
                     >
                       <Check />
                       {hayEjerciciosSinNombre
                         ? "Completá el ejercicio"
-                        : "Guardar cambios"}
+                        : invalidRoutineTitle
+                          ? "Completá el nombre"
+                          : "Guardar cambios"}
                     </Button>
                   )}
                   {canEditRoutine && (
@@ -345,6 +356,15 @@ export function CoachAthleteDetailView({
                   )}
                 </div>
               </div>
+              {canEditRoutine && (
+                <div className="mt-5 border-t border-white/[0.06] pt-5">
+                  <RoutineDetailsFields
+                    routine={rutina}
+                    onUpdate={setRutina}
+                    compact
+                  />
+                </div>
+              )}
               {!canEditRoutine && (
                 <div className="mt-4 rounded-2xl border border-violet-200/12 bg-violet-300/[0.06] px-4 py-3 text-xs leading-relaxed text-violet-100/70">
                   {atleta.name} compartió esta rutina para que puedas revisarla.
@@ -358,11 +378,14 @@ export function CoachAthleteDetailView({
                     : "Esta rutina compartida todavía no tiene ejercicios."}
                 </div>
               )}
-              {canEditRoutine && hayEjerciciosSinNombre && (
-                <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-100/75">
-                  Completá el nombre del ejercicio nuevo para guardar la rutina.
+              {canEditRoutine &&
+                (hayEjerciciosSinNombre || invalidRoutineTitle) && (
+                <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-sm leading-relaxed text-amber-100/80">
+                  {hayEjerciciosSinNombre
+                    ? "Completá el nombre del ejercicio nuevo para guardar la rutina."
+                    : "Completá el nombre de la rutina para guardar los cambios."}
                 </div>
-              )}
+                )}
             </CardHeader>
             <CardContent className="p-0">
               {canEditRoutine ? (

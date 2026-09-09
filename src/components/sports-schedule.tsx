@@ -80,35 +80,30 @@ function cantidadEjerciciosRutina(routine: Routine | null | undefined) {
   );
 }
 
-function DialogoEntrenamiento({
-  trigger,
+function FormularioEntrenamiento({
   routines,
   atleta,
   usuarioActual,
   fechaInicial,
   rutinaInicialId,
   item,
-  openInitially = false,
-  onDismiss,
+  onCancel,
   onCreate,
   onUpdate,
 }: {
-  trigger: React.ReactElement;
   routines: Routine[];
   atleta: User;
   usuarioActual: User;
   fechaInicial: string;
   rutinaInicialId?: string;
   item?: ScheduledWorkout;
-  openInitially?: boolean;
-  onDismiss?: () => void;
+  onCancel: () => void;
   onCreate: (item: NewScheduledWorkout) => void;
   onUpdate: (item: ScheduledWorkout) => void;
 }) {
   const activeRoutines = routines.filter(
     (routine) => routine.archivedAt === null,
   );
-  const [open, setOpen] = useState(openInitially);
   const [origin, setOrigen] = useState<"routine" | "external">(
     item?.origin ?? "routine",
   );
@@ -135,34 +130,6 @@ function DialogoEntrenamiento({
     ),
   );
   const [notes, setNotas] = useState(item?.notes ?? "");
-
-  function cambiarApertura(siguiente: boolean) {
-    setOpen(siguiente);
-    if (!siguiente) {
-      onDismiss?.();
-      return;
-    }
-    setOrigen(item?.origin ?? "routine");
-    setRutinaId(
-      item?.origin === "routine"
-        ? item.routineId
-        : (rutinaInicialId ?? activeRoutines[0]?.id ?? ""),
-    );
-    setTitulo(item?.origin === "external" ? item.title : "");
-    setCategoria(item?.origin === "external" ? item.category : "running");
-    setFecha(item?.date ?? fechaInicial);
-    setHora(item?.time ?? "");
-    setDuracion(
-      String(
-        item?.durationMinutes ??
-          routines.find((rutina) => rutina.id === rutinaInicialId)
-            ?.durationMinutes ??
-          activeRoutines[0]?.durationMinutes ??
-          "",
-      ),
-    );
-    setNotas(item?.notes ?? "");
-  }
 
   function guardar() {
     const base = {
@@ -203,8 +170,7 @@ function DialogoEntrenamiento({
     } else {
       onCreate(siguiente);
     }
-    setOpen(false);
-    onDismiss?.();
+    onCancel();
   }
 
   const valido =
@@ -212,19 +178,8 @@ function DialogoEntrenamiento({
     (origin === "routine" ? Boolean(routineId) : Boolean(title.trim()));
 
   return (
-    <Dialog open={open} onOpenChange={cambiarApertura}>
-      <DialogTrigger render={trigger} />
-      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>
-            {item ? "Editar entrenamiento" : "Programar entrenamiento"}
-          </DialogTitle>
-          <DialogDescription className="text-white/40">
-            Sumá una rutina de RTTP o una actividad que realizás fuera de la
-            app.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4">
+    <div className="space-y-5">
+      <div className="space-y-4">
           <div className="grid grid-cols-2 gap-2 rounded-2xl bg-black/25 p-1">
             {[
               ["routine", "Rutina RTTP"],
@@ -337,22 +292,82 @@ function DialogoEntrenamiento({
               className="min-h-20 border-white/10 bg-black/35"
             />
           </label>
-        </div>
-        <DialogFooter>
-          <DialogClose
-            render={<Button variant="ghost" className="text-white/45" />}
-          >
-            Cancelar
-          </DialogClose>
-          <Button
-            type="button"
-            disabled={!valido}
-            onClick={guardar}
-            className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
-          >
-            {item ? "Guardar cambios" : "Programar"}
-          </Button>
-        </DialogFooter>
+      </div>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onCancel}
+          className="text-white/60"
+        >
+          Cancelar
+        </Button>
+        <Button
+          type="button"
+          disabled={!valido}
+          onClick={guardar}
+          className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
+        >
+          {item ? "Guardar cambios" : "Programar"}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function DialogoEntrenamiento({
+  trigger,
+  routines,
+  atleta,
+  usuarioActual,
+  fechaInicial,
+  rutinaInicialId,
+  openInitially = false,
+  onDismiss,
+  onCreate,
+  onUpdate,
+}: {
+  trigger: React.ReactElement;
+  routines: Routine[];
+  atleta: User;
+  usuarioActual: User;
+  fechaInicial: string;
+  rutinaInicialId?: string;
+  openInitially?: boolean;
+  onDismiss?: () => void;
+  onCreate: (item: NewScheduledWorkout) => void;
+  onUpdate: (item: ScheduledWorkout) => void;
+}) {
+  const [open, setOpen] = useState(openInitially);
+
+  function setDialogOpen(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (!nextOpen) onDismiss?.();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setDialogOpen}>
+      <DialogTrigger render={trigger} />
+      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Programar entrenamiento</DialogTitle>
+          <DialogDescription className="text-white/55">
+            Sumá una rutina de RTTP o una actividad que realizás fuera de la
+            app.
+          </DialogDescription>
+        </DialogHeader>
+        {open && (
+          <FormularioEntrenamiento
+            routines={routines}
+            atleta={atleta}
+            usuarioActual={usuarioActual}
+            fechaInicial={fechaInicial}
+            rutinaInicialId={rutinaInicialId}
+            onCancel={() => setDialogOpen(false)}
+            onCreate={onCreate}
+            onUpdate={onUpdate}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -362,8 +377,8 @@ function TarjetaEntrenamiento({
   item,
   routines,
   atleta,
-  usuarioActual,
   modoCoach,
+  onEdit,
   onUpdate,
   onDelete,
   onStart,
@@ -371,8 +386,8 @@ function TarjetaEntrenamiento({
   item: ScheduledWorkout;
   routines: Routine[];
   atleta: User;
-  usuarioActual: User;
   modoCoach: boolean;
+  onEdit: (item: ScheduledWorkout) => void;
   onUpdate: (item: ScheduledWorkout) => void;
   onDelete: (id: string) => void;
   onStart: (item: ScheduledWorkout) => void;
@@ -476,26 +491,16 @@ function TarjetaEntrenamiento({
                 Realizada
               </Button>
             )}
-            <DialogoEntrenamiento
-              trigger={
-                <Button
-                  size="icon-sm"
-                  variant="ghost"
-                  aria-label="Editar entrenamiento"
-                  className="group/action relative rounded-full text-white/35 hover:bg-white/[0.06] hover:text-white"
-                >
-                  <Pencil />
-                  <EtiquetaAccion>Editar</EtiquetaAccion>
-                </Button>
-              }
-              item={item}
-              routines={routines}
-              atleta={atleta}
-              usuarioActual={usuarioActual}
-              fechaInicial={item.date}
-              onCreate={() => undefined}
-              onUpdate={onUpdate}
-            />
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              aria-label="Editar entrenamiento"
+              onClick={() => onEdit(item)}
+              className="group/action relative rounded-full text-white/50 hover:bg-white/[0.06] hover:text-white"
+            >
+              <Pencil />
+              <EtiquetaAccion>Editar</EtiquetaAccion>
+            </Button>
             <Button
               size="icon-sm"
               variant="ghost"
@@ -509,26 +514,16 @@ function TarjetaEntrenamiento({
           </>
         )}
         {!editable && puedeEditar && (
-          <DialogoEntrenamiento
-            trigger={
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                aria-label="Editar entrenamiento"
-                className="group/action relative rounded-full text-white/35 hover:bg-white/[0.06] hover:text-white"
-              >
-                <Pencil />
-                <EtiquetaAccion>Editar</EtiquetaAccion>
-              </Button>
-            }
-            item={item}
-            routines={routines}
-            atleta={atleta}
-            usuarioActual={usuarioActual}
-            fechaInicial={item.date}
-            onCreate={() => undefined}
-            onUpdate={onUpdate}
-          />
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            aria-label="Editar entrenamiento"
+            onClick={() => onEdit(item)}
+            className="group/action relative rounded-full text-white/50 hover:bg-white/[0.06] hover:text-white"
+          >
+            <Pencil />
+            <EtiquetaAccion>Editar</EtiquetaAccion>
+          </Button>
         )}
         {omitido && (
           <Button
@@ -622,6 +617,9 @@ export function SportsSchedule({
     routineId: string;
     date: string;
   } | null>(null);
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
+  const editingWorkout =
+    workouts.find((item) => item.id === editingWorkoutId) ?? null;
   const dias = Array.from({ length: 7 }, (_, index) => addDays(semana, index));
   const entrenamientosDeSemana = workouts
     .filter((item) => dias.includes(item.date))
@@ -648,8 +646,8 @@ export function SportsSchedule({
   const propsTarjeta = {
     routines,
     atleta,
-    usuarioActual,
     modoCoach,
+    onEdit: (item: ScheduledWorkout) => setEditingWorkoutId(item.id),
     onUpdate,
     onDelete,
     onStart,
@@ -710,6 +708,37 @@ export function SportsSchedule({
         <div className="mb-4 xl:hidden">
           {dialogoProgramar("w-full sm:w-auto")}
         </div>
+      )}
+
+      {editingWorkout && (
+        <section className="mb-5 rounded-3xl border border-cyan-200/15 bg-app-panel p-4 shadow-[0_18px_55px_rgba(15,23,42,.22)] md:p-6">
+          <div className="mb-5">
+            <div className="text-xs font-medium uppercase tracking-[0.16em] text-cyan-100/75">
+              Edición inline
+            </div>
+            <h2 className="mt-2 text-xl font-medium">
+              Editar entrenamiento
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-white/55">
+              Ajustá la planificación directamente en la agenda, sin abrir una
+              ventana aparte.
+            </p>
+          </div>
+          <FormularioEntrenamiento
+            key={editingWorkout.id}
+            routines={activeRoutines}
+            atleta={atleta}
+            usuarioActual={usuarioActual}
+            fechaInicial={editingWorkout.date}
+            item={editingWorkout}
+            onCancel={() => setEditingWorkoutId(null)}
+            onCreate={() => undefined}
+            onUpdate={(nextWorkout) => {
+              onUpdate(nextWorkout);
+              setEditingWorkoutId(null);
+            }}
+          />
+        </section>
       )}
 
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_232px] 2xl:grid-cols-[minmax(0,1fr)_220px]">

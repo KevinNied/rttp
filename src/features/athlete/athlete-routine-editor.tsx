@@ -10,13 +10,12 @@ import { countLabel } from "@/lib/format";
 import { Routine, User } from "@/lib/rttp-data";
 
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
-import { DialogoDetallesRutina } from "@/features/routine-editor/dialogo-detalles-rutina";
 import { DialogoEjercicio } from "@/features/routine-editor/dialogo-ejercicio";
 import { FilaEjercicio } from "@/features/routine-editor/fila-ejercicio";
+import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
 import { SeccionEditor } from "@/features/routine-editor/seccion-editor";
 import { useRoutineEditor } from "@/features/routine-editor/use-routine-editor";
 import { desktopPageShellClassName } from "@/features/shared/page-shell";
-import { TextWithLinks } from "@/features/shared/text-with-links";
 
 export function AthleteRoutineEditor({
   routine: savedRoutine,
@@ -50,6 +49,7 @@ export function AthleteRoutineEditor({
   const hasUnnamedExercises = rutina.structure.sections.some((section) =>
     section.exercises.some((exercise) => !exercise.name.trim()),
   );
+  const hasInvalidDetails = !rutina.title.trim();
   const isShared = coach
     ? rutina.sharedWithCoachId === coach.id
     : false;
@@ -99,86 +99,87 @@ export function AthleteRoutineEditor({
 
       <Card className="overflow-hidden border-white/[0.08] bg-app-panel text-white shadow-[0_24px_70px_rgba(37,28,100,.18)]">
         <CardHeader className="border-b border-indigo-200/[0.07] p-4 md:p-5 xl:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div className="min-w-0">
-              <div className="text-[10px] uppercase tracking-[0.16em] text-cyan-100/55">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="text-xs font-medium uppercase tracking-[0.16em] text-cyan-100/70">
                 Creada por vos
               </div>
-              <div className="mt-1 text-xl font-medium">{rutina.title}</div>
-              <p className="mt-1 text-xs text-indigo-100/40">
-                <TextWithLinks>{rutina.objective}</TextWithLinks>
-                {rutina.durationMinutes
-                  ? ` · ${rutina.durationMinutes} min`
-                  : ""}{" "}
-                · {countLabel(cantidadEjercicios(rutina), "ejercicio")}
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs text-white/65">
+                  {countLabel(cantidadEjercicios(rutina), "ejercicio")}
+                </span>
+                {!hasChanges && (
+                  <div className="flex items-center gap-1 text-xs text-cyan-200/70">
+                    <Check className="size-3.5" />
+                    {savedVisible ? "Cambios guardados" : "Guardado"}
+                  </div>
+                )}
+                {coach && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setRutina((current) => ({
+                        ...current,
+                        sharedWithCoachId: isShared ? null : coach.id,
+                      }))
+                    }
+                    className="rounded-full border-white/10 bg-transparent text-white/70 hover:bg-white/[0.06] hover:text-white"
+                  >
+                    {isShared ? (
+                      <>
+                        <Share2 />
+                        Compartida con {coach.name}
+                      </>
+                    ) : (
+                      <>
+                        <LockKeyhole />
+                        Privada
+                      </>
+                    )}
+                  </Button>
+                )}
+                {hasChanges && (
+                  <Button
+                    onClick={save}
+                    disabled={hasUnnamedExercises || hasInvalidDetails}
+                    title={
+                      hasUnnamedExercises
+                        ? "Completá el nombre del ejercicio nuevo"
+                        : hasInvalidDetails
+                          ? "Completá el nombre de la rutina"
+                          : undefined
+                    }
+                    className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110"
+                  >
+                    <Check />
+                    {hasUnnamedExercises
+                      ? "Completá el ejercicio"
+                      : hasInvalidDetails
+                        ? "Completá el nombre"
+                        : "Guardar cambios"}
+                  </Button>
+                )}
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              {!hasChanges && (
-                <div className="flex items-center gap-1 text-[10px] text-cyan-200/55">
-                  <Check className="size-3" />
-                  {savedVisible ? "Cambios guardados" : "Guardado"}
-                </div>
-              )}
-              {coach && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setRutina((current) => ({
-                      ...current,
-                      sharedWithCoachId: isShared ? null : coach.id,
-                    }))
-                  }
-                  className="rounded-full border-white/10 bg-transparent text-white/65 hover:bg-white/[0.06] hover:text-white"
-                >
-                  {isShared ? (
-                    <>
-                      <Share2 />
-                      Compartida con {coach.name}
-                    </>
-                  ) : (
-                    <>
-                      <LockKeyhole />
-                      Privada
-                    </>
-                  )}
-                </Button>
-              )}
-              <DialogoDetallesRutina rutina={rutina} onUpdate={setRutina} />
-              {hasChanges && (
-                <Button
-                  onClick={save}
-                  disabled={hasUnnamedExercises}
-                  title={
-                    hasUnnamedExercises
-                      ? "Completá el nombre del ejercicio nuevo"
-                      : undefined
-                  }
-                  className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110"
-                >
-                  <Check />
-                  {hasUnnamedExercises
-                    ? "Completá el ejercicio"
-                    : "Guardar cambios"}
-                </Button>
-              )}
-            </div>
+            <RoutineDetailsFields routine={rutina} onUpdate={setRutina} />
           </div>
 
           {coach && (
-            <div className="mt-4 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3 text-[11px] leading-relaxed text-white/45">
+            <div className="mt-4 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3 text-sm leading-relaxed text-white/60">
               {isShared
                 ? `${coach.name} puede revisar esta rutina, pero no editarla. El cambio se aplica al guardar.`
                 : "Solo vos podés ver y editar esta rutina. Podés compartirla cuando quieras."}
             </div>
           )}
 
-          {hasUnnamedExercises && (
-            <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-100/75">
-              Completá el nombre del ejercicio nuevo para guardar la rutina.
+          {(hasUnnamedExercises || hasInvalidDetails) && (
+            <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-sm leading-relaxed text-amber-100/80">
+              {hasUnnamedExercises
+                ? "Completá el nombre del ejercicio nuevo para guardar la rutina."
+                : "Completá el nombre de la rutina para guardar los cambios."}
             </div>
           )}
         </CardHeader>

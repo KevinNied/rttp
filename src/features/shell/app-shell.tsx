@@ -196,13 +196,14 @@ export function AppShell({
                 </div>
               )}
             </div>
+            <ThemeToggle compact={sidebarCompact} className="mt-3" />
             <Button
               variant="ghost"
               onClick={onLogout}
               aria-label="Cerrar sesión"
               title="Cerrar sesión"
               className={cn(
-                "mt-3 h-9 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 text-xs text-white/55 hover:bg-white/[0.07] hover:text-white",
+                "mt-2 h-9 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 text-xs text-white/60 hover:bg-red-300/10 hover:text-red-100",
                 sidebarCompact
                   ? "w-full justify-center"
                   : "w-full justify-between",
@@ -211,7 +212,6 @@ export function AppShell({
               {!sidebarCompact && <span>Cerrar sesión</span>}
               <LogOut className="size-4" />
             </Button>
-            <ThemeToggle compact={sidebarCompact} className="mt-2" />
             <VersionLabel className="mt-3 block text-center" />
           </div>
         </aside>

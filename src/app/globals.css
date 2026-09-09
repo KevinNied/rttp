@@ -169,6 +169,18 @@
     background-color: var(--app);
   }
 
+  @media (min-width: 64rem) {
+    html {
+      font-size: 17px;
+    }
+  }
+
+  @media (min-width: 96rem) {
+    html {
+      font-size: 18px;
+    }
+  }
+
   @layer components {
     .glass-card {
       @apply border-white/[0.08] bg-white/[0.035] text-white shadow-none backdrop-blur-xl;
@@ -211,6 +223,40 @@
     .light input::placeholder,
     .light textarea::placeholder {
       color: color-mix(in oklab, var(--color-white) 58%, transparent) !important;
+    }
+
+    @media (min-width: 64rem) {
+      .text-\[8px\],
+      .text-\[9px\],
+      .text-\[10px\] {
+        font-size: 0.75rem !important;
+        line-height: 1rem !important;
+      }
+
+      .text-\[11px\] {
+        font-size: 0.8125rem !important;
+        line-height: 1.125rem !important;
+      }
+    }
+
+    .dark .text-white\/20 {
+      color: rgb(255 255 255 / 45%) !important;
+    }
+
+    .dark .text-white\/25 {
+      color: rgb(255 255 255 / 50%) !important;
+    }
+
+    .dark .text-white\/30 {
+      color: rgb(255 255 255 / 55%) !important;
+    }
+
+    .dark .text-white\/35 {
+      color: rgb(255 255 255 / 60%) !important;
+    }
+
+    .dark .text-white\/40 {
+      color: rgb(255 255 255 / 65%) !important;
     }
   }
 

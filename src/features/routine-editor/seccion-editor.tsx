@@ -55,7 +55,7 @@ export function SeccionEditor({
         <div className="flex items-center gap-2.5">
           <span
             className={cn(
-              "grid size-6 place-items-center rounded-full text-[9px] font-semibold text-indigo-950 xl:size-7",
+              "grid size-7 place-items-center rounded-full text-xs font-semibold text-indigo-950",
               index % 3 === 0
                 ? "bg-cyan-300"
                 : index % 3 === 1
@@ -65,13 +65,13 @@ export function SeccionEditor({
           >
             {index + 1}
           </span>
-          <span className="text-xs font-medium xl:text-sm">{section.name}</span>
-          <span className="hidden text-[9px] text-white/30 sm:inline xl:text-[10px]">
+          <span className="text-sm font-medium">{section.name}</span>
+          <span className="hidden text-xs text-white/55 sm:inline">
             {sectionKindLabel(section.kind)}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[9px] uppercase tracking-wider text-white/30">
+          <span className="text-xs uppercase tracking-wider text-white/55">
             {countLabel(section.exercises.length, "ejercicio")}
           </span>
           <ChevronDown
@@ -92,16 +92,16 @@ export function SeccionEditor({
                 aria-pressed={section.kind === kind}
                 onClick={() => onKindChange(kind)}
                 className={cn(
-                  "rounded-xl border px-3 py-2 text-left transition-colors",
+                  "rounded-xl border px-3 py-2.5 text-left transition-colors",
                   section.kind === kind
                     ? "border-cyan-200/25 bg-cyan-300/[0.08] text-cyan-50"
                     : "border-white/[0.07] bg-white/[0.025] text-white/40 hover:text-white/70",
                 )}
               >
-                <span className="block text-[10px] font-medium">
+                <span className="block text-sm font-medium">
                   {kind === "sequential" ? "Secuencial" : "Por rondas"}
                 </span>
-                <span className="mt-0.5 block text-[9px] text-current opacity-60">
+                <span className="mt-1 block text-xs text-current opacity-75">
                   {kind === "sequential"
                     ? "Ejercicio por ejercicio"
                     : "Alternar en cada vuelta"}
