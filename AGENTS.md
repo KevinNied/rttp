@@ -114,6 +114,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
   `src/infrastructure`, and pure rules in `src/domain`.
 - Keep small fixes surgical. Do not use a narrow request as justification for an
   unrelated large refactor.
+- Use English for every file and directory name. Keep user-facing product copy in
+  Spanish.
 - Keep domain transformations pure and centralized. UI components should consume
   the canonical model instead of reconstructing workout semantics independently.
 - Reuse existing formatters, ID helpers, snapshot logic, and persistence paths

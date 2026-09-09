@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import { ActivityHistory } from "@/components/activity-history";
-import { SportsSchedule } from "@/components/sports-schedule";
+import { SportsSchedule } from "@/features/schedule/sports-schedule";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
@@ -97,7 +97,7 @@ export function CoachAthleteDetailView({
   crearYEditar: (rutinaNueva: Routine) => void;
   onSelect: (id: string) => void;
   onDeleteRutina: (id: string) => void;
-  onCreateEntrenamiento: (item: NewScheduledWorkout) => void;
+  onCreateEntrenamiento: (items: NewScheduledWorkout[]) => void;
   onUpdateEntrenamiento: (item: ScheduledWorkout) => void;
   onDeleteEntrenamiento: (id: string) => void;
 }) {

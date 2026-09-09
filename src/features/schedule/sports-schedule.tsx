@@ -33,6 +33,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  generateRecurrenceDates,
+} from "@/domain/schedule/recurrence";
+import {
+  defaultRecurrenceDraft,
+  recurrenceRuleFromDraft,
+  ScheduleDatePicker,
+  ScheduleRecurrencePicker,
+  ScheduleTimePicker,
+} from "@/features/schedule/schedule-controls";
+import {
   activityCategories,
   ActivityCategory,
   ScheduledWorkout,
@@ -98,7 +108,7 @@ function FormularioEntrenamiento({
   rutinaInicialId?: string;
   item?: ScheduledWorkout;
   onCancel: () => void;
-  onCreate: (item: NewScheduledWorkout) => void;
+  onCreate: (items: NewScheduledWorkout[]) => void;
   onUpdate: (item: ScheduledWorkout) => void;
 }) {
   const activeRoutines = routines.filter(
@@ -130,6 +140,15 @@ function FormularioEntrenamiento({
     ),
   );
   const [notes, setNotas] = useState(item?.notes ?? "");
+  const [recurrence, setRecurrence] = useState(() =>
+    defaultRecurrenceDraft(item?.date ?? fechaInicial),
+  );
+  const recurrenceDates = item
+    ? [date]
+    : generateRecurrenceDates(
+        date,
+        recurrenceRuleFromDraft(date, recurrence),
+      );
 
   function guardar() {
     const base = {
@@ -168,14 +187,20 @@ function FormularioEntrenamiento({
         updatedAt: item.updatedAt,
       });
     } else {
-      onCreate(siguiente);
+      onCreate(
+        recurrenceDates.map((occurrenceDate) => ({
+          ...siguiente,
+          date: occurrenceDate,
+        })),
+      );
     }
     onCancel();
   }
 
   const valido =
     Boolean(date) &&
-    (origin === "routine" ? Boolean(routineId) : Boolean(title.trim()));
+    (origin === "routine" ? Boolean(routineId) : Boolean(title.trim())) &&
+    (item || recurrence.mode === "none" || recurrenceDates.length > 1);
 
   return (
     <div className="space-y-5">
@@ -251,26 +276,38 @@ function FormularioEntrenamiento({
             </div>
           )}
 
-          <div className="grid grid-cols-[1fr_110px] gap-3">
-            <label className="space-y-2">
-              <span className="text-xs text-white/55">Fecha</span>
-              <Input
-                type="date"
-                value={date}
-                onChange={(event) => setFecha(event.target.value)}
-                className="border-white/10 bg-black/35"
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-xs text-white/55">Hora (opcional)</span>
-              <Input
-                type="time"
-                value={time}
-                onChange={(event) => setHora(event.target.value)}
-                className="border-white/10 bg-black/35"
-              />
-            </label>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+            <ScheduleDatePicker
+              value={date}
+              onChange={(nextDate) => {
+                setFecha(nextDate);
+                if (
+                  recurrence.endType === "date" &&
+                  recurrence.until < nextDate
+                ) {
+                  setRecurrence((current) => ({
+                    ...current,
+                    until: addDays(nextDate, 56),
+                  }));
+                }
+              }}
+            />
+            <ScheduleTimePicker value={time} onChange={setHora} />
           </div>
+          {!item && (
+            <>
+              <ScheduleRecurrencePicker
+                startDate={date}
+                value={recurrence}
+                onChange={setRecurrence}
+              />
+              {recurrence.mode !== "none" && recurrenceDates.length < 2 && (
+                <p className="text-xs text-amber-100/80">
+                  Elegí una fecha final que incluya al menos dos sesiones.
+                </p>
+              )}
+            </>
+          )}
           <label className="block space-y-2">
             <span className="text-xs text-white/55">
               Duración estimada (minutos)
@@ -309,6 +346,9 @@ function FormularioEntrenamiento({
           className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
         >
           {item ? "Guardar cambios" : "Programar"}
+          {!item && recurrenceDates.length > 1
+            ? ` ${recurrenceDates.length} sesiones`
+            : ""}
         </Button>
       </div>
     </div>
@@ -335,7 +375,7 @@ function DialogoEntrenamiento({
   rutinaInicialId?: string;
   openInitially?: boolean;
   onDismiss?: () => void;
-  onCreate: (item: NewScheduledWorkout) => void;
+  onCreate: (items: NewScheduledWorkout[]) => void;
   onUpdate: (item: ScheduledWorkout) => void;
 }) {
   const [open, setOpen] = useState(openInitially);
@@ -348,7 +388,7 @@ function DialogoEntrenamiento({
   return (
     <Dialog open={open} onOpenChange={setDialogOpen}>
       <DialogTrigger render={trigger} />
-      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-lg">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto border-white/10 bg-app-panel text-white sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Programar entrenamiento</DialogTitle>
           <DialogDescription className="text-white/55">
@@ -407,6 +447,7 @@ function TarjetaEntrenamiento({
 
   return (
     <div
+      data-scheduled-workout
       draggable={editable}
       onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)}
       className={cn(
@@ -602,7 +643,7 @@ export function SportsSchedule({
   workouts: ScheduledWorkout[];
   modoCoach?: boolean;
   embedded?: boolean;
-  onCreate: (item: NewScheduledWorkout) => void;
+  onCreate: (items: NewScheduledWorkout[]) => void;
   onUpdate: (item: ScheduledWorkout) => void;
   onDelete: (id: string) => void;
   onStart: (item: ScheduledWorkout) => void;
@@ -613,8 +654,8 @@ export function SportsSchedule({
   );
   const [semana, setSemana] = useState(startOfWeek(hoy));
   const [fechaSeleccionada, setFechaSeleccionada] = useState(hoy);
-  const [dropDraft, setDropDraft] = useState<{
-    routineId: string;
+  const [creationDraft, setCreationDraft] = useState<{
+    routineId?: string;
     date: string;
   } | null>(null);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
@@ -637,10 +678,15 @@ export function SportsSchedule({
   function soltarEnDia(event: React.DragEvent, date: string) {
     const routineId = event.dataTransfer.getData("application/x-rttp-routine");
     if (routineId) {
-      setDropDraft({ routineId, date });
+      setCreationDraft({ routineId, date });
       return;
     }
     moverEntrenamiento(event.dataTransfer.getData("text/plain"), date);
+  }
+
+  function openCreateForDate(date: string) {
+    setFechaSeleccionada(date);
+    setCreationDraft({ date });
   }
 
   const propsTarjeta = {
@@ -804,6 +850,7 @@ export function SportsSchedule({
               <button
                 key={dia}
                 onClick={() => setFechaSeleccionada(dia)}
+                onDoubleClick={() => openCreateForDate(dia)}
                 className={cn(
                   "rounded-xl px-1 py-2 text-center transition-colors",
                   fechaSeleccionada === dia
@@ -858,6 +905,16 @@ export function SportsSchedule({
                   </div>
                 </div>
               )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => openCreateForDate(fechaSeleccionada)}
+                className="mt-3 w-full rounded-full border-white/10 bg-white/[0.03] text-white/65 hover:bg-cyan-300/10 hover:text-cyan-100"
+              >
+                <Plus />
+                Programar en este día
+              </Button>
             </div>
           </div>
 
@@ -871,8 +928,18 @@ export function SportsSchedule({
                   key={dia}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => soltarEnDia(event, dia)}
+                  onDoubleClick={(event) => {
+                    if (
+                      (event.target as HTMLElement).closest(
+                        "[data-scheduled-workout]",
+                      )
+                    ) {
+                      return;
+                    }
+                    openCreateForDate(dia);
+                  }}
                   className={cn(
-                    "min-w-0 p-2",
+                    "group/day min-w-0 p-2",
                     dia === hoy && "bg-cyan-300/[0.025]",
                   )}
                 >
@@ -900,6 +967,11 @@ export function SportsSchedule({
                         {...propsTarjeta}
                       />
                     ))}
+                    {items.length === 0 && (
+                      <div className="rounded-xl border border-dashed border-white/[0.06] px-2 py-5 text-center text-xs text-white/0 transition-colors group-hover/day:border-white/10 group-hover/day:text-white/35">
+                        Doble click para programar
+                      </div>
+                    )}
                   </div>
                 </div>
               );
@@ -974,16 +1046,16 @@ export function SportsSchedule({
           </div>
         </aside>
       </div>
-      {dropDraft && (
+      {creationDraft && (
         <DialogoEntrenamiento
           openInitially
           trigger={<button type="button" className="hidden" />}
           routines={routines}
           atleta={atleta}
           usuarioActual={usuarioActual}
-          fechaInicial={dropDraft.date}
-          rutinaInicialId={dropDraft.routineId}
-          onDismiss={() => setDropDraft(null)}
+          fechaInicial={creationDraft.date}
+          rutinaInicialId={creationDraft.routineId}
+          onDismiss={() => setCreationDraft(null)}
           onCreate={onCreate}
           onUpdate={onUpdate}
         />

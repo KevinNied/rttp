@@ -48,11 +48,21 @@ etapa.
 - Fecha obligatoria, hora opcional, duración y notas.
 - Categorías externas: running, natación, ciclismo, deporte, movilidad y otra.
 - Reprogramación mediante edición en mobile y drag and drop en desktop.
+- Creación rápida con doble click sobre un día del calendario en desktop y acción
+  contextual en el día seleccionado en mobile.
+- Selectores propios de fecha y hora, consistentes con la interfaz de RTTP y sin
+  depender de los controles nativos del navegador.
+- Repetición semanal, quincenal, mensual por ordinal del día y semanal
+  personalizada con múltiples días.
+- Fin de repetición por cantidad o fecha, con un máximo de 52 ocurrencias por
+  operación.
 - Posibilidad de omitir y de eliminar con confirmación cualquier entrada,
   independientemente de su estado.
 - Las actividades externas pueden marcarse como realizadas.
 - Las rutinas programadas pueden iniciarse o continuarse desde la agenda.
 - Los entrenamientos vencidos permanecen pendientes hasta una acción explícita.
+- Cada ocurrencia repetida se materializa como un entrenamiento independiente para
+  mantener aislados su estado, progreso y eventual actividad histórica.
 
 ### Coach
 
@@ -96,7 +106,8 @@ evoluciones posteriores.
 
 ## Segunda etapa funcional
 
-- Repetición semanal y edición de “solo este evento” o “toda la serie”.
+- Agrupación visible de recurrencias y edición o eliminación de “solo este evento”
+  o “toda la serie”.
 - Historial de actividades y detalle de sesión.
 - Adherencia: programados, completados, omitidos y reprogramados.
 - Indicadores simples de volumen y carga semanal.

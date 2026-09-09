@@ -77,5 +77,5 @@ export function addDays(date: string, amount: number) {
 }
 
 export function createWorkoutId() {
-  return `workout-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `workout-${crypto.randomUUID()}`;
 }

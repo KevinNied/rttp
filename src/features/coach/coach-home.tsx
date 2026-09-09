@@ -81,7 +81,7 @@ export function HomeEntrenador({
   onDeleteTemplate: (plantillaId: string) => void;
   onCreateAtleta: (name: string, email: string) => Promise<string | null>;
   onDeleteRutina: (id: string) => void;
-  onCreateEntrenamiento: (item: NewScheduledWorkout) => void;
+  onCreateEntrenamiento: (items: NewScheduledWorkout[]) => void;
   onUpdateEntrenamiento: (item: ScheduledWorkout) => void;
   onDeleteEntrenamiento: (id: string) => void;
   onDirtyChange: (dirty: boolean) => void;

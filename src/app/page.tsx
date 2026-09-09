@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { ActivityHistory } from "@/components/activity-history";
-import { SportsSchedule } from "@/components/sports-schedule";
+import { SportsSchedule } from "@/features/schedule/sports-schedule";
 import { activityId, ActivitySet, CompletedActivity } from "@/lib/rttp-activity";
 import {
   createWorkoutId,
@@ -240,16 +240,20 @@ export default function Home() {
   }
 
   function crearEntrenamiento(item: NewScheduledWorkout): ScheduledWorkout {
+    return crearEntrenamientos([item])[0];
+  }
+
+  function crearEntrenamientos(items: NewScheduledWorkout[]) {
     const ahora = new Date().toISOString();
-    const creado: ScheduledWorkout = {
+    const creados: ScheduledWorkout[] = items.map((item) => ({
       ...item,
       id: createWorkoutId(),
       createdAt: ahora,
       updatedAt: ahora,
-    };
-    setWorkouts((actuales) => [...actuales, creado]);
-    persist({ type: "save-workouts", data: [creado] });
-    return creado;
+    }));
+    setWorkouts((actuales) => [...actuales, ...creados]);
+    persist({ type: "save-workouts", data: creados });
+    return creados;
   }
 
   function actualizarEntrenamiento(item: ScheduledWorkout) {
@@ -671,7 +675,7 @@ export default function Home() {
           onDeleteTemplate={eliminarPlantilla}
           onCreateAtleta={crearAtleta}
           onDeleteRutina={eliminarRutina}
-          onCreateEntrenamiento={crearEntrenamiento}
+          onCreateEntrenamiento={crearEntrenamientos}
           onUpdateEntrenamiento={actualizarEntrenamiento}
           onDeleteEntrenamiento={eliminarEntrenamiento}
           onDirtyChange={setEditorDirty}
@@ -685,7 +689,7 @@ export default function Home() {
           routines={rutinasDelAtleta}
           workouts={workouts.filter((item) => item.athleteId === atleta.id)}
           modoCoach={usuario.role === "coach"}
-          onCreate={crearEntrenamiento}
+          onCreate={crearEntrenamientos}
           onUpdate={actualizarEntrenamiento}
           onDelete={eliminarEntrenamiento}
           onStart={comenzarEntrenamiento}
