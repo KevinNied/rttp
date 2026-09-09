@@ -64,10 +64,7 @@ function etiquetaFecha(date: string, formato: "corta" | "larga" = "corta") {
   }).format(new Date(`${date}T12:00:00`));
 }
 
-function tituloEntrenamiento(
-  item: ScheduledWorkout,
-  routines: Routine[],
-) {
+function tituloEntrenamiento(item: ScheduledWorkout, routines: Routine[]) {
   if (item.origin === "external") return item.title;
   return (
     routines.find((rutina) => rutina.id === item.routineId)?.title ??
@@ -77,7 +74,7 @@ function tituloEntrenamiento(
 
 function cantidadEjerciciosRutina(routine: Routine | null | undefined) {
   if (!routine) return 0;
-  return routine.blocks.reduce(
+  return routine.structure.sections.reduce(
     (total, block) => total + block.exercises.length,
     0,
   );
@@ -115,7 +112,7 @@ function DialogoEntrenamiento({
   const [routineId, setRutinaId] = useState(
     item?.origin === "routine"
       ? item.routineId
-      : rutinaInicialId ?? routines[0]?.id ?? "",
+      : (rutinaInicialId ?? routines[0]?.id ?? ""),
   );
   const [title, setTitulo] = useState(
     item?.origin === "external" ? item.title : "",
@@ -128,7 +125,8 @@ function DialogoEntrenamiento({
   const [durationMinutes, setDuracion] = useState(
     String(
       item?.durationMinutes ??
-        routines.find((rutina) => rutina.id === rutinaInicialId)?.durationMinutes ??
+        routines.find((rutina) => rutina.id === rutinaInicialId)
+          ?.durationMinutes ??
         routines[0]?.durationMinutes ??
         "",
     ),
@@ -145,7 +143,7 @@ function DialogoEntrenamiento({
     setRutinaId(
       item?.origin === "routine"
         ? item.routineId
-        : rutinaInicialId ?? routines[0]?.id ?? "",
+        : (rutinaInicialId ?? routines[0]?.id ?? ""),
     );
     setTitulo(item?.origin === "external" ? item.title : "");
     setCategoria(item?.origin === "external" ? item.category : "running");
@@ -154,7 +152,8 @@ function DialogoEntrenamiento({
     setDuracion(
       String(
         item?.durationMinutes ??
-          routines.find((rutina) => rutina.id === rutinaInicialId)?.durationMinutes ??
+          routines.find((rutina) => rutina.id === rutinaInicialId)
+            ?.durationMinutes ??
           routines[0]?.durationMinutes ??
           "",
       ),
@@ -218,7 +217,8 @@ function DialogoEntrenamiento({
             {item ? "Editar entrenamiento" : "Programar entrenamiento"}
           </DialogTitle>
           <DialogDescription className="text-white/40">
-            Sumá una rutina de RTTP o una actividad que realizás fuera de la app.
+            Sumá una rutina de RTTP o una actividad que realizás fuera de la
+            app.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -377,8 +377,7 @@ function TarjetaEntrenamiento({
   const completado = item.status === "completed";
   const omitido = item.status === "skipped";
   const editable = !completado && !omitido;
-  const puedeEditar =
-    item.origin === "external" ? !omitido : editable;
+  const puedeEditar = item.origin === "external" ? !omitido : editable;
   const puedeMarcarRealizada =
     item.origin === "external" && item.date <= localDate();
   const rutina =
@@ -391,9 +390,7 @@ function TarjetaEntrenamiento({
   return (
     <div
       draggable={editable}
-      onDragStart={(event) =>
-        event.dataTransfer.setData("text/plain", item.id)
-      }
+      onDragStart={(event) => event.dataTransfer.setData("text/plain", item.id)}
       className={cn(
         "group rounded-2xl border p-3 transition-colors",
         item.origin === "routine"
@@ -560,8 +557,8 @@ function TarjetaEntrenamiento({
             <DialogHeader>
               <DialogTitle>¿Eliminar este entrenamiento?</DialogTitle>
               <DialogDescription className="text-white/40">
-                Se quitará de la agenda de {atleta.name}. Esta acción no
-                elimina la rutina asociada.
+                Se quitará de la agenda de {atleta.name}. Esta acción no elimina
+                la rutina asociada.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -622,11 +619,14 @@ export function SportsSchedule({
   const dias = Array.from({ length: 7 }, (_, index) => addDays(semana, index));
   const entrenamientosDeSemana = workouts
     .filter((item) => dias.includes(item.date))
-    .sort((a, b) => `${a.date}${a.time ?? ""}`.localeCompare(`${b.date}${b.time ?? ""}`));
+    .sort((a, b) =>
+      `${a.date}${a.time ?? ""}`.localeCompare(`${b.date}${b.time ?? ""}`),
+    );
 
   function moverEntrenamiento(id: string, date: string) {
     const item = workouts.find((actual) => actual.id === id);
-    if (!item || item.status === "completed" || item.status === "skipped") return;
+    if (!item || item.status === "completed" || item.status === "skipped")
+      return;
     onUpdate({ ...item, date });
   }
 
@@ -776,7 +776,9 @@ export function SportsSchedule({
                     : "text-white/35",
                 )}
               >
-                <span className="block text-[8px] uppercase">{nombresDias[index]}</span>
+                <span className="block text-[8px] uppercase">
+                  {nombresDias[index]}
+                </span>
                 <span className="mt-1 block text-sm">
                   {new Date(`${dia}T12:00:00`).getDate()}
                 </span>
@@ -784,7 +786,9 @@ export function SportsSchedule({
                   <span
                     className={cn(
                       "mx-auto mt-1 block size-1 rounded-full",
-                      fechaSeleccionada === dia ? "bg-indigo-950" : "bg-cyan-300",
+                      fechaSeleccionada === dia
+                        ? "bg-indigo-950"
+                        : "bg-cyan-300",
                     )}
                   />
                 )}
@@ -832,7 +836,10 @@ export function SportsSchedule({
                   key={dia}
                   onDragOver={(event) => event.preventDefault()}
                   onDrop={(event) => soltarEnDia(event, dia)}
-                  className={cn("min-w-0 p-2", dia === hoy && "bg-cyan-300/[0.025]")}
+                  className={cn(
+                    "min-w-0 p-2",
+                    dia === hoy && "bg-cyan-300/[0.025]",
+                  )}
                 >
                   <button
                     onClick={() => setFechaSeleccionada(dia)}

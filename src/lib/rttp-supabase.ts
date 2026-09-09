@@ -8,7 +8,7 @@ import {
   ScheduledWorkout,
   WorkoutStatus,
 } from "@/lib/rttp-agenda";
-import { Block, Routine, Role, User } from "@/lib/rttp-data";
+import { Routine, RoutineStructure, Role, User } from "@/lib/rttp-data";
 import { getSupabaseClient } from "@/lib/supabase";
 
 export type PersistedTemplate = Omit<Routine, "athleteId"> & {
@@ -56,7 +56,7 @@ type RoutineRow = {
   title: string;
   objective: string;
   duration_minutes: number | null;
-  blocks: Block[];
+  structure: RoutineStructure;
 };
 
 type TemplateRow = {
@@ -65,7 +65,7 @@ type TemplateRow = {
   title: string;
   objective: string;
   duration_minutes: number | null;
-  blocks: Block[];
+  structure: RoutineStructure;
 };
 
 type ScheduledWorkoutRow = {
@@ -109,18 +109,36 @@ type ActivitySetRow = {
   step_id: string;
   exercise_id: string;
   exercise_name: string;
-  block_id: string;
-  block_name: string;
-  round_number: number;
+  section_id: string;
+  section_name: string;
+  iteration_number: number;
   weight: number;
   repetitions: number;
   skipped: boolean;
 };
 
-function assertQuery(
-  context: string,
-  error: { message: string } | null,
-) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function assertRoutineStructure(value: unknown, context: string) {
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.sections) ||
+    value.sections.some(
+      (section) =>
+        !isRecord(section) ||
+        !["sequential", "rounds"].includes(String(section.kind)) ||
+        !Array.isArray(section.exercises),
+    )
+  ) {
+    throw new Error(
+      `${context}: aplicá la migración de secciones de rutina en Supabase.`,
+    );
+  }
+}
+
+function assertQuery(context: string, error: { message: string } | null) {
   if (error) {
     throw new Error(`${context}: ${error.message}`);
   }
@@ -131,16 +149,11 @@ async function loadTable<T>(table: string, orderColumns: string[]) {
   const rows: T[] = [];
 
   for (let from = 0; ; from += limit) {
-    let query = getSupabaseClient()
-      .from(table)
-      .select("*");
+    let query = getSupabaseClient().from(table).select("*");
     for (const column of orderColumns) {
       query = query.order(column);
     }
-    const { data, error } = await query.range(
-      from,
-      from + limit - 1,
-    );
+    const { data, error } = await query.range(from, from + limit - 1);
     assertQuery(`No se pudo cargar ${table}`, error);
     const page = (data ?? []) as T[];
     rows.push(...page);
@@ -163,6 +176,33 @@ export async function loadSupabaseData(): Promise<PersistedData> {
     ]);
 
   const sets = activitySets;
+  routines.forEach((row) =>
+    assertRoutineStructure(row.structure, `Rutina ${row.id} incompatible`),
+  );
+  templates.forEach((row) =>
+    assertRoutineStructure(row.structure, `Plantilla ${row.id} incompatible`),
+  );
+  activities.forEach((row) => {
+    if (row.routine_snapshot) {
+      assertRoutineStructure(
+        row.routine_snapshot.structure,
+        `Snapshot ${row.id} incompatible`,
+      );
+    }
+  });
+  if (
+    sets.some(
+      (set) =>
+        typeof set.section_id !== "string" ||
+        typeof set.section_name !== "string" ||
+        !Number.isInteger(set.iteration_number) ||
+        set.iteration_number < 1,
+    )
+  ) {
+    throw new Error(
+      "El historial es incompatible: aplicá la migración de secciones de rutina en Supabase.",
+    );
+  }
 
   return {
     users: profiles.map((row) => ({
@@ -170,9 +210,7 @@ export async function loadSupabaseData(): Promise<PersistedData> {
       name: row.name,
       email: row.email,
       role: row.role,
-      ...(row.role === "coach"
-        ? { athleteIds: row.athlete_ids }
-        : {}),
+      ...(row.role === "coach" ? { athleteIds: row.athlete_ids } : {}),
     })),
     routines: routines.map((row) => ({
       id: row.id,
@@ -180,7 +218,7 @@ export async function loadSupabaseData(): Promise<PersistedData> {
       title: row.title,
       objective: row.objective,
       durationMinutes: row.duration_minutes,
-      blocks: row.blocks,
+      structure: row.structure,
     })),
     templates: templates.map((row) => ({
       id: row.id,
@@ -188,43 +226,42 @@ export async function loadSupabaseData(): Promise<PersistedData> {
       title: row.title,
       objective: row.objective,
       durationMinutes: row.duration_minutes,
-      blocks: row.blocks,
+      structure: row.structure,
     })),
-    workouts: workouts.map(
-      (row): ScheduledWorkout =>
-        row.origin === "routine"
-          ? {
-              id: row.id,
-              athleteId: row.athlete_id,
-              date: row.workout_date,
-              time: row.workout_time?.slice(0, 5) ?? null,
-              durationMinutes: row.duration_minutes,
-              status: row.status,
-              createdById: row.created_by_id,
-              notes: row.notes,
-              createdAt: row.created_at,
-              updatedAt: row.updated_at,
-              origin: "routine",
-              routineId: row.routine_id ?? "",
-              title: null,
-              category: null,
-            }
-          : {
-              id: row.id,
-              athleteId: row.athlete_id,
-              date: row.workout_date,
-              time: row.workout_time?.slice(0, 5) ?? null,
-              durationMinutes: row.duration_minutes,
-              status: row.status,
-              createdById: row.created_by_id,
-              notes: row.notes,
-              createdAt: row.created_at,
-              updatedAt: row.updated_at,
-              origin: "external",
-              routineId: null,
-              title: row.title ?? "Actividad",
-              category: row.category ?? "other",
-            },
+    workouts: workouts.map((row): ScheduledWorkout =>
+      row.origin === "routine"
+        ? {
+            id: row.id,
+            athleteId: row.athlete_id,
+            date: row.workout_date,
+            time: row.workout_time?.slice(0, 5) ?? null,
+            durationMinutes: row.duration_minutes,
+            status: row.status,
+            createdById: row.created_by_id,
+            notes: row.notes,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            origin: "routine",
+            routineId: row.routine_id ?? "",
+            title: null,
+            category: null,
+          }
+        : {
+            id: row.id,
+            athleteId: row.athlete_id,
+            date: row.workout_date,
+            time: row.workout_time?.slice(0, 5) ?? null,
+            durationMinutes: row.duration_minutes,
+            status: row.status,
+            createdById: row.created_by_id,
+            notes: row.notes,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            origin: "external",
+            routineId: null,
+            title: row.title ?? "Actividad",
+            category: row.category ?? "other",
+          },
     ),
     activities: activities.map((row) => ({
       id: row.id,
@@ -239,28 +276,24 @@ export async function loadSupabaseData(): Promise<PersistedData> {
       completedAt: row.completed_at,
       durationMinutes: row.duration_minutes,
       durationSeconds:
-        row.duration_seconds ??
-        row.routine_snapshot?.durationSeconds ??
-        null,
+        row.duration_seconds ?? row.routine_snapshot?.durationSeconds ?? null,
       effort: row.effort,
       feedback: row.feedback,
       notes: row.notes,
       recordedById: row.registered_by_id,
       sets: sets
         .filter((set) => set.activity_id === row.id)
-        .map(
-          (set): ActivitySet => ({
-            stepId: set.step_id,
-            exerciseId: set.exercise_id,
-            exerciseName: set.exercise_name,
-            blockId: set.block_id,
-            blockName: set.block_name,
-            round: set.round_number,
-            weight: Number(set.weight),
-            reps: set.repetitions,
-            skipped: set.skipped,
-          }),
-        ),
+        .map((set): ActivitySet => ({
+          stepId: set.step_id,
+          exerciseId: set.exercise_id,
+          exerciseName: set.exercise_name,
+          sectionId: set.section_id,
+          sectionName: set.section_name,
+          iteration: set.iteration_number,
+          weight: Number(set.weight),
+          reps: set.repetitions,
+          skipped: set.skipped,
+        })),
     })),
   };
 }
@@ -319,7 +352,7 @@ export async function saveRoutines(routines: Routine[]) {
         title: routine.title,
         objective: routine.objective,
         duration_minutes: routine.durationMinutes,
-        blocks: routine.blocks,
+        structure: routine.structure,
       })),
     );
   assertQuery("No se pudieron guardar las rutinas", error);
@@ -344,7 +377,7 @@ export async function saveTemplates(templates: PersistedTemplate[]) {
         title: template.title,
         objective: template.objective,
         duration_minutes: template.durationMinutes,
-        blocks: template.blocks,
+        structure: template.structure,
       })),
     );
   assertQuery("No se pudieron guardar las plantillas", error);
@@ -358,9 +391,7 @@ export async function deleteTemplateFromSupabase(id: string) {
   assertQuery("No se pudo eliminar la plantilla", error);
 }
 
-export async function saveScheduledWorkouts(
-  workouts: ScheduledWorkout[],
-) {
+export async function saveScheduledWorkouts(workouts: ScheduledWorkout[]) {
   if (workouts.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("scheduled_workouts")
@@ -459,9 +490,7 @@ export function remapSupabaseMutation(
     case "save-routines":
       return {
         ...mutation,
-        data: mutation.data.map((routine) =>
-          remapRoutine(routine, mapping),
-        ),
+        data: mutation.data.map((routine) => remapRoutine(routine, mapping)),
       };
     case "save-templates":
       return {
@@ -533,16 +562,14 @@ async function insertMissingRoutines(routines: Routine[]) {
         title: routine.title,
         objective: routine.objective,
         duration_minutes: routine.durationMinutes,
-        blocks: routine.blocks,
+        structure: routine.structure,
       })),
       { onConflict: "id", ignoreDuplicates: true },
     );
   assertQuery("No se pudieron migrar las rutinas", error);
 }
 
-async function insertMissingTemplates(
-  templates: PersistedTemplate[],
-) {
+async function insertMissingTemplates(templates: PersistedTemplate[]) {
   if (templates.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("routine_templates")
@@ -553,16 +580,14 @@ async function insertMissingTemplates(
         title: template.title,
         objective: template.objective,
         duration_minutes: template.durationMinutes,
-        blocks: template.blocks,
+        structure: template.structure,
       })),
       { onConflict: "id", ignoreDuplicates: true },
     );
   assertQuery("No se pudieron migrar las plantillas", error);
 }
 
-async function insertMissingWorkouts(
-  workouts: ScheduledWorkout[],
-) {
+async function insertMissingWorkouts(workouts: ScheduledWorkout[]) {
   if (workouts.length === 0) return;
   const { error } = await getSupabaseClient()
     .from("scheduled_workouts")
@@ -589,13 +614,10 @@ async function insertMissingWorkouts(
 }
 
 async function insertMissingActivity(activityData: CompletedActivity) {
-  const { error } = await getSupabaseClient().rpc(
-    "migrate_workout_activity",
-    {
-      activity: activityData,
-      activity_sets: activityData.sets,
-    },
-  );
+  const { error } = await getSupabaseClient().rpc("migrate_workout_activity", {
+    activity: activityData,
+    activity_sets: activityData.sets,
+  });
   assertQuery("No se pudo migrar la actividad", error);
 }
 
@@ -618,8 +640,6 @@ export async function migrateMissingData(localData: PersistedData) {
   await insertMissingRoutines(routines);
   await insertMissingTemplates(templates);
   await insertMissingWorkouts(workouts);
-  await Promise.all(
-    activities.map(insertMissingActivity),
-  );
+  await Promise.all(activities.map(insertMissingActivity));
   return mapping;
 }

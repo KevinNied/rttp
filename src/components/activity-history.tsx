@@ -30,18 +30,22 @@ function fechaActividad(date: string) {
 }
 
 function categoriaActividad(category: CompletedActivity["category"]) {
-  return activityCategories.find((item) => item.value === category)?.label ?? null;
+  return (
+    activityCategories.find((item) => item.value === category)?.label ?? null
+  );
 }
 
-function agruparBloques(actividad: CompletedActivity) {
-  return actividad.sets.reduce<
+function groupSections(actividad: CompletedActivity) {
+  const fallbackGroups = actividad.sets.reduce<
     {
       id: string;
       name: string;
       sets: CompletedActivity["sets"];
     }[]
   >((actuales, serie) => {
-    const existente = actuales.find((bloque) => bloque.id === serie.blockId);
+    const existente = actuales.find(
+      (section) => section.id === serie.sectionId,
+    );
     if (existente) {
       existente.sets.push(serie);
       return actuales;
@@ -49,38 +53,66 @@ function agruparBloques(actividad: CompletedActivity) {
     return [
       ...actuales,
       {
-        id: serie.blockId,
-        name: serie.blockName,
+        id: serie.sectionId,
+        name: serie.sectionName,
         sets: [serie],
       },
     ];
   }, []);
+
+  const snapshotSections =
+    actividad.routineSnapshot?.structure.sections ?? [];
+  if (snapshotSections.length === 0) return fallbackGroups;
+
+  const knownSectionIds = new Set(
+    snapshotSections.map((section) => section.id),
+  );
+  const snapshotGroups = snapshotSections.flatMap((section) => {
+    const exerciseOrder = new Map(
+      section.exercises.map((exercise, index) => [exercise.id, index]),
+    );
+    const sets = actividad.sets
+      .filter((set) => set.sectionId === section.id)
+      .sort((first, second) => {
+        const exerciseDifference =
+          (exerciseOrder.get(first.exerciseId) ?? Number.MAX_SAFE_INTEGER) -
+          (exerciseOrder.get(second.exerciseId) ?? Number.MAX_SAFE_INTEGER);
+        return section.kind === "sequential"
+          ? exerciseDifference || first.iteration - second.iteration
+          : first.iteration - second.iteration || exerciseDifference;
+      });
+
+    return sets.length > 0
+      ? [{ id: section.id, name: section.name, sets }]
+      : [];
+  });
+
+  return [
+    ...snapshotGroups,
+    ...fallbackGroups.filter((section) => !knownSectionIds.has(section.id)),
+  ];
 }
 
 function resumenActividad(actividad: CompletedActivity) {
-  const seriesCompletadas = actividad.sets.filter((serie) => !serie.skipped).length;
-  const bloques = agruparBloques(actividad);
+  const seriesCompletadas = actividad.sets.filter(
+    (serie) => !serie.skipped,
+  ).length;
+  const sections = groupSections(actividad);
 
   return {
-    bloques,
+    sections,
     seriesCompletadas,
     resumen:
       actividad.type === "routine"
         ? [
             countLabel(seriesCompletadas, "serie", "series"),
-            countLabel(bloques.length, "bloque"),
+            countLabel(sections.length, "sección", "secciones"),
           ]
         : [categoriaActividad(actividad.category) ?? "Actividad externa"],
   };
 }
 
-function ActivityChip({
-  icon,
-  label,
-}: {
-  icon: ReactNode;
-  label: string;
-}) {
+function ActivityChip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.04] px-2.5 py-1 text-[10px] text-white/45">
       <span className="text-white/35">{icon}</span>
@@ -121,7 +153,7 @@ function ActivityCopy({
 }
 
 function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
-  const { bloques, seriesCompletadas } = resumenActividad(actividad);
+  const { sections, seriesCompletadas } = resumenActividad(actividad);
   const duracion =
     actividad.durationSeconds ??
     (actividad.durationMinutes ? actividad.durationMinutes * 60 : null);
@@ -164,22 +196,27 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
         />
       )}
 
-      {bloques.length > 0 && (
+      {sections.length > 0 && (
         <div className="space-y-2">
-          <div className="text-xs font-medium text-white/60">Detalle de la sesión</div>
-          {bloques.map((bloque, index) => (
+          <div className="text-xs font-medium text-white/60">
+            Detalle de la sesión
+          </div>
+          {sections.map((section, index) => (
             <div
-              key={bloque.id}
+              key={section.id}
               className="overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.02]"
             >
               <div className="flex items-center justify-between gap-3 border-b border-white/[0.06] bg-white/[0.03] px-3 py-2.5">
-                <div className="text-[11px] font-medium text-white/70">{bloque.name}</div>
+                <div className="text-[11px] font-medium text-white/70">
+                  {section.name}
+                </div>
                 <div className="text-[9px] uppercase tracking-wider text-white/25">
-                  {bloque.sets.length} {bloque.sets.length === 1 ? "serie" : "series"}
+                  {section.sets.length}{" "}
+                  {section.sets.length === 1 ? "serie" : "series"}
                 </div>
               </div>
               <div className="divide-y divide-white/[0.05]">
-                {bloque.sets.map((serie) => (
+                {section.sets.map((serie) => (
                   <div
                     key={serie.stepId}
                     className="flex items-center justify-between gap-3 px-3 py-2.5"
@@ -189,13 +226,15 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                         {serie.exerciseName}
                       </div>
                       <div className="mt-0.5 text-[9px] text-white/25">
-                        Bloque {index + 1} · Serie {serie.round}
+                        Sección {index + 1} · Serie {serie.iteration}
                       </div>
                     </div>
                     <div
                       className={cn(
                         "shrink-0 text-right text-[10px]",
-                        serie.skipped ? "text-orange-200/45" : "text-cyan-100/55",
+                        serie.skipped
+                          ? "text-orange-200/45"
+                          : "text-cyan-100/55",
                       )}
                     >
                       {serie.skipped
@@ -229,7 +268,9 @@ function DetalleExterno({ actividad }: { actividad: CompletedActivity }) {
         />
       )}
       {!tieneDetalle && (
-        <div className="text-xs text-white/35">Sin detalles adicionales para esta actividad.</div>
+        <div className="text-xs text-white/35">
+          Sin detalles adicionales para esta actividad.
+        </div>
       )}
     </div>
   );
@@ -286,7 +327,8 @@ export function ActivityHistory({
             Actividades realizadas
           </h1>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/35 md:text-sm">
-            Abrí solo la actividad que quieras revisar para mantener el historial más ágil.
+            Abrí solo la actividad que quieras revisar para mantener el
+            historial más ágil.
           </p>
         </div>
       )}
@@ -295,7 +337,9 @@ export function ActivityHistory({
         <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-white/[0.09] bg-white/[0.02] px-6 text-center">
           <div>
             <Activity className="mx-auto size-6 text-white/20" />
-            <h2 className="mt-3 text-sm font-medium">Todavía no hay actividades</h2>
+            <h2 className="mt-3 text-sm font-medium">
+              Todavía no hay actividades
+            </h2>
             <p className="mt-2 text-xs text-white/30">
               Cuando completes una rutina o actividad aparecerá acá.
             </p>
@@ -314,7 +358,8 @@ export function ActivityHistory({
                 ? [[Math.ceil(minutos), "Minutos"]]
                 : []),
               [
-                activities.filter((actividad) => actividad.type === "routine").length,
+                activities.filter((actividad) => actividad.type === "routine")
+                  .length,
                 "Rutinas RTTP",
               ],
             ].map(([valor, label], index) => (
@@ -325,7 +370,9 @@ export function ActivityHistory({
                   index === 2 && "col-span-2 sm:col-span-1",
                 )}
               >
-                <div className="text-xl font-light md:text-2xl">{valor as number}</div>
+                <div className="text-xl font-light md:text-2xl">
+                  {valor as number}
+                </div>
                 <div className="mt-1 text-[9px] uppercase tracking-wider text-white/30">
                   {label as string}
                 </div>
@@ -363,7 +410,8 @@ export function ActivityHistory({
               {visibles.map((actividad) => {
                 const expandida = expandidaId === actividad.id;
                 const categoria = categoriaActividad(actividad.category);
-                const { resumen, seriesCompletadas } = resumenActividad(actividad);
+                const { resumen, seriesCompletadas } =
+                  resumenActividad(actividad);
 
                 return (
                   <div
@@ -492,17 +540,17 @@ export function ActivityHistory({
                         {actividad.type === "external" &&
                           canDeleteExternalActivities &&
                           onDeleteActivity && (
-                          <div className="mt-4 flex justify-end border-t border-white/[0.06] pt-4">
-                            <button
-                              type="button"
-                              onClick={() => onDeleteActivity(actividad)}
-                              className="inline-flex h-9 items-center gap-2 rounded-full border border-red-300/15 bg-red-300/10 px-3.5 text-[11px] font-medium text-red-100/85 transition-colors hover:bg-red-300/15 hover:text-red-50"
-                            >
-                              <Trash2 className="size-3.5" />
-                              Eliminar actividad
-                            </button>
-                          </div>
-                        )}
+                            <div className="mt-4 flex justify-end border-t border-white/[0.06] pt-4">
+                              <button
+                                type="button"
+                                onClick={() => onDeleteActivity(actividad)}
+                                className="inline-flex h-9 items-center gap-2 rounded-full border border-red-300/15 bg-red-300/10 px-3.5 text-[11px] font-medium text-red-100/85 transition-colors hover:bg-red-300/15 hover:text-red-50"
+                              >
+                                <Trash2 className="size-3.5" />
+                                Eliminar actividad
+                              </button>
+                            </div>
+                          )}
                       </div>
                     )}
                   </div>

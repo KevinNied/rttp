@@ -43,9 +43,9 @@ Antes del primer inicio, ejecutá en orden las migraciones de
 [`supabase/migrations/`](supabase/migrations/) desde el SQL Editor de Supabase.
 La primera carga migra los registros existentes del navegador sin sobrescribir
 identificadores que ya existan remotamente. La migración
-`20260904000000_activity_duration_seconds.sql` agrega la duración exacta en
-segundos; mientras se despliega, RTTP mantiene compatibilidad leyendo ese dato
-desde el snapshot histórico de la rutina.
+`20260909000000_extensible_routine_sections.sql` convierte las rutinas,
+plantillas y actividades históricas al contrato extensible de secciones. Debe
+aplicarse antes de ejecutar esta versión de la aplicación.
 
 Mientras RTTP funciona sin Supabase Auth, el esquema permite temporalmente
 acceso anónimo a estas tablas. No debe considerarse un modelo de seguridad para
@@ -99,6 +99,17 @@ La **Vista atleta** del entrenador es una previsualización de solo lectura: sir
 para revisar la experiencia sin iniciar rutinas ni modificar datos del atleta.
 Las plantillas se crean desde una rutina fuente visible y requieren confirmar el
 nombre antes de guardarse.
+
+### Estructura de rutinas
+
+Cada rutina contiene `structure.sections`. Una sección `sequential` completa
+todas las series de un ejercicio antes de avanzar, mientras que una sección
+`rounds` alterna sus ejercicios por ronda. Ambas estrategias pueden convivir en
+una misma rutina; `role` describe su propósito y `presentation` su variante
+visual sin modificar la ejecución.
+
+El contrato y la guía para incorporar futuras estrategias están documentados en
+[`docs/routine-sections.md`](docs/routine-sections.md).
 
 ### Rutas del atleta
 

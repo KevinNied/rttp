@@ -58,11 +58,7 @@ import {
 import { BlobatarAvatar } from "@/components/blobatar-avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -104,9 +100,10 @@ import {
   NewScheduledWorkout,
 } from "@/lib/rttp-agenda";
 import {
-  Block,
+  RoutineSection,
   Exercise,
   Routine,
+  SectionKind,
   User,
   initialRoutines,
   initialUsers,
@@ -139,11 +136,10 @@ const themeStorageKey = "rttp-theme-v1";
 const workoutTimerStoragePrefix = "rttp-workout-start-v1:";
 const workoutSessionStoragePrefix = "rttp-workout-session-v1:";
 const mobileDockOnboardingStorageKey = "rttp-mobile-dock-onboarding-v1";
-const supabaseMigrationStorageKey = "rttp-supabase-migrated-v2";
-const supabaseMigrationSourceStorageKey =
-  "rttp-supabase-migration-source-v2";
-const supabaseUserMappingStorageKey = "rttp-supabase-user-mapping-v2";
-const supabaseOutboxStorageKey = "rttp-supabase-outbox-v2";
+const supabaseMigrationStorageKey = "rttp-supabase-migrated-v3";
+const supabaseMigrationSourceStorageKey = "rttp-supabase-migration-source-v3";
+const supabaseUserMappingStorageKey = "rttp-supabase-user-mapping-v3";
+const supabaseOutboxStorageKey = "rttp-supabase-outbox-v3";
 const supabaseMigrationLock = "rttp-supabase-migration";
 const supabaseOutboxLock = "rttp-supabase-outbox";
 
@@ -322,7 +318,10 @@ function readWorkoutTimer(workoutId: string): WorkoutTimerState | null {
 
 function writeWorkoutTimer(workoutId: string, timer: WorkoutTimerState) {
   if (typeof window === "undefined") return timer;
-  window.localStorage.setItem(workoutTimerKey(workoutId), JSON.stringify(timer));
+  window.localStorage.setItem(
+    workoutTimerKey(workoutId),
+    JSON.stringify(timer),
+  );
   return timer;
 }
 
@@ -427,11 +426,14 @@ function pruneWorkoutSessions(workouts: ScheduledWorkout[]) {
 }
 
 function readWorkoutRecords(workouts: ScheduledWorkout[]) {
-  return workouts.reduce<Record<string, TrainingSetRecord>>((records, workout) => {
-    if (workout.status !== "in-progress") return records;
-    const session = readWorkoutSession(workout.id);
-    return session ? { ...records, ...session.records } : records;
-  }, {});
+  return workouts.reduce<Record<string, TrainingSetRecord>>(
+    (records, workout) => {
+      if (workout.status !== "in-progress") return records;
+      const session = readWorkoutSession(workout.id);
+      return session ? { ...records, ...session.records } : records;
+    },
+    {},
+  );
 }
 
 function pruneWorkoutTimers(workouts: ScheduledWorkout[]) {
@@ -481,29 +483,25 @@ function clearDeprecatedLocalStorage() {
   ] as const;
   for (const key of keys) {
     window.localStorage.removeItem(key);
+    window.sessionStorage.removeItem(key);
   }
 }
 
-function blockTypeLabel(type: Block["type"]) {
+function sectionKindLabel(kind: RoutineSection["kind"]) {
   return {
-    "consecutive-sets": "Series consecutivas",
-    preparation: "Preparación",
-    "specific-preparation": "Preparación específica",
-    alternating: "Alternado",
-    cooldown: "Cierre",
-    "circuit-2-rounds": "Circuito · 2 vueltas",
-    custom: "Personalizado",
-  }[type];
+    sequential: "Ejercicio por ejercicio",
+    rounds: "Por rondas",
+  }[kind];
 }
 
-function cantidadEjercicios({ blocks }: Pick<Routine, "blocks">) {
-  return blocks.reduce(
-    (total, bloque) => total + bloque.exercises.length,
+function cantidadEjercicios({ structure }: Pick<Routine, "structure">) {
+  return structure.sections.reduce(
+    (total, section) => total + section.exercises.length,
     0,
   );
 }
 
-function rutinaTieneEjercicios(rutina: Pick<Routine, "blocks">) {
+function rutinaTieneEjercicios(rutina: Pick<Routine, "structure">) {
   return cantidadEjercicios(rutina) > 0;
 }
 
@@ -513,32 +511,70 @@ function repeticionesObjetivo(item: Exercise) {
     : `${item.minReps}–${item.maxReps}`;
 }
 
-function rondasDelBloque(bloque: Block) {
-  return Math.max(0, ...bloque.exercises.map((item) => item.sets));
+function iterationsForSection(section: RoutineSection) {
+  return Math.max(0, ...section.exercises.map((item) => item.sets));
 }
 
-function pasosDeRutina(rutina: Routine, sesionId = rutina.id) {
-  return rutina.blocks.flatMap((bloque, bloqueIndex) => {
-    const rondas = rondasDelBloque(bloque);
+type RoutineStep = Exercise & {
+  stepId: string;
+  sectionId: string;
+  sectionIndex: number;
+  sectionName: string;
+  sectionKind: SectionKind;
+  round: number;
+  rondas: number;
+  posicion: number;
+  ejerciciosEnRonda: number;
+};
 
-    return Array.from({ length: rondas }, (_, rondaIndex) =>
-      bloque.exercises
-        .filter((item) => item.sets > rondaIndex)
-        .map((item, posicion) => ({
-          ...item,
-          stepId: `${sesionId}-${item.id}-${rondaIndex}`,
-          blockId: bloque.id,
-          bloqueIndex,
-          blockName: bloque.name,
-          round: rondaIndex + 1,
-          rondas,
-          posicion,
-          ejerciciosEnRonda: bloque.exercises.filter(
-            (ejercicioActual) => ejercicioActual.sets > rondaIndex,
-          ).length,
-        })),
-    ).flat();
+function pasosDeRutina(rutina: Routine, sesionId = rutina.id): RoutineStep[] {
+  const steps: RoutineStep[] = [];
+
+  rutina.structure.sections.forEach((section, sectionIndex) => {
+    if (section.kind === "sequential") {
+      section.exercises.forEach((item, posicion) => {
+        Array.from({ length: item.sets }, (_, setIndex) => {
+          steps.push({
+            ...item,
+            stepId: `${sesionId}-${item.id}-${setIndex}`,
+            sectionId: section.id,
+            sectionIndex,
+            sectionName: section.name,
+            sectionKind: section.kind,
+            round: setIndex + 1,
+            rondas: item.sets,
+            posicion,
+            ejerciciosEnRonda: section.exercises.length,
+          });
+        });
+      });
+      return;
+    }
+
+    const rounds = iterationsForSection(section);
+    Array.from({ length: rounds }, (_, roundIndex) =>
+      section.exercises
+        .filter((item) => item.sets > roundIndex)
+        .forEach((item, posicion) => {
+          steps.push({
+            ...item,
+            stepId: `${sesionId}-${item.id}-${roundIndex}`,
+            sectionId: section.id,
+            sectionIndex,
+            sectionName: section.name,
+            sectionKind: section.kind,
+            round: roundIndex + 1,
+            rondas: rounds,
+            posicion,
+            ejerciciosEnRonda: section.exercises.filter(
+              (currentExercise) => currentExercise.sets > roundIndex,
+            ).length,
+          });
+        }),
+    );
   });
+
+  return steps;
 }
 
 function normalizeUser(user: User): User {
@@ -572,10 +608,12 @@ function normalizeUser(user: User): User {
 function snapshotRoutine(rutina: Routine): Routine {
   return {
     ...rutina,
-    blocks: rutina.blocks.map((bloque) => ({
-      ...bloque,
-      exercises: bloque.exercises.map((ejercicio) => ({ ...ejercicio })),
-    })),
+    structure: {
+      sections: rutina.structure.sections.map((section) => ({
+        ...section,
+        exercises: section.exercises.map((exercise) => ({ ...exercise })),
+      })),
+    },
   };
 }
 
@@ -612,9 +650,7 @@ function readMigrationSource() {
   try {
     return JSON.parse(guardado) as MigrationSource;
   } catch {
-    throw new Error(
-      "El respaldo temporal para migrar a Supabase está dañado.",
-    );
+    throw new Error("El respaldo temporal para migrar a Supabase está dañado.");
   }
 }
 
@@ -643,10 +679,7 @@ async function enqueueMutation(
         readSessionValue(supabaseMigrationStorageKey) === "true"
           ? remapSupabaseMutation(mutation, readUserMapping())
           : mutation;
-      savePendingMutations([
-        ...readPendingMutations(),
-        finalMutation,
-      ]);
+      savePendingMutations([...readPendingMutations(), finalMutation]);
     });
   });
 }
@@ -688,14 +721,16 @@ function rutinaDesdePlantilla(
     ...plantilla,
     id: `rutina-${athleteId}-${idBase}`,
     athleteId,
-    blocks: plantilla.blocks.map((bloque, bloqueIndex) => ({
-      ...bloque,
-      id: `bloque-${idBase}-${bloqueIndex}`,
-      exercises: bloque.exercises.map((ejercicio, ejercicioIndex) => ({
-        ...ejercicio,
-        id: `ejercicio-${idBase}-${bloqueIndex}-${ejercicioIndex}`,
+    structure: {
+      sections: plantilla.structure.sections.map((section, sectionIndex) => ({
+        ...section,
+        id: `seccion-${idBase}-${sectionIndex}`,
+        exercises: section.exercises.map((exercise, exerciseIndex) => ({
+          ...exercise,
+          id: `ejercicio-${idBase}-${sectionIndex}-${exerciseIndex}`,
+        })),
       })),
-    })),
+    },
   };
 }
 
@@ -789,11 +824,7 @@ function ThemeToggle({
   );
 }
 
-function LandingAcceso({
-  onAccess,
-}: {
-  onAccess: (email: string) => boolean;
-}) {
+function LandingAcceso({ onAccess }: { onAccess: (email: string) => boolean }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
 
@@ -930,7 +961,9 @@ function AppShell({
   });
   const [showDockOnboarding, setShowDockOnboarding] = useState(() => {
     if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(mobileDockOnboardingStorageKey) !== "true";
+    return (
+      window.localStorage.getItem(mobileDockOnboardingStorageKey) !== "true"
+    );
   });
   const navegacionCoach = [
     {
@@ -1046,10 +1079,14 @@ function AppShell({
             variant="ghost"
             size="icon-sm"
             aria-label={
-              sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
+              sidebarCompact
+                ? "Expandir barra lateral"
+                : "Compactar barra lateral"
             }
             title={
-              sidebarCompact ? "Expandir barra lateral" : "Compactar barra lateral"
+              sidebarCompact
+                ? "Expandir barra lateral"
+                : "Compactar barra lateral"
             }
             onClick={() => setSidebarCompact((current) => !current)}
             className="absolute -right-4 top-1/2 hidden size-8 -translate-y-1/2 rounded-full border border-cyan-200/25 bg-app-elevated text-cyan-100/60 shadow-[0_6px_20px_rgba(0,0,0,.35)] hover:border-cyan-200/40 hover:bg-app-panel hover:text-cyan-100 lg:inline-flex"
@@ -1079,9 +1116,11 @@ function AppShell({
                     sidebarCompact
                       ? "justify-center px-0 py-3"
                       : "gap-3 px-3 py-3.5",
-                    (esEntrenador
-                      ? item.view === vistaEntrenador
-                      : item.view === vistaAtleta)
+                    (
+                      esEntrenador
+                        ? item.view === vistaEntrenador
+                        : item.view === vistaAtleta
+                    )
                       ? "bg-indigo-300/10 text-white"
                       : "text-indigo-100/45 hover:bg-indigo-300/[0.07] hover:text-white/80",
                   )}
@@ -1135,7 +1174,9 @@ function AppShell({
               title="Cerrar sesión"
               className={cn(
                 "mt-3 h-9 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 text-xs text-white/55 hover:bg-white/[0.07] hover:text-white",
-                sidebarCompact ? "w-full justify-center" : "w-full justify-between",
+                sidebarCompact
+                  ? "w-full justify-center"
+                  : "w-full justify-between",
               )}
             >
               {!sidebarCompact && <span>Cerrar sesión</span>}
@@ -1247,7 +1288,9 @@ function AppShell({
         )}
         <div
           inert={vistaPrevia ? true : undefined}
-          className={cn(vistaPrevia && "pointer-events-none select-none opacity-85")}
+          className={cn(
+            vistaPrevia && "pointer-events-none select-none opacity-85",
+          )}
         >
           {children}
         </div>
@@ -1377,12 +1420,12 @@ function SelectorRutina({
 
 function FilaEjercicio({
   item,
-  blockId,
+  sectionId,
   onUpdate,
   onDelete,
 }: {
   item: Exercise;
-  blockId: string;
+  sectionId: string;
   onUpdate: (item: Exercise) => void;
   onDelete: () => void;
 }) {
@@ -1393,7 +1436,7 @@ function FilaEjercicio({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id, data: { blockId } });
+  } = useSortable({ id: item.id, data: { sectionId } });
 
   return (
     <div
@@ -1404,7 +1447,8 @@ function FilaEjercicio({
       }}
       className={cn(
         "mx-3 my-2 grid gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.025] px-3 py-3 shadow-sm md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-center xl:mx-4 xl:my-3 xl:gap-5 xl:px-4 xl:py-4",
-        isDragging && "relative z-20 border-cyan-300/30 bg-app-elevated opacity-70 shadow-2xl",
+        isDragging &&
+          "relative z-20 border-cyan-300/30 bg-app-elevated opacity-70 shadow-2xl",
       )}
     >
       <div className="flex min-w-0 items-center gap-3">
@@ -1451,7 +1495,9 @@ function FilaEjercicio({
           </Button>
           <div className="w-10 text-center">
             <div className="text-sm">{item.sets}</div>
-            <div className="text-[8px] uppercase text-indigo-100/25">series</div>
+            <div className="text-[8px] uppercase text-indigo-100/25">
+              series
+            </div>
           </div>
           <Button
             variant="ghost"
@@ -1489,10 +1535,7 @@ function FilaEjercicio({
                     }
                     onUpdate({
                       ...item,
-                      maxReps: Math.max(
-                        item.minReps + 1,
-                        item.maxReps,
-                      ),
+                      maxReps: Math.max(item.minReps + 1, item.maxReps),
                     });
                   }}
                   className={cn(
@@ -1635,24 +1678,26 @@ function FilaEjercicio({
   );
 }
 
-function BloqueEditor({
-  bloque,
+function SeccionEditor({
+  section,
   index,
   abierto,
   onToggle,
+  onKindChange,
   addExercise,
   children,
 }: {
-  bloque: Block;
+  section: RoutineSection;
   index: number;
   abierto: boolean;
   onToggle: () => void;
+  onKindChange: (kind: SectionKind) => void;
   addExercise: React.ReactNode;
   children: React.ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({
-    id: `bloque:${bloque.id}`,
-    data: { blockId: bloque.id },
+    id: `seccion:${section.id}`,
+    data: { sectionId: section.id },
   });
 
   return (
@@ -1685,15 +1730,14 @@ function BloqueEditor({
           >
             {index + 1}
           </span>
-          <span className="text-xs font-medium xl:text-sm">{bloque.name}</span>
+          <span className="text-xs font-medium xl:text-sm">{section.name}</span>
           <span className="hidden text-[9px] text-white/30 sm:inline xl:text-[10px]">
-            {blockTypeLabel(bloque.type)}
+            {sectionKindLabel(section.kind)}
           </span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[9px] uppercase tracking-wider text-white/30">
-            {rondasDelBloque(bloque)}{" "}
-            {rondasDelBloque(bloque) === 1 ? "ronda" : "rondas"}
+            {countLabel(section.exercises.length, "ejercicio")}
           </span>
           <ChevronDown
             className={cn(
@@ -1704,30 +1748,62 @@ function BloqueEditor({
         </div>
       </button>
       {abierto && (
-        <SortableContext
-          items={bloque.exercises.map((item) => item.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="py-1">
-            {children}
-            <div className="m-3">{addExercise}</div>
+        <>
+          <div className="grid grid-cols-2 gap-2 border-y border-white/[0.05] bg-black/10 px-3 py-3">
+            {(["sequential", "rounds"] as const).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={section.kind === kind}
+                onClick={() => onKindChange(kind)}
+                className={cn(
+                  "rounded-xl border px-3 py-2 text-left transition-colors",
+                  section.kind === kind
+                    ? "border-cyan-200/25 bg-cyan-300/[0.08] text-cyan-50"
+                    : "border-white/[0.07] bg-white/[0.025] text-white/40 hover:text-white/70",
+                )}
+              >
+                <span className="block text-[10px] font-medium">
+                  {kind === "sequential" ? "Secuencial" : "Por rondas"}
+                </span>
+                <span className="mt-0.5 block text-[9px] text-current opacity-60">
+                  {kind === "sequential"
+                    ? "Ejercicio por ejercicio"
+                    : "Alternar en cada vuelta"}
+                </span>
+              </button>
+            ))}
           </div>
-        </SortableContext>
+          <SortableContext
+            items={section.exercises.map((item) => item.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="py-1">
+              {children}
+              <div className="m-3">{addExercise}</div>
+            </div>
+          </SortableContext>
+        </>
       )}
     </div>
   );
 }
 
 function DialogoEjercicio({
-  blocks,
+  sections,
   trigger,
-  initialBlockId,
+  initialSectionId,
   onAdd,
 }: {
-  blocks: Block[];
+  sections: RoutineSection[];
   trigger: React.ReactElement;
-  initialBlockId: string;
-  onAdd: (item: Exercise, blockId: string, nuevoBloque?: string) => void;
+  initialSectionId: string;
+  onAdd: (
+    item: Exercise,
+    sectionId: string,
+    newSectionName?: string,
+    newSectionKind?: SectionKind,
+  ) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setNombre] = useState("");
@@ -1741,8 +1817,10 @@ function DialogoEjercicio({
   const [weight, setPeso] = useState("0");
   const [restSeconds, setDescanso] = useState("");
   const [instructions, setAclaraciones] = useState("");
-  const [blockId, setBloqueId] = useState(initialBlockId);
-  const [nuevoBloque, setNuevoBloque] = useState("");
+  const [sectionId, setSectionId] = useState(initialSectionId);
+  const [newSectionName, setNewSectionName] = useState("");
+  const [newSectionKind, setNewSectionKind] =
+    useState<SectionKind>("sequential");
 
   function cambiarApertura(siguiente: boolean) {
     setOpen(siguiente);
@@ -1756,8 +1834,9 @@ function DialogoEjercicio({
     setPeso("0");
     setDescanso("");
     setAclaraciones("");
-    setBloqueId(initialBlockId);
-    setNuevoBloque("");
+    setSectionId(initialSectionId);
+    setNewSectionName("");
+    setNewSectionKind("sequential");
   }
 
   function agregar() {
@@ -1769,25 +1848,22 @@ function DialogoEjercicio({
         sets: Math.max(1, Number(sets) || 1),
         minReps: Math.max(
           0,
-          Number(
-            modoRepeticiones === "fijas" ? reps : minReps,
-          ) || 0,
+          Number(modoRepeticiones === "fijas" ? reps : minReps) || 0,
         ),
         maxReps:
           modoRepeticiones === "fijas"
             ? Math.max(0, Number(reps) || 0)
-            : Math.max(
-                Number(minReps) || 0,
-                Number(maxReps) || 0,
-              ),
+            : Math.max(Number(minReps) || 0, Number(maxReps) || 0),
         weight: Math.max(0, Number(weight) || 0),
         restSeconds:
           restSeconds.trim() === "" ? null : Math.max(0, Number(restSeconds)),
         instructions: instructions.trim(),
       },
-      blockId,
-      nuevoBloque.trim() || `Bloque ${blocks.length + 1}`,
+      sectionId,
+      newSectionName.trim() || `Sección ${sections.length + 1}`,
+      newSectionKind,
     );
+    cambiarApertura(false);
   }
 
   return (
@@ -1796,12 +1872,12 @@ function DialogoEjercicio({
       <DialogContent className="border-violet-200/15 bg-app-panel text-white">
         <DialogHeader>
           <DialogTitle>
-            {initialBlockId === "nuevo" ? "Nuevo bloque" : "Nuevo ejercicio"}
+            {initialSectionId === "nuevo" ? "Nueva sección" : "Nuevo ejercicio"}
           </DialogTitle>
           <DialogDescription className="text-indigo-100/45">
-            {initialBlockId === "nuevo"
-              ? "Creá el bloque junto con su primer ejercicio."
-              : `Se agregará a ${blocks.find((block) => block.id === initialBlockId)?.name ?? "este bloque"}.`}
+            {initialSectionId === "nuevo"
+              ? "Elegí cómo se ejecutará la sección y agregá su primer ejercicio."
+              : `Se agregará a ${sections.find((section) => section.id === initialSectionId)?.name ?? "esta sección"}.`}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -1814,18 +1890,59 @@ function DialogoEjercicio({
               className="border-white/10 bg-black/35"
             />
           </label>
-          {blockId === "nuevo" && (
+          {sectionId === "nuevo" && (
             <label className="block space-y-2">
               <span className="text-xs text-indigo-100/55">
-                Nombre del nuevo bloque (opcional)
+                Nombre de la nueva sección (opcional)
               </span>
               <Input
-                value={nuevoBloque}
-                onChange={(event) => setNuevoBloque(event.target.value)}
-                placeholder={`Bloque ${blocks.length + 1}`}
+                value={newSectionName}
+                onChange={(event) => setNewSectionName(event.target.value)}
+                placeholder={`Sección ${sections.length + 1}`}
                 className="border-white/10 bg-black/35"
               />
             </label>
+          )}
+          {sectionId === "nuevo" && (
+            <div className="space-y-2">
+              <div className="text-xs text-indigo-100/55">
+                Tipo de ejecución
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  {
+                    kind: "sequential" as const,
+                    title: "Secuencial",
+                    description:
+                      "Todas las series de un ejercicio antes del siguiente.",
+                  },
+                  {
+                    kind: "rounds" as const,
+                    title: "Por rondas",
+                    description: "Alterna los ejercicios en cada vuelta.",
+                  },
+                ].map((option) => (
+                  <button
+                    key={option.kind}
+                    type="button"
+                    onClick={() => setNewSectionKind(option.kind)}
+                    className={cn(
+                      "rounded-2xl border p-3 text-left transition-colors",
+                      newSectionKind === option.kind
+                        ? "border-cyan-200/30 bg-cyan-300/[0.09]"
+                        : "border-white/[0.08] bg-black/20 hover:bg-white/[0.04]",
+                    )}
+                  >
+                    <div className="text-xs font-medium text-white">
+                      {option.title}
+                    </div>
+                    <div className="mt-1 text-[10px] leading-relaxed text-white/45">
+                      {option.description}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {[
@@ -1840,9 +1957,7 @@ function DialogoEjercicio({
                 <Input
                   type="number"
                   inputMode={
-                    (label as string).startsWith("Peso")
-                      ? "decimal"
-                      : "numeric"
+                    (label as string).startsWith("Peso") ? "decimal" : "numeric"
                   }
                   min={0}
                   step={(label as string).startsWith("Peso") ? "0.5" : "1"}
@@ -1884,9 +1999,7 @@ function DialogoEjercicio({
             </div>
             {modoRepeticiones === "fijas" ? (
               <label className="block space-y-2">
-                <span className="text-xs text-indigo-100/55">
-                  Repeticiones
-                </span>
+                <span className="text-xs text-indigo-100/55">Repeticiones</span>
                 <Input
                   type="number"
                   inputMode="numeric"
@@ -1935,23 +2048,17 @@ function DialogoEjercicio({
         </div>
         <DialogFooter>
           <DialogClose
-            render={
-              <Button variant="ghost" className="text-indigo-100/50" />
-            }
+            render={<Button variant="ghost" className="text-indigo-100/50" />}
           >
             Cancelar
           </DialogClose>
-          <DialogClose
-            render={
-              <Button
-                onClick={agregar}
-                disabled={!name.trim()}
-                className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
-              />
-            }
+          <Button
+            onClick={agregar}
+            disabled={!name.trim()}
+            className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
           >
             Agregar
-          </DialogClose>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1990,14 +2097,18 @@ function DialogoNuevaRutina({
       durationMinutes: durationMinutes.trim()
         ? Math.max(1, Number(durationMinutes))
         : null,
-      blocks: [
-        {
-          id: `bloque-${timestamp}`,
-          name: "Bloque 1",
-          type: "custom",
-          exercises: [],
-        },
-      ],
+      structure: {
+        sections: [
+          {
+            id: `seccion-${timestamp}`,
+            name: "Sección 1",
+            kind: "sequential",
+            role: "custom",
+            presentation: "standard",
+            exercises: [],
+          },
+        ],
+      },
     });
   }
 
@@ -2018,7 +2129,8 @@ function DialogoNuevaRutina({
         <DialogHeader>
           <DialogTitle>Crear rutina para {atleta.name}</DialogTitle>
           <DialogDescription className="text-white/40">
-            Empezá con un bloque vacío y completá los demás datos cuando quieras.
+            Empezá con una sección secuencial vacía y personalizala cuando
+            quieras.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -2064,7 +2176,8 @@ function DialogoNuevaRutina({
                   Constructor flexible
                 </div>
                 <div className="mt-1 text-[10px] leading-relaxed text-white/35">
-                  Mové ejercicios dentro de un bloque o arrastralos hacia otro.
+                  Mové ejercicios dentro de una sección o arrastralos hacia
+                  otra.
                 </div>
               </div>
             </div>
@@ -2114,7 +2227,9 @@ function DialogoDetallesRutina({
     if (!siguiente) return;
     setTitulo(rutina.title);
     setObjetivo(
-      rutina.objective === "Entrenamiento personalizado" ? "" : rutina.objective,
+      rutina.objective === "Entrenamiento personalizado"
+        ? ""
+        : rutina.objective,
     );
     setDuracion(String(rutina.durationMinutes ?? ""));
   }
@@ -2309,11 +2424,7 @@ function DialogoNuevoAtleta({
 
   async function crear() {
     const emailNormalizado = email.trim().toLowerCase();
-    if (
-      users.some(
-        (item) => item.email.toLowerCase() === emailNormalizado,
-      )
-    ) {
+    if (users.some((item) => item.email.toLowerCase() === emailNormalizado)) {
       setError("Ya existe un usuario con ese email.");
       return;
     }
@@ -2537,14 +2648,14 @@ function HomeEntrenador({
   const [seccionDetalle, setSeccionDetalle] = useState<
     "routines" | "agenda" | "activities"
   >("routines");
-  const [bloqueAbierto, setBloqueAbierto] = useState<string | null>(null);
+  const [openSectionId, setOpenSectionId] = useState<string | null>(null);
   const [accionPendiente, setAccionPendiente] = useState<(() => void) | null>(
     null,
   );
   const [guardadoVisible, setGuardadoVisible] = useState(false);
-  const [plantillaGuardadaVisible, setPlantillaGuardadaVisible] = useState(false);
-  const hayCambios =
-    JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
+  const [plantillaGuardadaVisible, setPlantillaGuardadaVisible] =
+    useState(false);
+  const hayCambios = JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
   const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
   const rutinasSinEjercicios = rutinasPorAtleta.filter(
     (item) => cantidadEjercicios(item) === 0,
@@ -2609,158 +2720,194 @@ function HomeEntrenador({
   }
 
   function actualizarEjercicio(
-    blockId: string,
+    sectionId: string,
     exerciseId: string,
     siguiente: Exercise,
   ) {
     setRutina((actual) => ({
       ...actual,
-      blocks: actual.blocks.map((bloque) =>
-        bloque.id === blockId
-          ? {
-              ...bloque,
-              exercises: bloque.exercises.map((item) =>
-                item.id === exerciseId ? siguiente : item,
-              ),
-            }
-          : bloque,
-      ),
+      structure: {
+        ...actual.structure,
+        sections: actual.structure.sections.map((section) =>
+          section.id === sectionId
+            ? {
+                ...section,
+                exercises: section.exercises.map((item) =>
+                  item.id === exerciseId ? siguiente : item,
+                ),
+              }
+            : section,
+        ),
+      },
     }));
   }
 
-  function eliminarEjercicio(blockId: string, exerciseId: string) {
+  function eliminarEjercicio(sectionId: string, exerciseId: string) {
     setRutina((actual) => ({
       ...actual,
-      blocks: actual.blocks.map((bloque) =>
-        bloque.id === blockId
-          ? {
-              ...bloque,
-              exercises: bloque.exercises.filter(
-                (item) => item.id !== exerciseId,
-              ),
-            }
-          : bloque,
-      ),
+      structure: {
+        ...actual.structure,
+        sections: actual.structure.sections.map((section) =>
+          section.id === sectionId
+            ? {
+                ...section,
+                exercises: section.exercises.filter(
+                  (item) => item.id !== exerciseId,
+                ),
+              }
+            : section,
+        ),
+      },
+    }));
+  }
+
+  function updateSectionKind(sectionId: string, kind: SectionKind) {
+    setRutina((current) => ({
+      ...current,
+      structure: {
+        ...current.structure,
+        sections: current.structure.sections.map((section) =>
+          section.id === sectionId ? { ...section, kind } : section,
+        ),
+      },
     }));
   }
 
   function agregarEjercicio(
     item: Exercise,
-    blockId: string,
-    nuevoBloque?: string,
+    sectionId: string,
+    newSectionName?: string,
+    newSectionKind: SectionKind = "sequential",
   ) {
-    if (blockId === "nuevo" && nuevoBloque) {
-      const id = `bloque-${Date.now()}`;
+    if (sectionId === "nuevo" && newSectionName) {
+      const id = `seccion-${Date.now()}`;
       setRutina((actual) => ({
         ...actual,
-        blocks: [
-          ...actual.blocks,
-          {
-            id,
-            name: nuevoBloque,
-            type: "custom",
-            exercises: [item],
-          },
-        ],
+        structure: {
+          ...actual.structure,
+          sections: [
+            ...actual.structure.sections,
+            {
+              id,
+              name: newSectionName,
+              kind: newSectionKind,
+              role: "custom",
+              presentation: "standard",
+              exercises: [item],
+            },
+          ],
+        },
       }));
-      setBloqueAbierto(id);
+      setOpenSectionId(id);
       return;
     }
 
     setRutina((actual) => ({
       ...actual,
-      blocks: actual.blocks.map((bloque) =>
-        bloque.id === blockId
-          ? { ...bloque, exercises: [...bloque.exercises, item] }
-          : bloque,
-      ),
+      structure: {
+        ...actual.structure,
+        sections: actual.structure.sections.map((section) =>
+          section.id === sectionId
+            ? { ...section, exercises: [...section.exercises, item] }
+            : section,
+        ),
+      },
     }));
-    setBloqueAbierto(blockId);
+    setOpenSectionId(sectionId);
   }
 
   function moverEjercicio(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const bloqueOrigenId = active.data.current?.blockId as string | undefined;
-    const bloqueDestinoId = (
-      String(over.id).startsWith("bloque:")
-        ? String(over.id).replace("bloque:", "")
-        : over.data.current?.blockId
+    const originSectionId = active.data.current?.sectionId as
+      string | undefined;
+    const destinationSectionId = (
+      String(over.id).startsWith("seccion:")
+        ? String(over.id).replace("seccion:", "")
+        : over.data.current?.sectionId
     ) as string | undefined;
 
-    if (!bloqueOrigenId || !bloqueDestinoId) return;
+    if (!originSectionId || !destinationSectionId) return;
 
     setRutina((actual) => {
-      const bloqueOrigen = actual.blocks.find(
-        (bloque) => bloque.id === bloqueOrigenId,
+      const originSection = actual.structure.sections.find(
+        (section) => section.id === originSectionId,
       );
-      const bloqueDestino = actual.blocks.find(
-        (bloque) => bloque.id === bloqueDestinoId,
+      const destinationSection = actual.structure.sections.find(
+        (section) => section.id === destinationSectionId,
       );
-      if (!bloqueOrigen || !bloqueDestino) return actual;
+      if (!originSection || !destinationSection) return actual;
 
-      const indiceOrigen = bloqueOrigen.exercises.findIndex(
+      const indiceOrigen = originSection.exercises.findIndex(
         (item) => item.id === active.id,
       );
       if (indiceOrigen < 0) return actual;
 
-      if (bloqueOrigenId === bloqueDestinoId) {
-        const indiceDestino = String(over.id).startsWith("bloque:")
-          ? bloqueOrigen.exercises.length - 1
-          : bloqueOrigen.exercises.findIndex((item) => item.id === over.id);
+      if (originSectionId === destinationSectionId) {
+        const indiceDestino = String(over.id).startsWith("seccion:")
+          ? originSection.exercises.length - 1
+          : originSection.exercises.findIndex((item) => item.id === over.id);
         if (indiceDestino < 0 || indiceDestino === indiceOrigen) return actual;
         return {
           ...actual,
-          blocks: actual.blocks.map((bloque) =>
-            bloque.id === bloqueOrigenId
-              ? {
-                  ...bloque,
-                  exercises: arrayMove(
-                    bloque.exercises,
-                    indiceOrigen,
-                    indiceDestino,
-                  ),
-                }
-              : bloque,
-          ),
+          structure: {
+            ...actual.structure,
+            sections: actual.structure.sections.map((section) =>
+              section.id === originSectionId
+                ? {
+                    ...section,
+                    exercises: arrayMove(
+                      section.exercises,
+                      indiceOrigen,
+                      indiceDestino,
+                    ),
+                  }
+                : section,
+            ),
+          },
         };
       }
 
-      const itemMovido = bloqueOrigen.exercises[indiceOrigen];
-      const indiceDestino = String(over.id).startsWith("bloque:")
-        ? bloqueDestino.exercises.length
+      const itemMovido = originSection.exercises[indiceOrigen];
+      const indiceDestino = String(over.id).startsWith("seccion:")
+        ? destinationSection.exercises.length
         : Math.max(
             0,
-            bloqueDestino.exercises.findIndex((item) => item.id === over.id),
+            destinationSection.exercises.findIndex(
+              (item) => item.id === over.id,
+            ),
           );
 
       return {
         ...actual,
-        blocks: actual.blocks.map((bloque) => {
-          if (bloque.id === bloqueOrigenId) {
-            return {
-              ...bloque,
-              exercises: bloque.exercises.filter(
-                (item) => item.id !== active.id,
-              ),
-            };
-          }
-          if (bloque.id === bloqueDestinoId) {
-            const exercises = [...bloque.exercises];
-            exercises.splice(indiceDestino, 0, itemMovido);
-            return { ...bloque, exercises };
-          }
-          return bloque;
-        }),
+        structure: {
+          ...actual.structure,
+          sections: actual.structure.sections.map((section) => {
+            if (section.id === originSectionId) {
+              return {
+                ...section,
+                exercises: section.exercises.filter(
+                  (item) => item.id !== active.id,
+                ),
+              };
+            }
+            if (section.id === destinationSectionId) {
+              const exercises = [...section.exercises];
+              exercises.splice(indiceDestino, 0, itemMovido);
+              return { ...section, exercises };
+            }
+            return section;
+          }),
+        },
       };
     });
-    setBloqueAbierto(bloqueDestinoId);
+    setOpenSectionId(destinationSectionId);
   }
 
   function crearYEditar(rutinaNueva: Routine) {
     onCreateRutina(rutinaNueva);
-    setBloqueAbierto(rutinaNueva.blocks[0].id);
+    setOpenSectionId(rutinaNueva.structure.sections[0]?.id ?? null);
   }
 
   return (
@@ -2778,15 +2925,19 @@ function HomeEntrenador({
               Planificá el progreso de tus atletas
             </h1>
             <p className={pageDescriptionClassName}>
-              Organizá atletas, reutilizá plantillas y personalizá cada plan desde
-              sus espacios dedicados.
+              Organizá atletas, reutilizá plantillas y personalizá cada plan
+              desde sus espacios dedicados.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
               [atletas.length, "Atletas", "Gestioná sus perfiles"],
               [templates.length, "Plantillas propias", "Reutilizables"],
-              [rutinasPorAtleta.length, "Planes asignados", "En todos tus atletas"],
+              [
+                rutinasPorAtleta.length,
+                "Planes asignados",
+                "En todos tus atletas",
+              ],
               [
                 rutinasSinEjercicios.length,
                 "Rutinas a revisar",
@@ -2860,70 +3011,75 @@ function HomeEntrenador({
           </div>
           <div className="rounded-3xl border border-white/[0.07] bg-app-surface/70 p-4 md:p-5 xl:p-6">
             <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
-            {atletas.map((item) => {
-              const planes = rutinasPorAtleta.filter(
-                (rutinaActual) => rutinaActual.athleteId === item.id,
-              );
-              const exercises = planes.reduce(
-                (total, rutinaActual) =>
-                  total + cantidadEjercicios(rutinaActual),
-                0,
-              );
-              const rutinasIncompletas = planes.filter(
-                (rutinaActual) => cantidadEjercicios(rutinaActual) === 0,
-              ).length;
+              {atletas.map((item) => {
+                const planes = rutinasPorAtleta.filter(
+                  (rutinaActual) => rutinaActual.athleteId === item.id,
+                );
+                const exercises = planes.reduce(
+                  (total, rutinaActual) =>
+                    total + cantidadEjercicios(rutinaActual),
+                  0,
+                );
+                const rutinasIncompletas = planes.filter(
+                  (rutinaActual) => cantidadEjercicios(rutinaActual) === 0,
+                ).length;
 
-              return (
-                <div
-                  key={item.id}
-                  className="flex h-full flex-col rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-medium">{item.name}</div>
-                        <div className="truncate text-[10px] text-white/30">{item.email}</div>
+                return (
+                  <div
+                    key={item.id}
+                    className="flex h-full flex-col rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {item.name}
+                          </div>
+                          <div className="truncate text-[10px] text-white/30">
+                            {item.email}
+                          </div>
+                        </div>
+                        {rutinasIncompletas > 0 && (
+                          <Badge className="shrink-0 border-amber-300/15 bg-amber-300/10 text-[9px] text-amber-100/80">
+                            {rutinasIncompletas} sin completar
+                          </Badge>
+                        )}
                       </div>
                       {rutinasIncompletas > 0 && (
-                        <Badge className="shrink-0 border-amber-300/15 bg-amber-300/10 text-[9px] text-amber-100/80">
-                          {rutinasIncompletas} sin completar
-                        </Badge>
+                        <div className="mt-3 rounded-xl border border-amber-300/10 bg-amber-300/[0.05] px-3 py-2 text-[10px] text-amber-100/70">
+                          Revisá las rutinas vacías antes de asignar nuevas
+                          cargas.
+                        </div>
                       )}
                     </div>
-                    {rutinasIncompletas > 0 && (
-                      <div className="mt-3 rounded-xl border border-amber-300/10 bg-amber-300/[0.05] px-3 py-2 text-[10px] text-amber-100/70">
-                        Revisá las rutinas vacías antes de asignar nuevas cargas.
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <div className="rounded-xl bg-white/[0.035] px-3 py-2">
+                        <div className="text-sm">{planes.length}</div>
+                        <div className="text-[9px] uppercase tracking-wider text-white/30">
+                          Planes
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2">
-                    <div className="rounded-xl bg-white/[0.035] px-3 py-2">
-                      <div className="text-sm">{planes.length}</div>
-                      <div className="text-[9px] uppercase tracking-wider text-white/30">
-                        Planes
-                      </div>
-                    </div>
-                    <div className="rounded-xl bg-white/[0.035] px-3 py-2">
-                      <div className="text-sm">{exercises}</div>
-                      <div className="text-[9px] uppercase tracking-wider text-white/30">
-                        Ejercicios
+                      <div className="rounded-xl bg-white/[0.035] px-3 py-2">
+                        <div className="text-sm">{exercises}</div>
+                        <div className="text-[9px] uppercase tracking-wider text-white/30">
+                          Ejercicios
+                        </div>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelectAtleta(item.id);
+                        navigate(`/coach/athletes/${item.id}`);
+                      }}
+                      className="mt-4 flex h-9 items-center justify-center gap-2 rounded-full bg-cyan-300 text-xs font-medium text-indigo-950 transition-colors hover:bg-cyan-200"
+                    >
+                      Ver planificación
+                      <ArrowRight className="size-3.5" />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onSelectAtleta(item.id);
-                      navigate(`/coach/athletes/${item.id}`);
-                    }}
-                    className="mt-4 flex h-9 items-center justify-center gap-2 rounded-full bg-cyan-300 text-xs font-medium text-indigo-950 transition-colors hover:bg-cyan-200"
-                  >
-                    Ver planificación
-                    <ArrowRight className="size-3.5" />
-                  </button>
-                </div>
-              );
-            })}
+                );
+              })}
             </div>
           </div>
         </section>
@@ -2933,27 +3089,40 @@ function HomeEntrenador({
         <section>
           <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div className="min-w-0">
-            <div className={pageEyebrowClassName}>Biblioteca de plantillas</div>
-            <h1 className={pageTitleClassName}>Rutinas reutilizables</h1>
-            <p className={pageDescriptionClassName}>
-              Guardá la rutina abierta como plantilla para reutilizar su estructura y pesos base. Cada asignación crea una copia independiente para el atleta.
-            </p>
+              <div className={pageEyebrowClassName}>
+                Biblioteca de plantillas
+              </div>
+              <h1 className={pageTitleClassName}>Rutinas reutilizables</h1>
+              <p className={pageDescriptionClassName}>
+                Guardá la rutina abierta como plantilla para reutilizar su
+                estructura y pesos base. Cada asignación crea una copia
+                independiente para el atleta.
+              </p>
             </div>
             <DialogoGuardarPlantilla
               rutina={rutina}
               onSave={(title) => {
                 onSaveAsTemplate(rutina, title);
                 setPlantillaGuardadaVisible(true);
-                window.setTimeout(() => setPlantillaGuardadaVisible(false), 2400);
+                window.setTimeout(
+                  () => setPlantillaGuardadaVisible(false),
+                  2400,
+                );
               }}
             />
           </div>
           <div className="mb-4 flex flex-wrap items-center gap-2 text-[10px] text-white/55">
             <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5">
-              Rutina fuente: <strong className="font-medium text-white/80">{rutina.title}</strong>
+              Rutina fuente:{" "}
+              <strong className="font-medium text-white/80">
+                {rutina.title}
+              </strong>
             </span>
             {plantillaGuardadaVisible && (
-              <span role="status" className="inline-flex items-center gap-1.5 text-emerald-200">
+              <span
+                role="status"
+                className="inline-flex items-center gap-1.5 text-emerald-200"
+              >
                 <CheckCircle2 className="size-3.5" />
                 Plantilla creada
               </span>
@@ -2961,91 +3130,96 @@ function HomeEntrenador({
           </div>
           <div className="rounded-3xl border border-white/[0.07] bg-app-surface/70 p-4 md:p-5 xl:p-6">
             {templates.length === 0 ? (
-            <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5 text-xs text-white/35">
-              Todavía no tenés plantillas. Personalizá una rutina y guardala acá
-              para asignarla rápidamente.
-            </div>
+              <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5 text-xs text-white/35">
+                Todavía no tenés plantillas. Personalizá una rutina y guardala
+                acá para asignarla rápidamente.
+              </div>
             ) : (
-            <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {templates.map((plantilla) => (
-                <div
-                  key={plantilla.id}
-                  className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium">
-                        {plantilla.title}
+              <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {templates.map((plantilla) => (
+                  <div
+                    key={plantilla.id}
+                    className="rounded-2xl border border-white/[0.08] bg-white/[0.025] p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">
+                          {plantilla.title}
+                        </div>
                       </div>
+                      <Badge className="shrink-0 border-white/[0.08] bg-white/[0.04] text-[9px] text-white/45">
+                        Plantilla
+                      </Badge>
                     </div>
-                    <Badge className="shrink-0 border-white/[0.08] bg-white/[0.04] text-[9px] text-white/45">
-                      Plantilla
-                    </Badge>
-                  </div>
-                  <div className="mt-2 text-[10px] text-white/30">
-                    {countLabel(cantidadEjercicios(plantilla), "ejercicio")}
-                    {plantilla.durationMinutes
-                      ? ` · ${plantilla.durationMinutes} min`
-                      : ""}
-                  </div>
-                  <div className="mt-4 flex items-center justify-between gap-2">
-                    <DialogoAsignarPlantilla
-                      plantilla={plantilla}
-                      atletas={atletas}
-                      onAssign={(athleteId) =>
-                        navegar(() => onAssignTemplate(plantilla.id, athleteId))
-                      }
-                    />
-                    <Dialog>
-                      <DialogTrigger
-                        render={
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            aria-label={`Eliminar plantilla ${plantilla.title}`}
-                            className="rounded-full text-white/35 hover:bg-red-400/10 hover:text-red-200"
-                          />
+                    <div className="mt-2 text-[10px] text-white/30">
+                      {countLabel(cantidadEjercicios(plantilla), "ejercicio")}
+                      {plantilla.durationMinutes
+                        ? ` · ${plantilla.durationMinutes} min`
+                        : ""}
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-2">
+                      <DialogoAsignarPlantilla
+                        plantilla={plantilla}
+                        atletas={atletas}
+                        onAssign={(athleteId) =>
+                          navegar(() =>
+                            onAssignTemplate(plantilla.id, athleteId),
+                          )
                         }
-                      >
-                        <Trash2 />
-                      </DialogTrigger>
-                      <DialogContent className="border-white/10 bg-app-panel text-white">
-                        <DialogHeader>
-                          <DialogTitle>
-                            ¿Eliminar “{plantilla.title}”?
-                          </DialogTitle>
-                          <DialogDescription className="text-white/40">
-                            La plantilla dejará de estar disponible para nuevas
-                            asignaciones. Las rutinas que ya asignaste no se
-                            modificarán.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <DialogFooter>
-                          <DialogClose
-                            render={
-                              <Button variant="ghost" className="text-white/50" />
-                            }
-                          >
-                            Cancelar
-                          </DialogClose>
-                          <DialogClose
-                            render={
-                              <Button
-                                variant="destructive"
-                                onClick={() => onDeleteTemplate(plantilla.id)}
-                                className="bg-red-500 text-white hover:bg-red-400"
-                              />
-                            }
-                          >
-                            Eliminar plantilla
-                          </DialogClose>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
+                      />
+                      <Dialog>
+                        <DialogTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={`Eliminar plantilla ${plantilla.title}`}
+                              className="rounded-full text-white/35 hover:bg-red-400/10 hover:text-red-200"
+                            />
+                          }
+                        >
+                          <Trash2 />
+                        </DialogTrigger>
+                        <DialogContent className="border-white/10 bg-app-panel text-white">
+                          <DialogHeader>
+                            <DialogTitle>
+                              ¿Eliminar “{plantilla.title}”?
+                            </DialogTitle>
+                            <DialogDescription className="text-white/40">
+                              La plantilla dejará de estar disponible para
+                              nuevas asignaciones. Las rutinas que ya asignaste
+                              no se modificarán.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogClose
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  className="text-white/50"
+                                />
+                              }
+                            >
+                              Cancelar
+                            </DialogClose>
+                            <DialogClose
+                              render={
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => onDeleteTemplate(plantilla.id)}
+                                  className="bg-red-500 text-white hover:bg-red-400"
+                                />
+                              }
+                            >
+                              Eliminar plantilla
+                            </DialogClose>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
             )}
           </div>
         </section>
@@ -3055,278 +3229,293 @@ function HomeEntrenador({
         <section id="routines-entrenador" className="scroll-mt-24">
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-            <button
-              type="button"
-              onClick={() => navigate("/coach/athletes")}
-              className="mb-3 inline-flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white"
-            >
-              <ArrowLeft className="size-3.5" />
-              Todos los atletas
-            </button>
-            <div className={pageEyebrowClassName}>
-              Planificación de {atleta.name}
-            </div>
-            <h1 className={pageTitleClassName}>
-              {seccionDetalle === "routines"
-                ? "Plan de entrenamiento"
-                : seccionDetalle === "agenda"
-                  ? "Agenda deportiva"
-                  : "Actividades realizadas"}
-            </h1>
-            <p className={pageDescriptionClassName}>
-              {seccionDetalle === "routines"
-                ? "Armá bloques, completá ejercicios y ajustá la estructura antes de asignar nuevas cargas."
-                : seccionDetalle === "agenda"
-                  ? "Programá sesiones internas y externas para darle contexto semanal al plan del atleta."
-                  : "Revisá lo que ya completó y corregí registros externos incluso después de realizarlos."}
-            </p>
+              <button
+                type="button"
+                onClick={() => navigate("/coach/athletes")}
+                className="mb-3 inline-flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white"
+              >
+                <ArrowLeft className="size-3.5" />
+                Todos los atletas
+              </button>
+              <div className={pageEyebrowClassName}>
+                Planificación de {atleta.name}
+              </div>
+              <h1 className={pageTitleClassName}>
+                {seccionDetalle === "routines"
+                  ? "Plan de entrenamiento"
+                  : seccionDetalle === "agenda"
+                    ? "Agenda deportiva"
+                    : "Actividades realizadas"}
+              </h1>
+              <p className={pageDescriptionClassName}>
+                {seccionDetalle === "routines"
+                  ? "Armá secciones, completá ejercicios y ajustá la estructura antes de asignar nuevas cargas."
+                  : seccionDetalle === "agenda"
+                    ? "Programá sesiones internas y externas para darle contexto semanal al plan del atleta."
+                    : "Revisá lo que ya completó y corregí registros externos incluso después de realizarlos."}
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-            {seccionDetalle === "routines" && (
-              <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
-            )}
-            <Button
-              onClick={() => navegar(verComoAtleta)}
-              className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
-            >
-              Vista atleta
-              <ArrowRight />
-            </Button>
-            </div>
-          </div>
-
-        <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1 sm:w-fit">
-          {[
-            ["routines", "Rutinas", Dumbbell],
-            ["agenda", "Agenda", CalendarDays],
-            ["activities", "Actividades", Activity],
-          ].map(([value, label, Icon]) => {
-            const TabIcon = Icon as typeof Dumbbell;
-            return (
-              <button
-                key={value as string}
-                onClick={() =>
-                  navegar(() =>
-                    setSeccionDetalle(
-                      value as "routines" | "agenda" | "activities",
-                    ),
-                  )
-                }
-                className={cn(
-                  "flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-xs transition-colors",
-                  seccionDetalle === value
-                    ? "bg-white/[0.09] text-white"
-                    : "text-white/35 hover:text-white/65",
-                )}
+              {seccionDetalle === "routines" && (
+                <DialogoNuevaRutina atleta={atleta} onCreate={crearYEditar} />
+              )}
+              <Button
+                onClick={() => navegar(verComoAtleta)}
+                className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
               >
-                <TabIcon className="size-3.5" />
-                {label as string}
-              </button>
-            );
-          })}
-        </div>
-
-        {seccionDetalle === "routines" && (
-        <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
-          <div className="xl:sticky xl:top-24">
-            <div className="mb-3 hidden items-center justify-between xl:flex">
-              <span className="text-xs font-medium text-white/60">
-                Rutinas asignadas
-              </span>
-              <span className="text-[10px] text-white/25">
-                {countLabel(routines.length, "plan", "planes")}
-              </span>
+                Vista atleta
+                <ArrowRight />
+              </Button>
             </div>
-            <SelectorRutina
-              routines={routines}
-              rutinaActiva={rutina}
-              onSelect={(id) => navegar(() => onSelect(id))}
-              desktopVertical
-            />
           </div>
 
-          <Card className="overflow-hidden border-white/[0.08] bg-app-panel text-white shadow-[0_24px_70px_rgba(37,28,100,.18)]">
-            <CardHeader className="border-b border-indigo-200/[0.07] p-4 md:p-5 xl:p-6">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="text-lg font-medium xl:text-xl">
-                    {rutina.title}
-                  </div>
-                  <p className="mt-1 text-[11px] text-indigo-100/35 xl:text-xs">
-                    <TextWithLinks>{rutina.objective}</TextWithLinks>
-                    {rutina.durationMinutes
-                      ? ` · ${rutina.durationMinutes} min`
-                      : ""}{" "}
-                    · {countLabel(ejerciciosRutinaActiva, "ejercicio")}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  {!hayCambios && (
-                    <div className="flex items-center gap-1 text-[10px] text-cyan-200/55">
-                      <Check className="size-3" />
-                      {guardadoVisible ? "Cambios guardados" : "Guardado"}
-                    </div>
+          <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1 sm:w-fit">
+            {[
+              ["routines", "Rutinas", Dumbbell],
+              ["agenda", "Agenda", CalendarDays],
+              ["activities", "Actividades", Activity],
+            ].map(([value, label, Icon]) => {
+              const TabIcon = Icon as typeof Dumbbell;
+              return (
+                <button
+                  key={value as string}
+                  onClick={() =>
+                    navegar(() =>
+                      setSeccionDetalle(
+                        value as "routines" | "agenda" | "activities",
+                      ),
+                    )
+                  }
+                  className={cn(
+                    "flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-xs transition-colors",
+                    seccionDetalle === value
+                      ? "bg-white/[0.09] text-white"
+                      : "text-white/35 hover:text-white/65",
                   )}
-                  <DialogoDetallesRutina
+                >
+                  <TabIcon className="size-3.5" />
+                  {label as string}
+                </button>
+              );
+            })}
+          </div>
+
+          {seccionDetalle === "routines" && (
+            <div className="grid items-start gap-4 xl:grid-cols-[300px_minmax(0,1fr)] xl:gap-6">
+              <div className="xl:sticky xl:top-24">
+                <div className="mb-3 hidden items-center justify-between xl:flex">
+                  <span className="text-xs font-medium text-white/60">
+                    Rutinas asignadas
+                  </span>
+                  <span className="text-[10px] text-white/25">
+                    {countLabel(routines.length, "plan", "planes")}
+                  </span>
+                </div>
+                <SelectorRutina
+                  routines={routines}
+                  rutinaActiva={rutina}
+                  onSelect={(id) => navegar(() => onSelect(id))}
+                  desktopVertical
+                />
+              </div>
+
+              <Card className="overflow-hidden border-white/[0.08] bg-app-panel text-white shadow-[0_24px_70px_rgba(37,28,100,.18)]">
+                <CardHeader className="border-b border-indigo-200/[0.07] p-4 md:p-5 xl:p-6">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="text-lg font-medium xl:text-xl">
+                        {rutina.title}
+                      </div>
+                      <p className="mt-1 text-[11px] text-indigo-100/35 xl:text-xs">
+                        <TextWithLinks>{rutina.objective}</TextWithLinks>
+                        {rutina.durationMinutes
+                          ? ` · ${rutina.durationMinutes} min`
+                          : ""}{" "}
+                        · {countLabel(ejerciciosRutinaActiva, "ejercicio")}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                      {!hayCambios && (
+                        <div className="flex items-center gap-1 text-[10px] text-cyan-200/55">
+                          <Check className="size-3" />
+                          {guardadoVisible ? "Cambios guardados" : "Guardado"}
+                        </div>
+                      )}
+                      <DialogoDetallesRutina
                         rutina={rutina}
                         onUpdate={setRutina}
-                  />
-                  {hayCambios && (
-                    <Button
-                      onClick={guardar}
-                      className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110"
-                    >
-                      <Check />
-                      Guardar cambios
-                    </Button>
-                  )}
-                  <Dialog>
-                    <DialogTrigger
-                      disabled={routines.length <= 1}
-                      render={
+                      />
+                      {hayCambios && (
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label="Eliminar rutina"
-                          title={
-                            routines.length <= 1
-                              ? "Creá otra rutina antes de eliminar esta"
-                              : "Eliminar rutina"
-                          }
-                          className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200 disabled:opacity-20"
-                        />
-                      }
-                    >
-                      <Trash2 />
-                    </DialogTrigger>
-                    <DialogContent className="border-white/10 bg-app-panel text-white">
-                      <DialogHeader>
-                        <DialogTitle>¿Eliminar “{rutina.title}”?</DialogTitle>
-                        <DialogDescription className="text-white/40">
-                          La rutina dejará de estar disponible para {atleta.name}.
-                          También se quitarán sus entrenamientos programados. Esta
-                          acción no se puede deshacer.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <DialogClose
-                          render={
-                            <Button variant="ghost" className="text-white/50" />
-                          }
+                          onClick={guardar}
+                          className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110"
                         >
-                          Cancelar
-                        </DialogClose>
-                        <DialogClose
+                          <Check />
+                          Guardar cambios
+                        </Button>
+                      )}
+                      <Dialog>
+                        <DialogTrigger
+                          disabled={routines.length <= 1}
                           render={
                             <Button
-                              variant="destructive"
-                              onClick={() => onDeleteRutina(rutina.id)}
-                              className="bg-red-500 text-white hover:bg-red-400"
+                              variant="ghost"
+                              size="icon"
+                              aria-label="Eliminar rutina"
+                              title={
+                                routines.length <= 1
+                                  ? "Creá otra rutina antes de eliminar esta"
+                                  : "Eliminar rutina"
+                              }
+                              className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200 disabled:opacity-20"
                             />
                           }
                         >
-                          Eliminar rutina
-                        </DialogClose>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </div>
-              {ejerciciosRutinaActiva === 0 && (
-                <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-100/75">
-                  Esta rutina todavía no tiene ejercicios. Sumá contenido antes de
-                  usarla como referencia o seguir avanzando con la planificación del atleta.
-                </div>
-              )}
-            </CardHeader>
-            <CardContent className="p-0">
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={moverEjercicio}
-              >
-                {rutina.blocks.map((bloque, index) => (
-                  <BloqueEditor
-                    key={bloque.id}
-                    bloque={bloque}
-                    index={index}
-                    abierto={bloqueAbierto === bloque.id}
-                    onToggle={() =>
-                      setBloqueAbierto((actual) =>
-                        actual === bloque.id ? null : bloque.id,
-                      )
-                    }
-                    addExercise={
+                          <Trash2 />
+                        </DialogTrigger>
+                        <DialogContent className="border-white/10 bg-app-panel text-white">
+                          <DialogHeader>
+                            <DialogTitle>
+                              ¿Eliminar “{rutina.title}”?
+                            </DialogTitle>
+                            <DialogDescription className="text-white/40">
+                              La rutina dejará de estar disponible para{" "}
+                              {atleta.name}. También se quitarán sus
+                              entrenamientos programados. Esta acción no se
+                              puede deshacer.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <DialogFooter>
+                            <DialogClose
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  className="text-white/50"
+                                />
+                              }
+                            >
+                              Cancelar
+                            </DialogClose>
+                            <DialogClose
+                              render={
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => onDeleteRutina(rutina.id)}
+                                  className="bg-red-500 text-white hover:bg-red-400"
+                                />
+                              }
+                            >
+                              Eliminar rutina
+                            </DialogClose>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+                  {ejerciciosRutinaActiva === 0 && (
+                    <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-xs leading-relaxed text-amber-100/75">
+                      Esta rutina todavía no tiene ejercicios. Sumá contenido
+                      antes de usarla como referencia o seguir avanzando con la
+                      planificación del atleta.
+                    </div>
+                  )}
+                </CardHeader>
+                <CardContent className="p-0">
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={moverEjercicio}
+                  >
+                    {rutina.structure.sections.map((section, index) => (
+                      <SeccionEditor
+                        key={section.id}
+                        section={section}
+                        index={index}
+                        abierto={openSectionId === section.id}
+                        onToggle={() =>
+                          setOpenSectionId((actual) =>
+                            actual === section.id ? null : section.id,
+                          )
+                        }
+                        onKindChange={(kind) => updateSectionKind(section.id, kind)}
+                        addExercise={
+                          <DialogoEjercicio
+                            key={`add-exercise-${section.id}-${section.exercises.length}`}
+                            sections={rutina.structure.sections}
+                            initialSectionId={section.id}
+                            trigger={
+                              <button
+                                type="button"
+                                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] px-4 py-3 text-xs text-cyan-100/55 transition-colors hover:border-cyan-200/30 hover:bg-cyan-300/[0.06] hover:text-cyan-100"
+                              >
+                                <Plus className="size-3.5" />
+                                Sumar ejercicio
+                              </button>
+                            }
+                            onAdd={agregarEjercicio}
+                          />
+                        }
+                      >
+                        {section.exercises.map((item) => (
+                          <FilaEjercicio
+                            key={item.id}
+                            item={item}
+                            sectionId={section.id}
+                            onUpdate={(siguiente) =>
+                              actualizarEjercicio(
+                                section.id,
+                                item.id,
+                                siguiente,
+                              )
+                            }
+                            onDelete={() =>
+                              eliminarEjercicio(section.id, item.id)
+                            }
+                          />
+                        ))}
+                      </SeccionEditor>
+                    ))}
+                    <div
+                      key={`new-section-control-${rutina.structure.sections.length}`}
+                      className="border-t border-white/[0.06] p-3"
+                    >
                       <DialogoEjercicio
-                        blocks={rutina.blocks}
-                        initialBlockId={bloque.id}
+                        sections={rutina.structure.sections}
+                        initialSectionId="nuevo"
                         trigger={
                           <button
                             type="button"
-                            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-200/15 bg-cyan-300/[0.025] px-4 py-3 text-xs text-cyan-100/55 transition-colors hover:border-cyan-200/30 hover:bg-cyan-300/[0.06] hover:text-cyan-100"
+                            className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-200/15 bg-violet-300/[0.025] px-4 py-4 text-xs text-violet-100/55 transition-colors hover:border-violet-200/30 hover:bg-violet-300/[0.06] hover:text-violet-100"
                           >
                             <Plus className="size-3.5" />
-                            Sumar ejercicio
+                            Crear sección
                           </button>
                         }
                         onAdd={agregarEjercicio}
                       />
-                    }
-                  >
-                    {bloque.exercises.map((item) => (
-                      <FilaEjercicio
-                        key={item.id}
-                        item={item}
-                        blockId={bloque.id}
-                        onUpdate={(siguiente) =>
-                          actualizarEjercicio(bloque.id, item.id, siguiente)
-                        }
-                        onDelete={() => eliminarEjercicio(bloque.id, item.id)}
-                      />
-                    ))}
-                  </BloqueEditor>
-                ))}
-                <div className="border-t border-white/[0.06] p-3">
-                  <DialogoEjercicio
-                    blocks={rutina.blocks}
-                    initialBlockId="nuevo"
-                    trigger={
-                      <button
-                        type="button"
-                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-violet-200/15 bg-violet-300/[0.025] px-4 py-4 text-xs text-violet-100/55 transition-colors hover:border-violet-200/30 hover:bg-violet-300/[0.06] hover:text-violet-100"
-                      >
-                        <Plus className="size-3.5" />
-                        Crear bloque
-                      </button>
-                    }
-                    onAdd={agregarEjercicio}
-                  />
-                </div>
-              </DndContext>
-            </CardContent>
-          </Card>
-        </div>
-        )}
-        {seccionDetalle === "agenda" && (
-        <SportsSchedule
-          embedded
-          modoCoach
-          atleta={atleta}
-          usuarioActual={entrenador}
-          routines={routines}
-          workouts={workouts}
-          onCreate={onCreateEntrenamiento}
-          onUpdate={onUpdateEntrenamiento}
-          onDelete={onDeleteEntrenamiento}
-          onStart={() => undefined}
-        />
-        )}
-        {seccionDetalle === "activities" && (
-        <ActivityHistory
-          embedded
-          activities={activities}
-        />
-        )}
+                    </div>
+                  </DndContext>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          {seccionDetalle === "agenda" && (
+            <SportsSchedule
+              embedded
+              modoCoach
+              atleta={atleta}
+              usuarioActual={entrenador}
+              routines={routines}
+              workouts={workouts}
+              onCreate={onCreateEntrenamiento}
+              onUpdate={onUpdateEntrenamiento}
+              onDelete={onDeleteEntrenamiento}
+              onStart={() => undefined}
+            />
+          )}
+          {seccionDetalle === "activities" && (
+            <ActivityHistory embedded activities={activities} />
+          )}
         </section>
       )}
 
@@ -3411,8 +3600,12 @@ function OverviewRutina({
             {rutina.title}
           </DialogTitle>
           <DialogDescription className="text-white/40">
-            {rutina.blocks.length} bloques conectados ·{" "}
-            {countLabel(ejercicios, "ejercicio")}
+            {countLabel(
+              rutina.structure.sections.length,
+              "sección",
+              "secciones",
+            )}{" "}
+            · {countLabel(ejercicios, "ejercicio")}
             {rutina.durationMinutes ? ` · ${rutina.durationMinutes} min` : ""}
           </DialogDescription>
         </DialogHeader>
@@ -3424,19 +3617,22 @@ function OverviewRutina({
                 <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-amber-300/[0.08] text-amber-100/70">
                   <Dumbbell className="size-5" />
                 </div>
-                <h3 className="mt-4 text-lg font-medium">Rutina en preparación</h3>
+                <h3 className="mt-4 text-lg font-medium">
+                  Rutina en preparación
+                </h3>
                 <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-white/38">
-                  Tu entrenador todavía no cargó ejercicios en esta rutina. Cuando la complete,
-                  vas a poder revisar el detalle y arrancarla desde la app.
+                  Tu entrenador todavía no cargó ejercicios en esta rutina.
+                  Cuando la complete, vas a poder revisar el detalle y
+                  arrancarla desde la app.
                 </p>
               </div>
             </div>
           ) : (
             <>
               <div className="relative before:absolute before:bottom-5 before:left-[19px] before:top-5 before:w-px before:bg-gradient-to-b before:from-cyan-300/60 before:via-violet-400/45 before:to-blue-400/25 md:before:left-1/2">
-                {rutina.blocks.map((bloque, index) => (
+                {rutina.structure.sections.map((section, index) => (
                   <div
-                    key={bloque.id}
+                    key={section.id}
                     className="relative mb-5 flex items-start gap-3 last:mb-0 md:grid md:grid-cols-[1fr_44px_1fr] md:gap-5"
                   >
                     <div
@@ -3461,20 +3657,19 @@ function OverviewRutina({
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-[9px] uppercase tracking-wider text-white/30">
-                            Bloque {index + 1}
+                            Sección {index + 1}
                           </div>
                           <h3 className="mt-1 text-sm font-medium">
-                            {bloque.name}
+                            {section.name}
                           </h3>
                         </div>
                         <Badge className="border-white/10 bg-black/25 text-[8px] text-white/45">
-                          {rondasDelBloque(bloque)}{" "}
-                          {rondasDelBloque(bloque) === 1 ? "ronda" : "rondas"}
+                          {sectionKindLabel(section.kind)}
                         </Badge>
                       </div>
 
                       <div className="mt-3 space-y-2 border-t border-white/[0.07] pt-3">
-                        {bloque.exercises.map((item) => (
+                        {section.exercises.map((item) => (
                           <div key={item.id} className="flex items-start gap-2">
                             <span className="mt-1.5 size-1 shrink-0 rounded-full bg-white/30" />
                             <div className="min-w-0 flex-1">
@@ -3484,7 +3679,9 @@ function OverviewRutina({
                                 </span>
                                 <span className="shrink-0 text-[9px] tabular-nums text-white/35">
                                   {item.sets}×{repeticionesObjetivo(item)}
-                                  {item.weight > 0 ? ` · ${item.weight} kg` : ""}
+                                  {item.weight > 0
+                                    ? ` · ${item.weight} kg`
+                                    : ""}
                                   {item.restSeconds !== null
                                     ? ` · ${item.restSeconds} s`
                                     : ""}
@@ -3492,7 +3689,9 @@ function OverviewRutina({
                               </div>
                               {item.instructions && (
                                 <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
-                                  <TextWithLinks>{item.instructions}</TextWithLinks>
+                                  <TextWithLinks>
+                                    {item.instructions}
+                                  </TextWithLinks>
                                 </div>
                               )}
                             </div>
@@ -3541,8 +3740,8 @@ function HomeAtleta({
           <div className={pageEyebrowClassName}>Planes asignados</div>
           <h1 className={pageTitleClassName}>Todas tus rutinas</h1>
           <p className={pageDescriptionClassName}>
-            Revisá tus planes, detectá cuáles todavía están en preparación y empezá
-            solo cuando la rutina ya tenga el contenido cargado.
+            Revisá tus planes, detectá cuáles todavía están en preparación y
+            empezá solo cuando la rutina ya tenga el contenido cargado.
           </p>
         </div>
       </div>
@@ -3565,105 +3764,112 @@ function HomeAtleta({
           />
         </aside>
 
-      <Card className="relative overflow-hidden border-white/[0.09] bg-app-panel text-white shadow-[0_30px_80px_rgba(0,0,0,.45)]">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(34,211,238,.18),transparent_35%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.18),transparent_42%)]" />
-        <CardContent className="relative p-5 md:p-7">
-          <div className="flex items-center justify-between">
-            <Badge className="border-cyan-200/15 bg-cyan-300/10 text-[9px] text-cyan-100">
-              Rutina RTTP
-            </Badge>
-            <OverviewRutina rutina={rutina} />
-          </div>
-          <div className="mt-10 md:mt-12">
-            <h2 className="text-3xl font-light tracking-[-0.04em] md:text-4xl">
-              {rutina.title}
-            </h2>
-            <p className="mt-2 text-xs text-indigo-100/40">
-              <TextWithLinks>{rutina.objective}</TextWithLinks>
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              {[
-                ...(rutina.durationMinutes
-                  ? [[Clock3, `${rutina.durationMinutes} min`]]
-                  : []),
-                [Dumbbell, countLabel(ejerciciosRutinaActiva, "ejercicio")],
-                [LayoutGrid, countLabel(rutina.blocks.length, "bloque")],
-              ].map(([Icon, value]) => {
-                const InfoIcon = Icon as typeof Clock3;
-                return (
-                  <div
-                    key={value as string}
-                    className="flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[10px] text-white/70"
-                  >
-                    <InfoIcon className="size-3 text-cyan-200" />
-                    {value as string}
-                  </div>
-                );
-              })}
+        <Card className="relative overflow-hidden border-white/[0.09] bg-app-panel text-white shadow-[0_30px_80px_rgba(0,0,0,.45)]">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_0%,rgba(34,211,238,.18),transparent_35%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.18),transparent_42%)]" />
+          <CardContent className="relative p-5 md:p-7">
+            <div className="flex items-center justify-between">
+              <Badge className="border-cyan-200/15 bg-cyan-300/10 text-[9px] text-cyan-100">
+                Rutina RTTP
+              </Badge>
+              <OverviewRutina rutina={rutina} />
             </div>
-            <div className="mt-6 flex flex-col items-stretch gap-2 sm:items-start">
-              <Button
-                onClick={onStart}
-                disabled={rutinaIncompleta}
-                className="h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100 sm:w-auto sm:px-8"
-              >
-                {rutinaIncompleta
-                  ? "Rutina en preparación"
-                  : progreso
-                    ? "Continuar rutina"
-                    : "Comenzar rutina"}
-                <ArrowRight />
-              </Button>
-              {rutinaIncompleta && (
-                <p className="max-w-md text-[11px] leading-relaxed text-amber-100/70 sm:pl-1">
-                  Tu entrenador todavía no cargó ejercicios en esta rutina. Podés
-                  revisar otra asignación o esperar a que la complete.
-                </p>
-              )}
-              {progreso > 0 && (
-                <Dialog>
-                  <DialogTrigger
-                    render={
-                      <button className="mx-auto text-[10px] text-white/30 transition-colors hover:text-white/70 sm:mx-0 sm:pl-4" />
-                    }
-                  >
-                    Reiniciar progreso
-                  </DialogTrigger>
-                  <DialogContent className="border-white/10 bg-app-panel text-white">
-                    <DialogHeader>
-                      <DialogTitle>¿Reiniciar esta rutina?</DialogTitle>
-                      <DialogDescription className="text-white/45">
-                        Se eliminarán todas las series registradas de esta
-                        rutina. Esta acción no se puede deshacer.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <DialogClose
-                        render={
-                          <Button variant="ghost" className="text-white/50" />
-                        }
-                      >
-                        Cancelar
-                      </DialogClose>
-                      <DialogClose
-                        render={
-                          <Button
-                            variant="destructive"
-                            onClick={onReset}
-                            className="bg-red-500 text-white hover:bg-red-400"
-                          />
-                        }
-                      >
-                        Sí, reiniciar
-                      </DialogClose>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
+            <div className="mt-10 md:mt-12">
+              <h2 className="text-3xl font-light tracking-[-0.04em] md:text-4xl">
+                {rutina.title}
+              </h2>
+              <p className="mt-2 text-xs text-indigo-100/40">
+                <TextWithLinks>{rutina.objective}</TextWithLinks>
+              </p>
+              <div className="mt-5 flex flex-wrap gap-2">
+                {[
+                  ...(rutina.durationMinutes
+                    ? [[Clock3, `${rutina.durationMinutes} min`]]
+                    : []),
+                  [Dumbbell, countLabel(ejerciciosRutinaActiva, "ejercicio")],
+                  [
+                    LayoutGrid,
+                    countLabel(
+                      rutina.structure.sections.length,
+                      "sección",
+                      "secciones",
+                    ),
+                  ],
+                ].map(([Icon, value]) => {
+                  const InfoIcon = Icon as typeof Clock3;
+                  return (
+                    <div
+                      key={value as string}
+                      className="flex items-center gap-2 rounded-full border border-white/10 bg-black/35 px-3 py-2 text-[10px] text-white/70"
+                    >
+                      <InfoIcon className="size-3 text-cyan-200" />
+                      {value as string}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-6 flex flex-col items-stretch gap-2 sm:items-start">
+                <Button
+                  onClick={onStart}
+                  disabled={rutinaIncompleta}
+                  className="h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100 sm:w-auto sm:px-8"
+                >
+                  {rutinaIncompleta
+                    ? "Rutina en preparación"
+                    : progreso
+                      ? "Continuar rutina"
+                      : "Comenzar rutina"}
+                  <ArrowRight />
+                </Button>
+                {rutinaIncompleta && (
+                  <p className="max-w-md text-[11px] leading-relaxed text-amber-100/70 sm:pl-1">
+                    Tu entrenador todavía no cargó ejercicios en esta rutina.
+                    Podés revisar otra asignación o esperar a que la complete.
+                  </p>
+                )}
+                {progreso > 0 && (
+                  <Dialog>
+                    <DialogTrigger
+                      render={
+                        <button className="mx-auto text-[10px] text-white/30 transition-colors hover:text-white/70 sm:mx-0 sm:pl-4" />
+                      }
+                    >
+                      Reiniciar progreso
+                    </DialogTrigger>
+                    <DialogContent className="border-white/10 bg-app-panel text-white">
+                      <DialogHeader>
+                        <DialogTitle>¿Reiniciar esta rutina?</DialogTitle>
+                        <DialogDescription className="text-white/45">
+                          Se eliminarán todas las series registradas de esta
+                          rutina. Esta acción no se puede deshacer.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DialogFooter>
+                        <DialogClose
+                          render={
+                            <Button variant="ghost" className="text-white/50" />
+                          }
+                        >
+                          Cancelar
+                        </DialogClose>
+                        <DialogClose
+                          render={
+                            <Button
+                              variant="destructive"
+                              onClick={onReset}
+                              className="bg-red-500 text-white hover:bg-red-400"
+                            />
+                          }
+                        >
+                          Sí, reiniciar
+                        </DialogClose>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );
@@ -3722,14 +3928,18 @@ function HomeHoy({
               const completed = entrenamiento.status === "completed";
               const rutina =
                 entrenamiento.origin === "routine"
-                  ? routines.find((item) => item.id === entrenamiento.routineId) ?? null
+                  ? (routines.find(
+                      (item) => item.id === entrenamiento.routineId,
+                    ) ?? null)
                   : null;
-              const rutinaDisponible = rutina ? rutinaTieneEjercicios(rutina) : false;
+              const rutinaDisponible = rutina
+                ? rutinaTieneEjercicios(rutina)
+                : false;
               const categoryLabel =
                 entrenamiento.origin === "external"
-                  ? activityCategories.find(
+                  ? (activityCategories.find(
                       (category) => category.value === entrenamiento.category,
-                    )?.label ?? "Actividad externa"
+                    )?.label ?? "Actividad externa")
                   : null;
 
               return (
@@ -3748,20 +3958,23 @@ function HomeHoy({
                               <span>{entrenamiento.time}</span>
                             </>
                           )}
-                          {entrenamiento.origin === "external" && categoryLabel && (
-                            <span className="rounded-full border border-violet-200/15 bg-violet-300/10 px-2 py-1 text-[9px] text-violet-100/70">
-                              {categoryLabel}
-                            </span>
-                          )}
+                          {entrenamiento.origin === "external" &&
+                            categoryLabel && (
+                              <span className="rounded-full border border-violet-200/15 bg-violet-300/10 px-2 py-1 text-[9px] text-violet-100/70">
+                                {categoryLabel}
+                              </span>
+                            )}
                         </div>
                         <h2 className="mt-4 text-2xl font-light tracking-[-0.03em]">
                           {entrenamiento.origin === "routine"
-                            ? rutina?.title ?? "Rutina no disponible"
+                            ? (rutina?.title ?? "Rutina no disponible")
                             : entrenamiento.title}
                         </h2>
                         <p className="mt-2 text-xs leading-relaxed text-white/35">
                           {entrenamiento.origin === "routine" ? (
-                            <TextWithLinks>{rutina?.objective ?? "Rutina asignada para hoy."}</TextWithLinks>
+                            <TextWithLinks>
+                              {rutina?.objective ?? "Rutina asignada para hoy."}
+                            </TextWithLinks>
                           ) : entrenamiento.notes ? (
                             <TextWithLinks>{entrenamiento.notes}</TextWithLinks>
                           ) : (
@@ -3779,7 +3992,9 @@ function HomeHoy({
                           )}
                         >
                           <CheckCircle2 />
-                          {entrenamiento.origin === "routine" ? "Completada" : "Realizada"}
+                          {entrenamiento.origin === "routine"
+                            ? "Completada"
+                            : "Realizada"}
                         </Badge>
                       )}
                     </div>
@@ -3825,7 +4040,10 @@ function HomeHoy({
                           onClick={() =>
                             entrenamiento.origin === "routine"
                               ? onStart(entrenamiento)
-                              : onUpdate({ ...entrenamiento, status: "completed" })
+                              : onUpdate({
+                                  ...entrenamiento,
+                                  status: "completed",
+                                })
                           }
                           disabled={
                             entrenamiento.origin === "routine" &&
@@ -3861,7 +4079,8 @@ function HomeHoy({
                   ¿Salió un entrenamiento no planificado?
                 </h2>
                 <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
-                  Entrá a tus rutinas y empezá una al instante sin depender de la agenda.
+                  Entrá a tus rutinas y empezá una al instante sin depender de
+                  la agenda.
                 </p>
               </div>
               <button
@@ -3882,9 +4101,12 @@ function HomeHoy({
               <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-cyan-300/[0.08] text-cyan-100/55">
                 <CalendarDays className="size-5" />
               </div>
-              <h2 className="mt-4 text-lg font-medium">No tenés entrenamientos para hoy</h2>
+              <h2 className="mt-4 text-lg font-medium">
+                No tenés entrenamientos para hoy
+              </h2>
               <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-white/35">
-                Podés descansar, revisar tu semana o programar una rutina desde la agenda.
+                Podés descansar, revisar tu semana o programar una rutina desde
+                la agenda.
               </p>
               <button
                 type="button"
@@ -3905,8 +4127,9 @@ function HomeHoy({
                 </div>
                 <h2 className="mt-2 text-lg font-medium text-white/90">
                   {proximoEntrenamiento.origin === "routine"
-                    ? routines.find((item) => item.id === proximoEntrenamiento.routineId)?.title ??
-                      "Rutina agendada"
+                    ? (routines.find(
+                        (item) => item.id === proximoEntrenamiento.routineId,
+                      )?.title ?? "Rutina agendada")
                     : proximoEntrenamiento.title}
                 </h2>
                 <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
@@ -3915,7 +4138,9 @@ function HomeHoy({
                     day: "numeric",
                     month: "long",
                   }).format(new Date(`${proximoEntrenamiento.date}T12:00:00`))}
-                  {proximoEntrenamiento.time ? ` · ${proximoEntrenamiento.time}` : ""}
+                  {proximoEntrenamiento.time
+                    ? ` · ${proximoEntrenamiento.time}`
+                    : ""}
                 </p>
                 <button
                   type="button"
@@ -3931,9 +4156,12 @@ function HomeHoy({
               <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/55">
                 Inicio rápido
               </div>
-              <h2 className="mt-2 text-lg font-medium text-white/90">¿Estás por entrenar?</h2>
+              <h2 className="mt-2 text-lg font-medium text-white/90">
+                ¿Estás por entrenar?
+              </h2>
               <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
-                Si te surgió una sesión no planificada, abrí tus rutinas y arrancá en segundos.
+                Si te surgió una sesión no planificada, abrí tus rutinas y
+                arrancá en segundos.
               </p>
               <button
                 type="button"
@@ -4091,7 +4319,7 @@ function WorkoutMode({
 }) {
   const pasos = pasosDeRutina(rutina, sesionId);
   const paso = pasos[indiceActivo];
-  const bloque = rutina.blocks[paso.bloqueIndex];
+  const section = rutina.structure.sections[paso.sectionIndex];
   const [dragX, setDragX] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [mensaje, setMensaje] = useState("");
@@ -4110,20 +4338,18 @@ function WorkoutMode({
   >("resumida");
   const inicioPointer = useRef<number | null>(null);
   const distanciaPointer = useRef(0);
-  const esBloqueBreve =
-    bloque.exercises.length > 1 &&
-    (["preparation", "specific-preparation", "circuit-2-rounds"].includes(
-      bloque.type,
-    ) ||
-      /entrada|activación|movilidad/i.test(bloque.name));
+  const isCompactSection =
+    section.kind === "rounds" &&
+    section.exercises.length > 1 &&
+    (section.presentation === "compact" ||
+      /entrada|activación|movilidad/i.test(section.name));
   const registrosResueltos = pasos.filter((item) => {
     const itemRecord = registros[item.stepId];
     return itemRecord?.completed || itemRecord?.skipped;
   }).length;
   const registrosPospuestos = pasos.filter(
     (item) =>
-      registros[item.stepId]?.deferred &&
-      !registros[item.stepId]?.completed,
+      registros[item.stepId]?.deferred && !registros[item.stepId]?.completed,
   ).length;
 
   function siguienteIndiceDisponible(
@@ -4179,9 +4405,7 @@ function WorkoutMode({
   };
   const registro = registros[paso.stepId] ?? valorInicial;
   const mostrarVistaResumida =
-    esBloqueBreve &&
-    vistaCalentamiento === "resumida" &&
-    !registro.deferred;
+    isCompactSection && vistaCalentamiento === "resumida" && !registro.deferred;
 
   useEffect(() => {
     let timeoutId: number;
@@ -4221,7 +4445,10 @@ function WorkoutMode({
       const runningSeconds = restTimer.runningSince
         ? Math.floor((Date.now() - Date.parse(restTimer.runningSince)) / 1000)
         : 0;
-      const remaining = Math.max(0, restTimer.remainingSeconds - runningSeconds);
+      const remaining = Math.max(
+        0,
+        restTimer.remainingSeconds - runningSeconds,
+      );
       setRestSeconds(remaining);
       if (remaining === 0 && restTimer.runningSince) {
         setRestTimer({ ...restTimer, remainingSeconds: 0, runningSince: null });
@@ -4263,12 +4490,12 @@ function WorkoutMode({
     }
   }
 
-  function omitir(alcance: "serie" | "ejercicio" | "bloque") {
+  function omitir(alcance: "serie" | "ejercicio" | "seccion") {
     const objetivos = pasos.filter((item, index) => {
       if (index < indiceActivo) return false;
       if (alcance === "serie") return index === indiceActivo;
       if (alcance === "ejercicio") return item.id === paso.id;
-      return item.blockId === paso.blockId;
+      return item.sectionId === paso.sectionId;
     });
     const idsOmitidos = new Set(objetivos.map((item) => item.stepId));
 
@@ -4340,9 +4567,7 @@ function WorkoutMode({
         Boolean(registros[item.stepId]?.deferred),
     );
     setIndiceActivo(
-      siguienteRegular >= 0
-        ? siguienteRegular
-        : Math.max(0, primerPospuesto),
+      siguienteRegular >= 0 ? siguienteRegular : Math.max(0, primerPospuesto),
     );
     setRestTimer(null);
     setDragX(0);
@@ -4384,7 +4609,7 @@ function WorkoutMode({
     const objetivos = pasos.filter((item) => {
       const itemRecord = registros[item.stepId];
       return (
-        item.blockId === paso.blockId &&
+        item.sectionId === paso.sectionId &&
         item.round === paso.round &&
         !itemRecord?.deferred &&
         !itemRecord?.skipped
@@ -4397,8 +4622,7 @@ function WorkoutMode({
       objetivos.forEach((item) => {
         siguientes[item.stepId] = {
           weight: actuales[item.stepId]?.weight ?? item.weight,
-          reps:
-            actuales[item.stepId]?.reps ?? item.minReps,
+          reps: actuales[item.stepId]?.reps ?? item.minReps,
           completed: true,
           skipped: false,
           deferred: false,
@@ -4520,18 +4744,19 @@ function WorkoutMode({
                 </SheetDescription>
               </SheetHeader>
               <div className="space-y-3 px-4">
-                {rutina.blocks.map((itemBlock, blockIndex) => (
+                {rutina.structure.sections.map((itemBlock, blockIndex) => (
                   <div
                     key={itemBlock.id}
                     className={cn(
                       "rounded-2xl border p-4",
-                      itemBlock.id === paso.blockId
+                      itemBlock.id === paso.sectionId
                         ? "border-cyan-200/20 bg-cyan-300/[0.06]"
                         : "border-white/[0.07] bg-white/[0.025]",
                     )}
                   >
                     <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-cyan-100/65">
-                      Bloque {blockIndex + 1} de {rutina.blocks.length}
+                      Sección {blockIndex + 1} de{" "}
+                      {rutina.structure.sections.length}
                     </div>
                     <div className="mt-1 text-sm font-medium text-white">
                       {itemBlock.name}
@@ -4559,9 +4784,7 @@ function WorkoutMode({
                             key={exercise.id}
                             className={cn(
                               "flex items-center gap-3 rounded-xl px-3 py-2.5",
-                              current
-                                ? "bg-white/[0.08]"
-                                : "bg-black/15",
+                              current ? "bg-white/[0.08]" : "bg-black/15",
                             )}
                           >
                             <div
@@ -4610,10 +4833,10 @@ function WorkoutMode({
       </div>
 
       <div className="mx-auto mt-3 flex min-h-0 w-full max-w-lg flex-1 flex-col overflow-y-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:max-w-4xl">
-        {esBloqueBreve && (
+        {isCompactSection && (
           <div className="mb-3 flex items-center justify-between rounded-full border border-white/[0.08] bg-white/[0.025] p-1 pl-3">
             <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-white/60">
-              Modo del bloque
+              Vista de la sección
             </span>
             <div className="flex gap-1">
               {[
@@ -4648,14 +4871,15 @@ function WorkoutMode({
         )}
         <div className="mb-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3">
           <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-100/65">
-            Bloque {paso.bloqueIndex + 1} de {rutina.blocks.length}
+            Sección {paso.sectionIndex + 1} de{" "}
+            {rutina.structure.sections.length}
           </div>
           <div className="mt-1 flex items-end justify-between gap-3">
             <div className="min-w-0 truncate text-sm font-medium text-white/90">
-              {paso.blockName}
+              {paso.sectionName}
             </div>
             <div className="flex shrink-0 items-center gap-1.5 text-[10px] font-medium">
-              {bloque.exercises.length > 1 ? (
+              {paso.sectionKind === "rounds" ? (
                 <>
                   <span className="rounded-full bg-violet-300/10 px-2.5 py-1 text-violet-100/80">
                     Ronda {paso.round} de {paso.rondas}
@@ -4686,8 +4910,8 @@ function WorkoutMode({
                     Toda la vuelta, de un vistazo
                   </h1>
                   <p className="mt-1 text-[11px] font-medium text-white/60">
-                    {countLabel(bloque.exercises.length, "ejercicio")} · vuelta {paso.round}{" "}
-                    de {paso.rondas}
+                    {countLabel(section.exercises.length, "ejercicio")} · vuelta{" "}
+                    {paso.round} de {paso.rondas}
                   </p>
                 </div>
                 <div className="grid size-10 shrink-0 place-items-center rounded-full border border-cyan-200/15 bg-cyan-300/10 text-cyan-200">
@@ -4696,10 +4920,10 @@ function WorkoutMode({
               </div>
 
               <div className="mt-5 divide-y divide-white/[0.07] rounded-2xl border border-white/[0.07] bg-black/20 px-4">
-                {bloque.exercises.map((item, index) => {
+                {section.exercises.map((item, index) => {
                   const pasoDeRonda = pasos.find(
                     (candidato) =>
-                      candidato.blockId === paso.blockId &&
+                      candidato.sectionId === paso.sectionId &&
                       candidato.round === paso.round &&
                       candidato.id === item.id,
                   );
@@ -4711,10 +4935,7 @@ function WorkoutMode({
                     : false;
 
                   return (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 py-3"
-                    >
+                    <div key={item.id} className="flex items-center gap-3 py-3">
                       <div
                         className={cn(
                           "grid size-6 shrink-0 place-items-center rounded-full border text-[9px]",
@@ -4722,7 +4943,7 @@ function WorkoutMode({
                             ? "border-cyan-200/20 bg-cyan-300 text-indigo-950"
                             : pospuesto
                               ? "border-orange-200/20 bg-orange-300/10 text-orange-200"
-                            : "border-white/10 bg-white/[0.035] text-white/40",
+                              : "border-white/10 bg-white/[0.035] text-white/40",
                         )}
                       >
                         {completado ? (
@@ -4763,371 +4984,374 @@ function WorkoutMode({
                   : `Completar vuelta ${paso.round}`}
               </Button>
               <button
-                onClick={() => omitir("bloque")}
+                onClick={() => omitir("seccion")}
                 className="mt-3 w-full text-center text-[11px] font-medium text-white/55 transition-colors hover:text-white/80"
               >
-                Saltar este bloque
+                Saltar esta sección
               </button>
             </div>
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col">
-        <div className="relative">
-          {hayPasoPosterior && (
-            <div className="absolute inset-x-8 bottom-0 top-4 rounded-[2rem] border border-blue-200/[0.06] bg-blue-300/[0.025]" />
-          )}
-          {proximo && (
-            <div className="absolute inset-x-4 bottom-0 top-2 rounded-[2rem] border border-violet-200/[0.09] bg-violet-300/[0.045]" />
-          )}
-          <div
-            role="group"
-            aria-label={`${paso.name}, ${
-              bloque.exercises.length > 1 ? "ronda" : "serie"
-            } ${paso.round}`}
-            onPointerDown={pointerDown}
-            onPointerMove={pointerMove}
-            onPointerUp={pointerUp}
-            onPointerCancel={() => {
-              inicioPointer.current = null;
-              setDragging(false);
-              setDragX(0);
-            }}
-            className={cn(
-              "relative z-10 select-none overflow-hidden rounded-[2rem] border bg-app-panel p-5 pb-5 shadow-[0_30px_80px_rgba(0,0,0,.5)] sm:p-6",
-              registro.completed
-                ? "border-cyan-300/30"
-                : registro.skipped
-                  ? "border-orange-200/20"
-                  : "border-violet-200/[0.12]",
-              !dragging && "transition-transform duration-200",
-            )}
-            style={{
-              touchAction: "pan-y",
-              transform: `translateX(${dragX}px) rotate(${dragX / 28}deg)`,
-            }}
-          >
-            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(34,211,238,.15),transparent_37%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.16),transparent_42%)]" />
-            <div className="relative flex flex-col">
-              <div className="flex items-start justify-between">
-                <div className="min-w-0 flex-1">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-50/65">
-                    {registro.deferred ? "Retomado para completar" : "Ejercicio actual"}
-                  </div>
-                  <h1 className="mt-2 text-[2rem] font-normal leading-tight tracking-[-0.04em]">
-                    {paso.name}
-                  </h1>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Sheet>
-                    <SheetTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:bg-white/[0.08] hover:text-white"
-                          aria-label="Opciones para saltar"
-                        />
-                      }
-                    >
-                      <SkipForward />
-                    </SheetTrigger>
-                    <SheetContent
-                      side="bottom"
-                      className="mx-auto max-w-lg rounded-t-[2rem] border-white/10 bg-app-panel pb-6 text-white"
-                    >
-                      <SheetHeader className="px-5 pt-6">
-                        <SheetTitle className="text-white">
-                          ¿Qué querés saltar?
-                        </SheetTitle>
-                        <SheetDescription className="text-white/60">
-                          Podés dejarlo para más tarde o registrar una omisión
-                          definitiva.
-                        </SheetDescription>
-                      </SheetHeader>
-                      <div className="space-y-2 px-4">
-                        {!registro.deferred &&
-                          !registro.completed &&
-                          !registro.skipped && (
-                          <SheetClose
-                            render={
-                              <button
-                                onClick={posponerEjercicio}
-                                className="flex w-full items-center gap-3 rounded-2xl border border-cyan-200/15 bg-cyan-300/[0.07] p-4 text-left transition-colors hover:bg-cyan-300/[0.12]"
-                              />
-                            }
-                          >
-                            <div className="grid size-10 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-cyan-200">
-                              <Clock3 className="size-4" />
-                            </div>
-                            <div>
-                              <div className="text-sm text-white">
-                                Volver más tarde
-                              </div>
-                              <div className="mt-1 text-[11px] leading-relaxed text-white/60">
-                                Deja sus series pendientes para el final de la
-                                rutina, sin marcarlas como omitidas.
-                              </div>
-                            </div>
-                          </SheetClose>
-                        )}
-                        {[
-                          {
-                            alcance: "serie" as const,
-                            icono: SkipForward,
-                            title: "Saltar esta serie",
-                            texto: `Omitir solo la serie ${paso.round} de ${paso.name}.`,
-                          },
-                          {
-                            alcance: "ejercicio" as const,
-                            icono: Dumbbell,
-                            title: "Saltar ejercicio",
-                            texto:
-                              "Útil si la máquina está ocupada. Omite sus series restantes.",
-                          },
-                          {
-                            alcance: "bloque" as const,
-                            icono: LayoutGrid,
-                            title: "Saltar bloque",
-                            texto:
-                              paso.bloqueIndex === rutina.blocks.length - 1
-                                ? "Omitir lo restante y finalizar la rutina."
-                                : `Pasar directamente al bloque ${paso.bloqueIndex + 2}.`,
-                          },
-                        ].map((opcion) => (
-                          <SheetClose
-                            key={opcion.alcance}
-                            render={
-                              <button
-                                onClick={() => omitir(opcion.alcance)}
-                                className="flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 text-left transition-colors hover:bg-white/[0.06]"
-                              />
-                            }
-                          >
-                            <div className="grid size-10 shrink-0 place-items-center rounded-full bg-violet-300/10 text-violet-200">
-                              <opcion.icono className="size-4" />
-                            </div>
-                            <div>
-                              <div className="text-sm text-white">
-                                {opcion.title}
-                              </div>
-                              <div className="mt-1 text-[11px] leading-relaxed text-white/60">
-                                {opcion.texto}
-                              </div>
-                            </div>
-                          </SheetClose>
-                        ))}
+            <div className="relative">
+              {hayPasoPosterior && (
+                <div className="absolute inset-x-8 bottom-0 top-4 rounded-[2rem] border border-blue-200/[0.06] bg-blue-300/[0.025]" />
+              )}
+              {proximo && (
+                <div className="absolute inset-x-4 bottom-0 top-2 rounded-[2rem] border border-violet-200/[0.09] bg-violet-300/[0.045]" />
+              )}
+              <div
+                role="group"
+                aria-label={`${paso.name}, ${
+                  paso.sectionKind === "rounds" ? "ronda" : "serie"
+                } ${paso.round}`}
+                onPointerDown={pointerDown}
+                onPointerMove={pointerMove}
+                onPointerUp={pointerUp}
+                onPointerCancel={() => {
+                  inicioPointer.current = null;
+                  setDragging(false);
+                  setDragX(0);
+                }}
+                className={cn(
+                  "relative z-10 select-none overflow-hidden rounded-[2rem] border bg-app-panel p-5 pb-5 shadow-[0_30px_80px_rgba(0,0,0,.5)] sm:p-6",
+                  registro.completed
+                    ? "border-cyan-300/30"
+                    : registro.skipped
+                      ? "border-orange-200/20"
+                      : "border-violet-200/[0.12]",
+                  !dragging && "transition-transform duration-200",
+                )}
+                style={{
+                  touchAction: "pan-y",
+                  transform: `translateX(${dragX}px) rotate(${dragX / 28}deg)`,
+                }}
+              >
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(34,211,238,.15),transparent_37%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.16),transparent_42%)]" />
+                <div className="relative flex flex-col">
+                  <div className="flex items-start justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-50/65">
+                        {registro.deferred
+                          ? "Retomado para completar"
+                          : "Ejercicio actual"}
                       </div>
-                    </SheetContent>
-                  </Sheet>
-                  {(registro.completed || registro.skipped) && (
+                      <h1 className="mt-2 text-[2rem] font-normal leading-tight tracking-[-0.04em]">
+                        {paso.name}
+                      </h1>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Sheet>
+                        <SheetTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:bg-white/[0.08] hover:text-white"
+                              aria-label="Opciones para saltar"
+                            />
+                          }
+                        >
+                          <SkipForward />
+                        </SheetTrigger>
+                        <SheetContent
+                          side="bottom"
+                          className="mx-auto max-w-lg rounded-t-[2rem] border-white/10 bg-app-panel pb-6 text-white"
+                        >
+                          <SheetHeader className="px-5 pt-6">
+                            <SheetTitle className="text-white">
+                              ¿Qué querés saltar?
+                            </SheetTitle>
+                            <SheetDescription className="text-white/60">
+                              Podés dejarlo para más tarde o registrar una
+                              omisión definitiva.
+                            </SheetDescription>
+                          </SheetHeader>
+                          <div className="space-y-2 px-4">
+                            {!registro.deferred &&
+                              !registro.completed &&
+                              !registro.skipped && (
+                                <SheetClose
+                                  render={
+                                    <button
+                                      onClick={posponerEjercicio}
+                                      className="flex w-full items-center gap-3 rounded-2xl border border-cyan-200/15 bg-cyan-300/[0.07] p-4 text-left transition-colors hover:bg-cyan-300/[0.12]"
+                                    />
+                                  }
+                                >
+                                  <div className="grid size-10 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-cyan-200">
+                                    <Clock3 className="size-4" />
+                                  </div>
+                                  <div>
+                                    <div className="text-sm text-white">
+                                      Volver más tarde
+                                    </div>
+                                    <div className="mt-1 text-[11px] leading-relaxed text-white/60">
+                                      Deja sus series pendientes para el final
+                                      de la rutina, sin marcarlas como omitidas.
+                                    </div>
+                                  </div>
+                                </SheetClose>
+                              )}
+                            {[
+                              {
+                                alcance: "serie" as const,
+                                icono: SkipForward,
+                                title: "Saltar esta serie",
+                                texto: `Omitir solo la serie ${paso.round} de ${paso.name}.`,
+                              },
+                              {
+                                alcance: "ejercicio" as const,
+                                icono: Dumbbell,
+                                title: "Saltar ejercicio",
+                                texto:
+                                  "Útil si la máquina está ocupada. Omite sus series restantes.",
+                              },
+                              {
+                                alcance: "seccion" as const,
+                                icono: LayoutGrid,
+                                title: "Saltar sección",
+                                texto:
+                                  paso.sectionIndex ===
+                                  rutina.structure.sections.length - 1
+                                    ? "Omitir lo restante y finalizar la rutina."
+                                    : `Pasar directamente a la sección ${paso.sectionIndex + 2}.`,
+                              },
+                            ].map((opcion) => (
+                              <SheetClose
+                                key={opcion.alcance}
+                                render={
+                                  <button
+                                    onClick={() => omitir(opcion.alcance)}
+                                    className="flex w-full items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 text-left transition-colors hover:bg-white/[0.06]"
+                                  />
+                                }
+                              >
+                                <div className="grid size-10 shrink-0 place-items-center rounded-full bg-violet-300/10 text-violet-200">
+                                  <opcion.icono className="size-4" />
+                                </div>
+                                <div>
+                                  <div className="text-sm text-white">
+                                    {opcion.title}
+                                  </div>
+                                  <div className="mt-1 text-[11px] leading-relaxed text-white/60">
+                                    {opcion.texto}
+                                  </div>
+                                </div>
+                              </SheetClose>
+                            ))}
+                          </div>
+                        </SheetContent>
+                      </Sheet>
+                      {(registro.completed || registro.skipped) && (
+                        <div
+                          className={cn(
+                            "grid size-10 place-items-center rounded-full border",
+                            registro.completed
+                              ? "border-cyan-200/25 bg-cyan-300 text-indigo-950"
+                              : "border-orange-200/20 bg-orange-300/10 text-orange-200",
+                          )}
+                        >
+                          {registro.completed ? <Check /> : <SkipForward />}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {paso.instructions && (
+                    <div className="mt-4 flex w-full flex-col rounded-xl border border-violet-300/15 bg-violet-300/[0.07] px-3.5 py-3">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-100/65">
+                        Aclaraciones
+                      </span>
+                      <span className="mt-1 text-[13px] font-medium leading-relaxed text-violet-50/85">
+                        <TextWithLinks>{paso.instructions}</TextWithLinks>
+                      </span>
+                    </div>
+                  )}
+
+                  {paso.restSeconds !== null &&
+                    (!restTimer || restTimer.stepId !== paso.stepId) && (
+                      <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-300/15 bg-blue-400/[0.07] px-3.5 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="grid size-8 place-items-center rounded-full bg-blue-300/10 text-blue-200">
+                            <TimerReset className="size-3.5" />
+                          </div>
+                          <div>
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-100/65">
+                              Descanso
+                            </div>
+                            <div className="mt-0.5 text-[11px] font-medium text-blue-50/70">
+                              Entre series
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-lg font-medium tabular-nums text-blue-50">
+                          {paso.restSeconds}
+                          <span className="ml-1 text-[11px] text-blue-50/60">
+                            s
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                  {restTimer?.stepId === paso.stepId && (
                     <div
+                      role="timer"
+                      aria-live="polite"
+                      className="mt-3 rounded-2xl border border-cyan-200/20 bg-cyan-300/[0.08] px-4 py-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-50/70">
+                            {restSeconds > 0
+                              ? "Descanso activo"
+                              : "Descanso terminado"}
+                          </div>
+                          <div className="mt-1 text-3xl font-medium tabular-nums text-cyan-50">
+                            {formatDuration(restSeconds)}
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {restSeconds > 0 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={toggleDescanso}
+                              className="rounded-full border-cyan-200/15 bg-cyan-300/[0.06] text-cyan-100 hover:bg-cyan-300/12"
+                            >
+                              {restTimer.runningSince ? "Pausar" : "Reanudar"}
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setRestTimer(null)}
+                            className="rounded-full text-white/55 hover:bg-white/[0.07] hover:text-white"
+                          >
+                            Omitir
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mt-4">
+                    <Separator className="mb-4 bg-indigo-200/[0.08]" />
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <CampoPrescripcion
+                        label="Repeticiones"
+                        hint={`Objetivo ${repeticionesObjetivo(paso)}`}
+                        value={registro.reps}
+                        onChange={(reps) => actualizar({ reps })}
+                      />
+                      <CampoPrescripcion
+                        label="Peso"
+                        hint="Kilogramos"
+                        step={0.5}
+                        emptyWhenZero
+                        value={registro.weight}
+                        onChange={(weight) => actualizar({ weight })}
+                      />
+                    </div>
+
+                    <Button
+                      type="button"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        const completing = !registro.completed;
+                        actualizar({
+                          completed: completing,
+                          skipped: false,
+                        });
+                        if (completing) iniciarDescanso();
+                        else setRestTimer(null);
+                      }}
                       className={cn(
-                        "grid size-10 place-items-center rounded-full border",
+                        "mt-5 h-13 w-full rounded-full text-[15px] font-semibold",
                         registro.completed
-                          ? "border-cyan-200/25 bg-cyan-300 text-indigo-950"
-                          : "border-orange-200/20 bg-orange-300/10 text-orange-200",
+                          ? "border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15"
+                          : "bg-indigo-50 text-indigo-950 hover:bg-cyan-100",
                       )}
                     >
                       {registro.completed ? (
-                      <Check />
+                        <>
+                          <RotateCcw />
+                          Serie completada
+                        </>
                       ) : (
-                      <SkipForward />
+                        <>
+                          <Check />
+                          {registro.skipped
+                            ? "Registrar esta serie"
+                            : "Completar serie"}
+                        </>
                       )}
-                    </div>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-auto pt-4">
+              <div className="text-center">
+                <div
+                  className={cn(
+                    "h-5 text-[11px] font-medium text-orange-100 transition-opacity",
+                    mensaje ? "opacity-100" : "opacity-0",
                   )}
+                >
+                  {mensaje}
+                </div>
+                <div className="mt-1 flex items-center justify-center gap-2 text-xs font-semibold text-indigo-50/65">
+                  <MoveHorizontal className="size-3.5" />
+                  Deslizá a la izquierda para avanzar
                 </div>
               </div>
 
-              {paso.instructions && (
-                <div className="mt-4 flex w-full flex-col rounded-xl border border-violet-300/15 bg-violet-300/[0.07] px-3.5 py-3">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-100/65">
-                    Aclaraciones
-                  </span>
-                  <span className="mt-1 text-[13px] font-medium leading-relaxed text-violet-50/85">
-                    <TextWithLinks>{paso.instructions}</TextWithLinks>
-                  </span>
-                </div>
-              )}
-
-              {paso.restSeconds !== null &&
-                (!restTimer || restTimer.stepId !== paso.stepId) && (
-                <div className="mt-3 flex items-center justify-between rounded-xl border border-blue-300/15 bg-blue-400/[0.07] px-3.5 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="grid size-8 place-items-center rounded-full bg-blue-300/10 text-blue-200">
-                      <TimerReset className="size-3.5" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-blue-100/65">
-                        Descanso
-                      </div>
-                      <div className="mt-0.5 text-[11px] font-medium text-blue-50/70">
-                        Entre series
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-lg font-medium tabular-nums text-blue-50">
-                    {paso.restSeconds}
-                    <span className="ml-1 text-[11px] text-blue-50/60">s</span>
-                  </div>
-                </div>
-              )}
-
-              {restTimer?.stepId === paso.stepId && (
-                <div
-                  role="timer"
-                  aria-live="polite"
-                  className="mt-3 rounded-2xl border border-cyan-200/20 bg-cyan-300/[0.08] px-4 py-3"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-50/70">
-                        {restSeconds > 0 ? "Descanso activo" : "Descanso terminado"}
-                      </div>
-                      <div className="mt-1 text-3xl font-medium tabular-nums text-cyan-50">
-                        {formatDuration(restSeconds)}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {restSeconds > 0 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={toggleDescanso}
-                          className="rounded-full border-cyan-200/15 bg-cyan-300/[0.06] text-cyan-100 hover:bg-cyan-300/12"
-                        >
-                          {restTimer.runningSince ? "Pausar" : "Reanudar"}
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setRestTimer(null)}
-                        className="rounded-full text-white/55 hover:bg-white/[0.07] hover:text-white"
-                      >
-                        Omitir
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="mt-4">
-                <Separator className="mb-4 bg-indigo-200/[0.08]" />
-
-                <div className="grid grid-cols-2 gap-3">
-                  <CampoPrescripcion
-                    label="Repeticiones"
-                    hint={`Objetivo ${repeticionesObjetivo(paso)}`}
-                    value={registro.reps}
-                    onChange={(reps) => actualizar({ reps })}
-                  />
-                  <CampoPrescripcion
-                    label="Peso"
-                    hint="Kilogramos"
-                    step={0.5}
-                    emptyWhenZero
-                    value={registro.weight}
-                    onChange={(weight) => actualizar({ weight })}
-                  />
-                </div>
-
+              <div className="mt-2 flex gap-2">
                 <Button
-                  type="button"
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    const completing = !registro.completed;
-                    actualizar({
-                      completed: completing,
-                      skipped: false,
-                    });
-                    if (completing) iniciarDescanso();
-                    else setRestTimer(null);
-                  }}
-                  className={cn(
-                    "mt-5 h-13 w-full rounded-full text-[15px] font-semibold",
-                    registro.completed
-                      ? "border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15"
-                      : "bg-indigo-50 text-indigo-950 hover:bg-cyan-100",
-                  )}
+                  variant="outline"
+                  disabled={indiceActivo === 0}
+                  onClick={volver}
+                  className="h-11 flex-1 rounded-full border-indigo-200/10 bg-indigo-300/[0.04] text-white hover:bg-indigo-300/10 hover:text-white disabled:opacity-20"
                 >
-                  {registro.completed ? (
-                    <>
-                      <RotateCcw />
-                      Serie completada
-                    </>
-                  ) : (
-                    <>
-                      <Check />
-                      {registro.skipped
-                        ? "Registrar esta serie"
-                        : "Completar serie"}
-                    </>
-                  )}
+                  <ArrowLeft />
+                  Anterior
+                </Button>
+                <Button
+                  disabled={!registro.completed && !registro.skipped}
+                  onClick={avanzar}
+                  className="h-11 flex-[1.5] rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 disabled:bg-indigo-300/10 disabled:text-indigo-100/25"
+                >
+                  {proximo ? "Siguiente" : "Finalizar"}
+                  <ArrowRight />
                 </Button>
               </div>
-            </div>
-          </div>
-        </div>
 
-        <div className="mt-auto pt-4">
-        <div className="text-center">
-          <div
-            className={cn(
-              "h-5 text-[11px] font-medium text-orange-100 transition-opacity",
-              mensaje ? "opacity-100" : "opacity-0",
-            )}
-          >
-            {mensaje}
-          </div>
-          <div className="mt-1 flex items-center justify-center gap-2 text-xs font-semibold text-indigo-50/65">
-            <MoveHorizontal className="size-3.5" />
-            Deslizá a la izquierda para avanzar
-          </div>
-        </div>
-
-        <div className="mt-2 flex gap-2">
-          <Button
-            variant="outline"
-            disabled={indiceActivo === 0}
-            onClick={volver}
-            className="h-11 flex-1 rounded-full border-indigo-200/10 bg-indigo-300/[0.04] text-white hover:bg-indigo-300/10 hover:text-white disabled:opacity-20"
-          >
-            <ArrowLeft />
-            Anterior
-          </Button>
-          <Button
-            disabled={!registro.completed && !registro.skipped}
-            onClick={avanzar}
-            className="h-11 flex-[1.5] rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 disabled:bg-indigo-300/10 disabled:text-indigo-100/25"
-          >
-            {proximo ? "Siguiente" : "Finalizar"}
-            <ArrowRight />
-          </Button>
-        </div>
-
-        <div className="mt-3 flex items-start gap-3 rounded-2xl border border-indigo-200/[0.1] bg-indigo-300/[0.055] px-4 py-3.5">
-          <div className="grid size-8 shrink-0 place-items-center rounded-full bg-cyan-300/[0.08] text-cyan-100/55">
-            <ArrowRight className="size-3.5" />
-          </div>
-          <div className="min-w-0 pt-0.5">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-indigo-50/65">
-              {!proximo
-                ? "Último paso"
-                : registros[proximo.stepId]?.deferred
-                  ? "Pendiente para después"
-                : proximo.id === paso.id
-                  ? "Siguiente serie"
-                  : "Siguiente ejercicio"}
+              <div className="mt-3 flex items-start gap-3 rounded-2xl border border-indigo-200/[0.1] bg-indigo-300/[0.055] px-4 py-3.5">
+                <div className="grid size-8 shrink-0 place-items-center rounded-full bg-cyan-300/[0.08] text-cyan-100/55">
+                  <ArrowRight className="size-3.5" />
+                </div>
+                <div className="min-w-0 pt-0.5">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-indigo-50/65">
+                    {!proximo
+                      ? "Último paso"
+                      : registros[proximo.stepId]?.deferred
+                        ? "Pendiente para después"
+                        : proximo.id === paso.id
+                          ? "Siguiente serie"
+                          : "Siguiente ejercicio"}
+                  </div>
+                  <div className="mt-1 text-sm font-medium leading-snug text-indigo-50/85">
+                    {proximo?.name ?? "Finalizar rutina"}
+                  </div>
+                </div>
+              </div>
             </div>
-            <div className="mt-1 text-sm font-medium leading-snug text-indigo-50/85">
-              {proximo?.name ?? "Finalizar rutina"}
-            </div>
-          </div>
-        </div>
-        </div>
           </div>
         )}
       </div>
@@ -5154,56 +5378,56 @@ function RutinaCompletada({
       <Card className="w-full border-violet-200/[0.12] bg-app-panel text-center text-white shadow-[0_30px_90px_rgba(0,0,0,.5)]">
         <CardContent className="p-6 md:p-9 xl:grid xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:items-center xl:gap-10 xl:p-12">
           <div>
-          <div className="mx-auto grid size-16 place-items-center rounded-full bg-gradient-to-br from-cyan-300 to-violet-400 text-indigo-950">
-            <Trophy className="size-6" />
-          </div>
-          <h1 className="mt-5 text-3xl font-light">          Rutina completada</h1>
-          <p className="mt-2 text-xs text-indigo-100/40">
-            Excelente trabajo, {atleta.name}.
-          </p>
-          <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-cyan-300/[0.07] px-4 py-2 text-cyan-100/75">
-            <Clock3 className="size-4" />
-            <span className="text-sm tabular-nums">
-              {formatDuration(elapsedSeconds)}
-            </span>
-            <span className="text-[9px] uppercase tracking-wider text-cyan-100/35">
-              Tiempo total
-            </span>
-          </div>
-          <div className="my-6 flex justify-center gap-2">
-            {[1, 2, 3, 4, 5].map((value) => (
-              <button
-                key={value}
-                onClick={() => setEsfuerzo(value)}
-                aria-label={`Esfuerzo ${value} de 5`}
-                className={cn(
-                  "grid size-10 place-items-center rounded-full border",
-                  value <= effort
-                    ? "border-orange-200/20 bg-orange-300/10 text-orange-300"
-                    : "border-indigo-200/10 text-indigo-100/15",
-                )}
-              >
-                <Flame
-                  className={cn("size-4", value <= effort && "fill-current")}
-                />
-              </button>
-            ))}
-          </div>
+            <div className="mx-auto grid size-16 place-items-center rounded-full bg-gradient-to-br from-cyan-300 to-violet-400 text-indigo-950">
+              <Trophy className="size-6" />
+            </div>
+            <h1 className="mt-5 text-3xl font-light"> Rutina completada</h1>
+            <p className="mt-2 text-xs text-indigo-100/40">
+              Excelente trabajo, {atleta.name}.
+            </p>
+            <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-cyan-300/[0.07] px-4 py-2 text-cyan-100/75">
+              <Clock3 className="size-4" />
+              <span className="text-sm tabular-nums">
+                {formatDuration(elapsedSeconds)}
+              </span>
+              <span className="text-[9px] uppercase tracking-wider text-cyan-100/35">
+                Tiempo total
+              </span>
+            </div>
+            <div className="my-6 flex justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((value) => (
+                <button
+                  key={value}
+                  onClick={() => setEsfuerzo(value)}
+                  aria-label={`Esfuerzo ${value} de 5`}
+                  className={cn(
+                    "grid size-10 place-items-center rounded-full border",
+                    value <= effort
+                      ? "border-orange-200/20 bg-orange-300/10 text-orange-300"
+                      : "border-indigo-200/10 text-indigo-100/15",
+                  )}
+                >
+                  <Flame
+                    className={cn("size-4", value <= effort && "fill-current")}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
           <div className="xl:text-left">
-          <Textarea
-            value={feedback}
-            onChange={(event) => setFeedback(event.target.value)}
-            placeholder="¿Querés contarle algo a tu entrenador?"
-            className="min-h-24 border-white/10 bg-black/30 text-white placeholder:text-white/25"
-          />
-          <Button
-            onClick={() => onDone(effort)}
-            className="mt-4 h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100"
-          >
-            Enviar y cerrar
-            <CheckCircle2 />
-          </Button>
+            <Textarea
+              value={feedback}
+              onChange={(event) => setFeedback(event.target.value)}
+              placeholder="¿Querés contarle algo a tu entrenador?"
+              className="min-h-24 border-white/10 bg-black/30 text-white placeholder:text-white/25"
+            />
+            <Button
+              onClick={() => onDone(effort)}
+              className="mt-4 h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100"
+            >
+              Enviar y cerrar
+              <CheckCircle2 />
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -5303,9 +5527,7 @@ function ExperienciaAtleta({
   entrenamientoInicial?: ScheduledWorkout;
   entrenamientoPausado?: ScheduledWorkout;
   onSelect: (id: string) => void;
-  onCreateEntrenamiento: (
-    item: NewScheduledWorkout,
-  ) => ScheduledWorkout;
+  onCreateEntrenamiento: (item: NewScheduledWorkout) => ScheduledWorkout;
   onUpdateEntrenamiento: (item: ScheduledWorkout) => void;
   onCompleteRoutine: (data: {
     entrenamiento: ScheduledWorkout;
@@ -5327,10 +5549,7 @@ function ExperienciaAtleta({
     ? readWorkoutSession(entrenamientoRestaurado.id)
     : null;
   const ultimoIndiceDisponible = entrenamientoRestaurado
-    ? Math.max(
-        0,
-        pasosDeRutina(rutina, entrenamientoRestaurado.id).length - 1,
-      )
+    ? Math.max(0, pasosDeRutina(rutina, entrenamientoRestaurado.id).length - 1)
     : 0;
   const [pantalla, setPantalla] = useState<"home" | "workout" | "final">(() =>
     entrenamientoInicial
@@ -5340,10 +5559,7 @@ function ExperienciaAtleta({
   const [indiceActivo, setIndiceActivo] = useState(
     Math.min(sesionRestaurada?.activeIndex ?? 0, ultimoIndiceDisponible),
   );
-  const indiceActivoSeguro = Math.min(
-    indiceActivo,
-    ultimoIndiceDisponible,
-  );
+  const indiceActivoSeguro = Math.min(indiceActivo, ultimoIndiceDisponible);
   const [feedback, setFeedback] = useState(sesionRestaurada?.feedback ?? "");
   const [entrenamiento, setEntrenamiento] = useState<
     ScheduledWorkout | undefined
@@ -5364,7 +5580,8 @@ function ExperienciaAtleta({
   const completedSessionRef = useRef(false);
   const sesionId = entrenamiento?.id;
   const progreso = Object.entries(registros).filter(
-    ([key, value]) => sesionId && key.startsWith(`${sesionId}-`) && value.completed,
+    ([key, value]) =>
+      sesionId && key.startsWith(`${sesionId}-`) && value.completed,
   ).length;
 
   useEffect(() => {
@@ -5517,9 +5734,9 @@ function ExperienciaAtleta({
                     stepId: paso.stepId,
                     exerciseId: paso.id,
                     exerciseName: paso.name,
-                    blockId: paso.blockId,
-                    blockName: paso.blockName,
-                    round: paso.round,
+                    sectionId: paso.sectionId,
+                    sectionName: paso.sectionName,
+                    iteration: paso.round,
                     weight: registro.weight,
                     reps: registro.reps,
                     skipped: registro.skipped,
@@ -5583,9 +5800,7 @@ export default function Home() {
   const [users, setUsuarios] = useState<User[]>(initialUsers);
   const [routines, setRutinas] = useState<Routine[]>(initialRoutines);
   const [templates, setPlantillas] = useState<RoutineTemplate[]>([]);
-  const [workouts, setEntrenamientos] = useState<
-    ScheduledWorkout[]
-  >([]);
+  const [workouts, setEntrenamientos] = useState<ScheduledWorkout[]>([]);
   const [activities, setActividades] = useState<CompletedActivity[]>([]);
   const [entrenamientoActivoId, setEntrenamientoActivoId] = useState<
     string | null
@@ -5596,28 +5811,25 @@ export default function Home() {
   const [vistaPrevia, setVistaPrevia] = useState(false);
   const [editorDirty, setEditorDirty] = useState(false);
   const [workoutImmersive, setWorkoutImmersive] = useState(false);
-  const [registros, setRegistros] = useState<
-    Record<string, TrainingSetRecord>
-  >({});
+  const [registros, setRegistros] = useState<Record<string, TrainingSetRecord>>(
+    {},
+  );
   const [hydrated, setHydrated] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve());
   const remoteDataAppliedRef = useRef(false);
-  const usuario =
-    users.find((item) => item.id === userId) ?? null;
+  const usuario = users.find((item) => item.id === userId) ?? null;
   const atletasDelCoach = users.filter(
-    (item) =>
-      item.role === "athlete" && usuario?.athleteIds?.includes(item.id),
+    (item) => item.role === "athlete" && usuario?.athleteIds?.includes(item.id),
   );
   const atleta =
     usuario?.role === "athlete"
       ? usuario
-      : atletasDelCoach.find((item) => item.id === atletaSeleccionadoId) ??
-        atletasDelCoach[0];
+      : (atletasDelCoach.find((item) => item.id === atletaSeleccionadoId) ??
+        atletasDelCoach[0]);
   const entrenadorDelAtleta = atleta
     ? users.find(
-        (item) =>
-          item.role === "coach" && item.athleteIds?.includes(atleta.id),
+        (item) => item.role === "coach" && item.athleteIds?.includes(atleta.id),
       )
     : undefined;
   const rutinasDelAtleta = atleta
@@ -5640,32 +5852,30 @@ export default function Home() {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
   const rutinaDeEntrenamiento =
     entrenamientoActivo?.origin === "routine"
-      ? rutinasDelAtleta.find(
+      ? (rutinasDelAtleta.find(
           (item) => item.id === entrenamientoActivo.routineId,
-        ) ?? rutina
+        ) ?? rutina)
       : rutina;
   const atletaRutaId = Number(pathname.split("/").at(-1));
   const detalleAtleta =
-    pathname.startsWith("/coach/athletes/") &&
-    Number.isInteger(atletaRutaId);
-  const vistaEntrenador: CoachView =
-    pathname.startsWith("/coach/athletes")
-      ? "atletas"
-      : pathname === "/coach/routines"
-        ? "routines"
-        : pathname === "/coach/profile"
-          ? "profile"
+    pathname.startsWith("/coach/athletes/") && Number.isInteger(atletaRutaId);
+  const vistaEntrenador: CoachView = pathname.startsWith("/coach/athletes")
+    ? "atletas"
+    : pathname === "/coach/routines"
+      ? "routines"
+      : pathname === "/coach/profile"
+        ? "profile"
         : "resumen";
   const vistaAtleta: AthleteView =
     pathname === "/schedule"
       ? "agenda"
       : pathname === "/activities"
         ? "activities"
-      : pathname === "/routines"
-        ? "routines"
-        : pathname === "/profile"
-          ? "profile"
-        : "inicio";
+        : pathname === "/routines"
+          ? "routines"
+          : pathname === "/profile"
+            ? "profile"
+            : "inicio";
 
   function navigate(path: string) {
     window.history.pushState(null, "", path);
@@ -5784,9 +5994,7 @@ export default function Home() {
           }
 
           const userMapping = await migrateMissingData(
-            origin.useSeeds
-              ? origin.dataWithSeeds
-              : origin.persistedData,
+            origin.useSeeds ? origin.dataWithSeeds : origin.persistedData,
           );
           writeSessionValue(
             supabaseUserMappingStorageKey,
@@ -5814,9 +6022,7 @@ export default function Home() {
             [sessionStorageKey, origin.userId],
             [selectedAthleteStorageKey, origin.athleteId],
           ] as const) {
-            const remappedId = storedId
-              ? userMapping[storedId]
-              : undefined;
+            const remappedId = storedId ? userMapping[storedId] : undefined;
             if (remappedId !== undefined) {
               writePersistentSessionValue(key, String(remappedId));
             }
@@ -5850,7 +6056,9 @@ export default function Home() {
       }
       remoteDataAppliedRef.current = remoteDataApplied;
 
-      const storedUserId = Number(readPersistentSessionValue(sessionStorageKey));
+      const storedUserId = Number(
+        readPersistentSessionValue(sessionStorageKey),
+      );
       if (finalData.users.some((item) => item.id === storedUserId)) {
         setUserId(storedUserId);
         const initialUser = finalData.users.find(
@@ -5866,7 +6074,7 @@ export default function Home() {
               ? atletaRutaId
               : initialUser?.athleteIds?.includes(storedAthleteId)
                 ? storedAthleteId
-                : initialUser?.athleteIds?.[0] ?? 1,
+                : (initialUser?.athleteIds?.[0] ?? 1),
         );
       }
       setHydrated(true);
@@ -5914,13 +6122,16 @@ export default function Home() {
     const athleteId =
       usuarioEncontrado.role === "athlete"
         ? usuarioEncontrado.id
-        : usuarioEncontrado.athleteIds?.[0] ?? 1;
+        : (usuarioEncontrado.athleteIds?.[0] ?? 1);
     const primeraRutina = routines.find((item) => item.athleteId === athleteId);
     setUserId(usuarioEncontrado.id);
     setAtletaSeleccionadoId(athleteId);
     setRutinaId(primeraRutina?.id ?? initialRoutines[0].id);
     setVistaPrevia(false);
-    writePersistentSessionValue(sessionStorageKey, String(usuarioEncontrado.id));
+    writePersistentSessionValue(
+      sessionStorageKey,
+      String(usuarioEncontrado.id),
+    );
     replaceNavigate(usuarioEncontrado.role === "coach" ? "/coach" : "/");
     return true;
   }
@@ -5939,9 +6150,7 @@ export default function Home() {
     persist({ type: "save-routines", data: [rutinaNueva] });
   }
 
-  function crearEntrenamiento(
-    item: NewScheduledWorkout,
-  ): ScheduledWorkout {
+  function crearEntrenamiento(item: NewScheduledWorkout): ScheduledWorkout {
     const ahora = new Date().toISOString();
     const creado: ScheduledWorkout = {
       ...item,
@@ -5960,9 +6169,7 @@ export default function Home() {
       updatedAt: new Date().toISOString(),
     };
     setEntrenamientos((actuales) =>
-      actuales.map((actual) =>
-        actual.id === item.id ? actualizado : actual,
-      ),
+      actuales.map((actual) => (actual.id === item.id ? actualizado : actual)),
     );
     persist({ type: "save-workouts", data: [actualizado] });
     if (item.origin === "external" && item.status === "completed") {
@@ -5986,10 +6193,7 @@ export default function Home() {
         recordedById: usuario?.id ?? item.athleteId,
       };
       setActividades((actuales) =>
-        actuales.some(
-          (actual) =>
-            actual.scheduledWorkoutId === item.id,
-        )
+        actuales.some((actual) => actual.scheduledWorkoutId === item.id)
           ? actuales
           : [...actuales, actividad],
       );
@@ -6037,10 +6241,7 @@ export default function Home() {
     clearWorkoutTimer(entrenamiento.id);
     clearWorkoutSession(entrenamiento.id);
     setActividades((actuales) =>
-      actuales.some(
-        (actual) =>
-          actual.scheduledWorkoutId === entrenamiento.id,
-      )
+      actuales.some((actual) => actual.scheduledWorkoutId === entrenamiento.id)
         ? actuales
         : [...actuales, actividad],
     );
@@ -6050,14 +6251,10 @@ export default function Home() {
   function eliminarEntrenamiento(id: string) {
     clearWorkoutTimer(id);
     clearWorkoutSession(id);
-    setEntrenamientos((actuales) =>
-      actuales.filter((item) => item.id !== id),
-    );
+    setEntrenamientos((actuales) => actuales.filter((item) => item.id !== id));
     setRegistros((actuales) =>
       Object.fromEntries(
-        Object.entries(actuales).filter(
-          ([key]) => !key.startsWith(`${id}-`),
-        ),
+        Object.entries(actuales).filter(([key]) => !key.startsWith(`${id}-`)),
       ),
     );
     if (entrenamientoActivoId === id) setEntrenamientoActivoId(null);
@@ -6103,7 +6300,8 @@ export default function Home() {
     const rutinaSeleccionada = routines.find(
       (rutinaActual) => rutinaActual.id === item.routineId,
     );
-    if (!rutinaSeleccionada || !rutinaTieneEjercicios(rutinaSeleccionada)) return;
+    if (!rutinaSeleccionada || !rutinaTieneEjercicios(rutinaSeleccionada))
+      return;
     setRutinaId(item.routineId);
     actualizarEntrenamiento({ ...item, status: "in-progress" });
     setEntrenamientoActivoId(item.id);
@@ -6157,14 +6355,18 @@ export default function Home() {
       title: "Nueva rutina",
       objective: "Entrenamiento personalizado",
       durationMinutes: null,
-      blocks: [
-        {
-          id: `bloque-${crypto.randomUUID()}`,
-          name: "Bloque 1",
-          type: "custom",
-          exercises: [],
-        },
-      ],
+      structure: {
+        sections: [
+          {
+            id: `seccion-${crypto.randomUUID()}`,
+            name: "Sección 1",
+            kind: "sequential",
+            role: "custom",
+            presentation: "standard",
+            exercises: [],
+          },
+        ],
+      },
     };
 
     let id: number;
@@ -6281,9 +6483,7 @@ export default function Home() {
       navigate={navigate}
     >
       {(!mostrandoAtleta && vistaEntrenador === "profile") ||
-      (mostrandoAtleta &&
-        vistaAtleta === "profile" &&
-        !entrenamientoActivo) ? (
+      (mostrandoAtleta && vistaAtleta === "profile" && !entrenamientoActivo) ? (
         <PerfilUsuario
           usuario={usuario}
           entrenadorAsignado={
@@ -6299,14 +6499,12 @@ export default function Home() {
           atleta={atleta}
           routines={rutinasDelAtleta}
           rutinasPorAtleta={routines.filter((item) =>
-            atletasDelCoach.some((atletaActual) => atletaActual.id === item.athleteId),
+            atletasDelCoach.some(
+              (atletaActual) => atletaActual.id === item.athleteId,
+            ),
           )}
-          workouts={workouts.filter(
-            (item) => item.athleteId === atleta.id,
-          )}
-          activities={activities.filter(
-            (item) => item.athleteId === atleta.id,
-          )}
+          workouts={workouts.filter((item) => item.athleteId === atleta.id)}
+          activities={activities.filter((item) => item.athleteId === atleta.id)}
           templates={templates.filter(
             (plantilla) => plantilla.coachId === usuario.id,
           )}
@@ -6334,9 +6532,7 @@ export default function Home() {
           atleta={atleta}
           usuarioActual={usuario}
           routines={rutinasDelAtleta}
-          workouts={workouts.filter(
-            (item) => item.athleteId === atleta.id,
-          )}
+          workouts={workouts.filter((item) => item.athleteId === atleta.id)}
           modoCoach={usuario.role === "coach"}
           onCreate={crearEntrenamiento}
           onUpdate={actualizarEntrenamiento}
@@ -6345,9 +6541,7 @@ export default function Home() {
         />
       ) : vistaAtleta === "activities" && !entrenamientoActivo ? (
         <ActivityHistory
-          activities={activities.filter(
-            (item) => item.athleteId === atleta.id,
-          )}
+          activities={activities.filter((item) => item.athleteId === atleta.id)}
           onDeleteActivity={eliminarActividad}
           canDeleteExternalActivities={usuario.role !== "coach"}
         />
@@ -6355,9 +6549,7 @@ export default function Home() {
         <HomeHoy
           atleta={atleta}
           routines={rutinasDelAtleta}
-          workouts={workouts.filter(
-            (item) => item.athleteId === atleta.id,
-          )}
+          workouts={workouts.filter((item) => item.athleteId === atleta.id)}
           onStart={comenzarEntrenamiento}
           onUpdate={actualizarEntrenamiento}
           navigate={navigate}

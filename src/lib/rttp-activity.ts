@@ -9,9 +9,9 @@ export type ActivitySet = {
   stepId: string;
   exerciseId: string;
   exerciseName: string;
-  blockId: string;
-  blockName: string;
-  round: number;
+  sectionId: string;
+  sectionName: string;
+  iteration: number;
   weight: number;
   reps: number;
   skipped: boolean;

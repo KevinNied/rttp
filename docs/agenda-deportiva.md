@@ -16,7 +16,7 @@ darle un lugar dentro de la carga y organización general del atleta.
 
 ### Rutina
 
-Define contenido reutilizable: bloques, ejercicios, series, repeticiones y pesos
+Define contenido reutilizable: secciones, ejercicios, series, repeticiones y pesos
 base. No tiene un día propio ni representa una ejecución.
 
 ### Entrenamiento programado
@@ -123,7 +123,7 @@ dentro del objeto de usuario o rutina. La base usa tablas independientes:
 - `workout_activity_sets`
 
 Los campos de relación (`athleteId`, `routineId`, `createdById`) se convierten en
-foreign keys y las estructuras de bloques se guardan como `jsonb`. Los timestamps
+foreign keys y las estructuras de secciones se guardan como `jsonb`. Los timestamps
 de creación y actualización forman parte del contrato de agenda.
 
 Los estados persistidos son `scheduled`, `in-progress`, `completed` y

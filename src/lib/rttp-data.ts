@@ -19,20 +19,31 @@ export type Exercise = {
   restSeconds: number | null;
 };
 
-export type BlockType =
-  | "consecutive-sets"
-  | "preparation"
-  | "specific-preparation"
-  | "alternating"
-  | "cooldown"
-  | "circuit-2-rounds"
-  | "custom";
+export type SectionKind = "sequential" | "rounds";
 
-export type Block = {
+export type SectionRole =
+  "warmup" | "activation" | "main" | "cooldown" | "custom";
+
+type BaseRoutineSection = {
   id: string;
   name: string;
-  type: BlockType;
+  role: SectionRole;
+  presentation: "standard" | "compact";
   exercises: Exercise[];
+};
+
+export type SequentialSection = BaseRoutineSection & {
+  kind: "sequential";
+};
+
+export type RoundsSection = BaseRoutineSection & {
+  kind: "rounds";
+};
+
+export type RoutineSection = SequentialSection | RoundsSection;
+
+export type RoutineStructure = {
+  sections: RoutineSection[];
 };
 
 export type Routine = {
@@ -41,7 +52,7 @@ export type Routine = {
   title: string;
   objective: string;
   durationMinutes: number | null;
-  blocks: Block[];
+  structure: RoutineStructure;
 };
 
 type ExerciseData = {
@@ -63,9 +74,7 @@ function exercise({
   instructions = "",
   restSeconds = null,
 }: ExerciseData): Exercise {
-  const [minReps, maxReps] = Array.isArray(reps)
-    ? reps
-    : [reps, reps];
+  const [minReps, maxReps] = Array.isArray(reps) ? reps : [reps, reps];
 
   return {
     id,
@@ -79,12 +88,27 @@ function exercise({
   };
 }
 
-function individualBlock(
+type SectionSeed = Omit<RoutineSection, "kind" | "presentation">;
+
+function createStructure(sections: SectionSeed[]): RoutineStructure {
+  return {
+    sections: sections.map((section) => ({
+      ...section,
+      kind: section.exercises.length > 1 ? "rounds" : "sequential",
+      presentation:
+        section.role === "warmup" || section.role === "activation"
+          ? "compact"
+          : "standard",
+    })),
+  };
+}
+
+function individualSection(
   id: string,
   name: string,
   item: Exercise,
-): Block {
-  return { id, name, type: "consecutive-sets", exercises: [item] };
+): SectionSeed {
+  return { id, name, role: "main", exercises: [item] };
 }
 
 export const initialUsers: User[] = [
@@ -129,11 +153,11 @@ const kevinRoutines: Routine[] = [
     title: "Fuerza de tren inferior",
     objective: "Glúteos, cuádriceps e isquiotibiales",
     durationMinutes: 65,
-    blocks: [
+    structure: createStructure([
       {
         id: "k-d1-entrada",
         name: "Entrada en calor",
-        type: "preparation",
+        role: "warmup",
         exercises: [
           exercise({
             id: "k-d1-bici",
@@ -168,7 +192,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d1-activacion",
         name: "Activación",
-        type: "specific-preparation",
+        role: "activation",
         exercises: [
           exercise({
             id: "k-d1-polea",
@@ -182,7 +206,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d1-bloque-1",
         name: "Bloque 1",
-        type: "alternating",
+        role: "main",
         exercises: [
           exercise({
             id: "k-d1-hip",
@@ -203,7 +227,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d1-bloque-2",
         name: "Bloque 2",
-        type: "alternating",
+        role: "main",
         exercises: [
           exercise({
             id: "k-d1-prensa",
@@ -224,7 +248,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d1-bloque-3",
         name: "Bloque 3",
-        type: "alternating",
+        role: "main",
         exercises: [
           exercise({
             id: "k-d1-sentadilla",
@@ -246,7 +270,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d1-final",
         name: "Finalizador",
-        type: "cooldown",
+        role: "cooldown",
         exercises: [
           exercise({
             id: "k-d1-caminata-isquios",
@@ -257,7 +281,7 @@ const kevinRoutines: Routine[] = [
           }),
         ],
       },
-    ],
+    ]),
   },
   {
     id: "kevin-dia-2",
@@ -265,11 +289,11 @@ const kevinRoutines: Routine[] = [
     title: "Fuerza unilateral",
     objective: "Control, estabilidad y fuerza de piernas",
     durationMinutes: 68,
-    blocks: [
+    structure: createStructure([
       {
         id: "k-d2-entrada",
         name: "Entrada en calor",
-        type: "preparation",
+        role: "warmup",
         exercises: [
           exercise({
             id: "k-d2-bici",
@@ -306,7 +330,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d2-activacion",
         name: "Activación",
-        type: "specific-preparation",
+        role: "activation",
         exercises: [
           exercise({
             id: "k-d2-polea",
@@ -320,7 +344,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d2-bloque-1",
         name: "Bloque 1",
-        type: "alternating",
+        role: "main",
         exercises: [
           exercise({
             id: "k-d2-sentadilla-tope",
@@ -341,7 +365,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d2-bloque-2",
         name: "Bloque 2",
-        type: "alternating",
+        role: "main",
         exercises: [
           exercise({
             id: "k-d2-prensa",
@@ -364,7 +388,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d2-bloque-3",
         name: "Bloque 3",
-        type: "alternating",
+        role: "main",
         exercises: [
           exercise({
             id: "k-d2-bulgaras",
@@ -385,7 +409,7 @@ const kevinRoutines: Routine[] = [
       {
         id: "k-d2-final",
         name: "Finalizador",
-        type: "cooldown",
+        role: "cooldown",
         exercises: [
           exercise({
             id: "k-d2-curl",
@@ -396,42 +420,151 @@ const kevinRoutines: Routine[] = [
           }),
         ],
       },
-    ],
+    ]),
   },
 ];
 
 const nachoCircuits: Record<string, Exercise[]> = {
   legs: [
-    exercise({ id: "n-d1-mov-tobillo", name: "Movilidad de tobillo", sets: 2, reps: 15, instructions: "Cada lado" }),
-    exercise({ id: "n-d1-mov-cadera", name: "Movilidad de cadera", sets: 2, reps: 15, instructions: "Cada lado" }),
-    exercise({ id: "n-d1-plancha", name: "Plancha baja", sets: 2, reps: 30, instructions: "Segundos" }),
+    exercise({
+      id: "n-d1-mov-tobillo",
+      name: "Movilidad de tobillo",
+      sets: 2,
+      reps: 15,
+      instructions: "Cada lado",
+    }),
+    exercise({
+      id: "n-d1-mov-cadera",
+      name: "Movilidad de cadera",
+      sets: 2,
+      reps: 15,
+      instructions: "Cada lado",
+    }),
+    exercise({
+      id: "n-d1-plancha",
+      name: "Plancha baja",
+      sets: 2,
+      reps: 30,
+      instructions: "Segundos",
+    }),
     exercise({ id: "n-d1-bicho", name: "Bicho muerto", sets: 2, reps: 20 }),
-    exercise({ id: "n-d1-estocada-iso", name: "Estocada isométrica", sets: 2, reps: 20, instructions: "Segundos · Cada lado" }),
+    exercise({
+      id: "n-d1-estocada-iso",
+      name: "Estocada isométrica",
+      sets: 2,
+      reps: 20,
+      instructions: "Segundos · Cada lado",
+    }),
     exercise({ id: "n-d1-copa", name: "Sentadilla copa", sets: 2, reps: 15 }),
   ],
   upperBody: [
-    exercise({ id: "n-d2-mov-torax", name: "Movilidad de tórax", sets: 2, reps: 15, instructions: "Cada lado" }),
-    exercise({ id: "n-d2-mov-hombros", name: "Movilidad de hombros", sets: 2, reps: 15, instructions: "Cada lado" }),
-    exercise({ id: "n-d2-plancha", name: "Plancha lateral", sets: 2, reps: 30, instructions: "Segundos · Cada lado" }),
-    exercise({ id: "n-d2-abs", name: "Abdominales bicicleta", sets: 2, reps: 40 }),
-    exercise({ id: "n-d2-flexiones", name: "Flexiones de brazos", sets: 2, reps: 15 }),
-    exercise({ id: "n-d2-pull-face", name: "Pull face en polea", sets: 2, reps: 10 }),
+    exercise({
+      id: "n-d2-mov-torax",
+      name: "Movilidad de tórax",
+      sets: 2,
+      reps: 15,
+      instructions: "Cada lado",
+    }),
+    exercise({
+      id: "n-d2-mov-hombros",
+      name: "Movilidad de hombros",
+      sets: 2,
+      reps: 15,
+      instructions: "Cada lado",
+    }),
+    exercise({
+      id: "n-d2-plancha",
+      name: "Plancha lateral",
+      sets: 2,
+      reps: 30,
+      instructions: "Segundos · Cada lado",
+    }),
+    exercise({
+      id: "n-d2-abs",
+      name: "Abdominales bicicleta",
+      sets: 2,
+      reps: 40,
+    }),
+    exercise({
+      id: "n-d2-flexiones",
+      name: "Flexiones de brazos",
+      sets: 2,
+      reps: 15,
+    }),
+    exercise({
+      id: "n-d2-pull-face",
+      name: "Pull face en polea",
+      sets: 2,
+      reps: 10,
+    }),
   ],
   posteriorChain: [
-    exercise({ id: "n-d3-mov-tobillo", name: "Movilidad de tobillo", sets: 2, reps: 15, instructions: "Cada lado" }),
-    exercise({ id: "n-d3-mov-cadera", name: "Movilidad de cadera", sets: 2, reps: 15, instructions: "Cada lado" }),
-    exercise({ id: "n-d3-plancha", name: "Plancha baja", sets: 2, reps: 30, instructions: "Segundos" }),
+    exercise({
+      id: "n-d3-mov-tobillo",
+      name: "Movilidad de tobillo",
+      sets: 2,
+      reps: 15,
+      instructions: "Cada lado",
+    }),
+    exercise({
+      id: "n-d3-mov-cadera",
+      name: "Movilidad de cadera",
+      sets: 2,
+      reps: 15,
+      instructions: "Cada lado",
+    }),
+    exercise({
+      id: "n-d3-plancha",
+      name: "Plancha baja",
+      sets: 2,
+      reps: 30,
+      instructions: "Segundos",
+    }),
     exercise({ id: "n-d3-bicho", name: "Bicho muerto", sets: 2, reps: 20 }),
     exercise({ id: "n-d3-buen-dia", name: "Buen día", sets: 2, reps: 10 }),
-    exercise({ id: "n-d3-cadera-iso", name: "Elevación de cadera isométrica", sets: 2, reps: 30, instructions: "Segundos" }),
+    exercise({
+      id: "n-d3-cadera-iso",
+      name: "Elevación de cadera isométrica",
+      sets: 2,
+      reps: 30,
+      instructions: "Segundos",
+    }),
   ],
   fullBody: [
-    exercise({ id: "n-d5-mov-tobillo-cadera", name: "Movilidad de tobillo + cadera", sets: 2, reps: 15, instructions: "Cada lado" }),
-    exercise({ id: "n-d5-mov-hombros", name: "Movilidad de hombros", sets: 2, reps: 15, instructions: "Cada lado" }),
-    exercise({ id: "n-d5-plancha", name: "Plancha con toque de hombro", sets: 2, reps: 20 }),
+    exercise({
+      id: "n-d5-mov-tobillo-cadera",
+      name: "Movilidad de tobillo + cadera",
+      sets: 2,
+      reps: 15,
+      instructions: "Cada lado",
+    }),
+    exercise({
+      id: "n-d5-mov-hombros",
+      name: "Movilidad de hombros",
+      sets: 2,
+      reps: 15,
+      instructions: "Cada lado",
+    }),
+    exercise({
+      id: "n-d5-plancha",
+      name: "Plancha con toque de hombro",
+      sets: 2,
+      reps: 20,
+    }),
     exercise({ id: "n-d5-pallof", name: "Press Pallof", sets: 2, reps: 10 }),
-    exercise({ id: "n-d5-sentadilla-iso", name: "Sentadilla isométrica", sets: 2, reps: 30, instructions: "Segundos" }),
-    exercise({ id: "n-d5-pull-face", name: "Pull face en polea", sets: 2, reps: 10 }),
+    exercise({
+      id: "n-d5-sentadilla-iso",
+      name: "Sentadilla isométrica",
+      sets: 2,
+      reps: 30,
+      instructions: "Segundos",
+    }),
+    exercise({
+      id: "n-d5-pull-face",
+      name: "Pull face en polea",
+      sets: 2,
+      reps: 10,
+    }),
   ],
 };
 
@@ -442,13 +575,62 @@ const nachoRoutines: Routine[] = [
     title: "Pierna",
     objective: "Enfoque en cuádriceps y estabilidad",
     durationMinutes: 60,
-    blocks: [
-      { id: "n-d1-activacion", name: "Movilidad + activación", type: "circuit-2-rounds", exercises: nachoCircuits.legs },
-      individualBlock("n-d1-prensa", "Prensa 45", exercise({ id: "n-d1-prensa-e", name: "Prensa 45", sets: 5, reps: [8, 12], restSeconds: 90, instructions: "No llegar a la extensión completa" })),
-      individualBlock("n-d1-bulgaras", "Sentadillas búlgaras", exercise({ id: "n-d1-bulgaras-e", name: "Sentadillas búlgaras", sets: 3, reps: 10, restSeconds: 60, instructions: "Con mancuernas · Movimiento controlado" })),
-      individualBlock("n-d1-cuadriceps", "Extensión de cuádriceps", exercise({ id: "n-d1-cuadriceps-e", name: "Extensión de cuádriceps en máquina", sets: 5, reps: [12, 15], restSeconds: 90, instructions: "Sillón de cuádriceps · Bajar controlado" })),
-      individualBlock("n-d1-gemelos", "Gemelos", exercise({ id: "n-d1-gemelos-e", name: "Gemelos parado", sets: 3, reps: 15, restSeconds: 60, instructions: "A una pierna · Pesado" })),
-    ],
+    structure: createStructure([
+      {
+        id: "n-d1-activacion",
+        name: "Movilidad + activación",
+        role: "warmup",
+        exercises: nachoCircuits.legs,
+      },
+      individualSection(
+        "n-d1-prensa",
+        "Prensa 45",
+        exercise({
+          id: "n-d1-prensa-e",
+          name: "Prensa 45",
+          sets: 5,
+          reps: [8, 12],
+          restSeconds: 90,
+          instructions: "No llegar a la extensión completa",
+        }),
+      ),
+      individualSection(
+        "n-d1-bulgaras",
+        "Sentadillas búlgaras",
+        exercise({
+          id: "n-d1-bulgaras-e",
+          name: "Sentadillas búlgaras",
+          sets: 3,
+          reps: 10,
+          restSeconds: 60,
+          instructions: "Con mancuernas · Movimiento controlado",
+        }),
+      ),
+      individualSection(
+        "n-d1-cuadriceps",
+        "Extensión de cuádriceps",
+        exercise({
+          id: "n-d1-cuadriceps-e",
+          name: "Extensión de cuádriceps en máquina",
+          sets: 5,
+          reps: [12, 15],
+          restSeconds: 90,
+          instructions: "Sillón de cuádriceps · Bajar controlado",
+        }),
+      ),
+      individualSection(
+        "n-d1-gemelos",
+        "Gemelos",
+        exercise({
+          id: "n-d1-gemelos-e",
+          name: "Gemelos parado",
+          sets: 3,
+          reps: 15,
+          restSeconds: 60,
+          instructions: "A una pierna · Pesado",
+        }),
+      ),
+    ]),
   },
   {
     id: "nacho-dia-2",
@@ -456,14 +638,72 @@ const nachoRoutines: Routine[] = [
     title: "Torso",
     objective: "Fuerza y volumen",
     durationMinutes: 65,
-    blocks: [
-      { id: "n-d2-activacion", name: "Movilidad + activación", type: "circuit-2-rounds", exercises: nachoCircuits.upperBody },
-      individualBlock("n-d2-press", "Press plano", exercise({ id: "n-d2-press-e", name: "Press plano", sets: 5, reps: 8, restSeconds: 120, instructions: "Con barra · Puede hacerse en Smith o máquina guiada" })),
-      individualBlock("n-d2-jalon", "Jalón al pecho", exercise({ id: "n-d2-jalon-e", name: "Jalón al pecho", sets: 4, reps: 12, restSeconds: 90, instructions: "Dorsalera · Agarre medio" })),
-      individualBlock("n-d2-hombro", "Press de hombro", exercise({ id: "n-d2-hombro-e", name: "Press de hombro", sets: 4, reps: 8, restSeconds: 90, instructions: "En máquina; si no hay, con mancuernas" })),
-      individualBlock("n-d2-remo", "Remo Hammer", exercise({ id: "n-d2-remo-e", name: "Remo Hammer", sets: 4, reps: 12, restSeconds: 90 })),
-      individualBlock("n-d2-vuelos", "Vuelos laterales", exercise({ id: "n-d2-vuelos-e", name: "Vuelos laterales", sets: 3, reps: 12, restSeconds: 60 })),
-    ],
+    structure: createStructure([
+      {
+        id: "n-d2-activacion",
+        name: "Movilidad + activación",
+        role: "warmup",
+        exercises: nachoCircuits.upperBody,
+      },
+      individualSection(
+        "n-d2-press",
+        "Press plano",
+        exercise({
+          id: "n-d2-press-e",
+          name: "Press plano",
+          sets: 5,
+          reps: 8,
+          restSeconds: 120,
+          instructions: "Con barra · Puede hacerse en Smith o máquina guiada",
+        }),
+      ),
+      individualSection(
+        "n-d2-jalon",
+        "Jalón al pecho",
+        exercise({
+          id: "n-d2-jalon-e",
+          name: "Jalón al pecho",
+          sets: 4,
+          reps: 12,
+          restSeconds: 90,
+          instructions: "Dorsalera · Agarre medio",
+        }),
+      ),
+      individualSection(
+        "n-d2-hombro",
+        "Press de hombro",
+        exercise({
+          id: "n-d2-hombro-e",
+          name: "Press de hombro",
+          sets: 4,
+          reps: 8,
+          restSeconds: 90,
+          instructions: "En máquina; si no hay, con mancuernas",
+        }),
+      ),
+      individualSection(
+        "n-d2-remo",
+        "Remo Hammer",
+        exercise({
+          id: "n-d2-remo-e",
+          name: "Remo Hammer",
+          sets: 4,
+          reps: 12,
+          restSeconds: 90,
+        }),
+      ),
+      individualSection(
+        "n-d2-vuelos",
+        "Vuelos laterales",
+        exercise({
+          id: "n-d2-vuelos-e",
+          name: "Vuelos laterales",
+          sets: 3,
+          reps: 12,
+          restSeconds: 60,
+        }),
+      ),
+    ]),
   },
   {
     id: "nacho-dia-3",
@@ -471,14 +711,74 @@ const nachoRoutines: Routine[] = [
     title: "Pierna",
     objective: "Enfoque en cadena posterior",
     durationMinutes: 65,
-    blocks: [
-      { id: "n-d3-activacion", name: "Movilidad + activación", type: "circuit-2-rounds", exercises: nachoCircuits.posteriorChain },
-      individualBlock("n-d3-weight-muerto", "Peso muerto rumano", exercise({ id: "n-d3-weight-muerto-e", name: "Peso muerto rumano", sets: 5, reps: [6, 8], restSeconds: 120, instructions: "Con barra · Semiflexión de rodillas" })),
-      individualBlock("n-d3-hip", "Hip thrust", exercise({ id: "n-d3-hip-e", name: "Hip thrust", sets: 4, reps: 8, restSeconds: 90, instructions: "Con barra o máquina guiada · Pesado" })),
-      individualBlock("n-d3-isquios", "Sillón de isquios", exercise({ id: "n-d3-isquios-e", name: "Sillón de isquios", sets: 4, reps: 12, restSeconds: 90, instructions: "Si no hay, hacerlo en camilla" })),
-      individualBlock("n-d3-estocadas", "Estocadas caminando", exercise({ id: "n-d3-estocadas-e", name: "Estocadas caminando", sets: 3, reps: 12, restSeconds: 60, instructions: "Pasos · Torso levemente inclinado · Con mancuerna" })),
-      individualBlock("n-d3-soleo", "Sóleo", exercise({ id: "n-d3-soleo-e", name: "Sóleo", sets: 3, reps: 15, restSeconds: 60, instructions: "Gemelos sentado" })),
-    ],
+    structure: createStructure([
+      {
+        id: "n-d3-activacion",
+        name: "Movilidad + activación",
+        role: "warmup",
+        exercises: nachoCircuits.posteriorChain,
+      },
+      individualSection(
+        "n-d3-weight-muerto",
+        "Peso muerto rumano",
+        exercise({
+          id: "n-d3-weight-muerto-e",
+          name: "Peso muerto rumano",
+          sets: 5,
+          reps: [6, 8],
+          restSeconds: 120,
+          instructions: "Con barra · Semiflexión de rodillas",
+        }),
+      ),
+      individualSection(
+        "n-d3-hip",
+        "Hip thrust",
+        exercise({
+          id: "n-d3-hip-e",
+          name: "Hip thrust",
+          sets: 4,
+          reps: 8,
+          restSeconds: 90,
+          instructions: "Con barra o máquina guiada · Pesado",
+        }),
+      ),
+      individualSection(
+        "n-d3-isquios",
+        "Sillón de isquios",
+        exercise({
+          id: "n-d3-isquios-e",
+          name: "Sillón de isquios",
+          sets: 4,
+          reps: 12,
+          restSeconds: 90,
+          instructions: "Si no hay, hacerlo en camilla",
+        }),
+      ),
+      individualSection(
+        "n-d3-estocadas",
+        "Estocadas caminando",
+        exercise({
+          id: "n-d3-estocadas-e",
+          name: "Estocadas caminando",
+          sets: 3,
+          reps: 12,
+          restSeconds: 60,
+          instructions: "Pasos · Torso levemente inclinado · Con mancuerna",
+        }),
+      ),
+      individualSection(
+        "n-d3-soleo",
+        "Sóleo",
+        exercise({
+          id: "n-d3-soleo-e",
+          name: "Sóleo",
+          sets: 3,
+          reps: 15,
+          restSeconds: 60,
+          instructions: "Gemelos sentado",
+        }),
+      ),
+    ]),
   },
   {
     id: "nacho-dia-4",
@@ -486,14 +786,74 @@ const nachoRoutines: Routine[] = [
     title: "Torso",
     objective: "Fuerza de tren superior",
     durationMinutes: 60,
-    blocks: [
-      { id: "n-d4-activacion", name: "Movilidad + activación", type: "circuit-2-rounds", exercises: nachoCircuits.upperBody.map((item) => ({ ...item, id: item.id.replace("n-d2", "n-d4") })) },
-      individualBlock("n-d4-press", "Press inclinado", exercise({ id: "n-d4-press-e", name: "Press inclinado", sets: 4, reps: 12, restSeconds: 90, instructions: "Con mancuernas" })),
-      individualBlock("n-d4-apertura", "Apertura", exercise({ id: "n-d4-apertura-e", name: "Apertura en banco plano", sets: 3, reps: 12, restSeconds: 60 })),
-      individualBlock("n-d4-remo", "Remo T", exercise({ id: "n-d4-remo-e", name: "Remo T", sets: 4, reps: 12, restSeconds: 90 })),
-      individualBlock("n-d4-biceps", "Curl de bíceps", exercise({ id: "n-d4-biceps-e", name: "Curl de bíceps en banco Scott", sets: 4, reps: 12, restSeconds: 90, instructions: "Barra W o EZ" })),
-      individualBlock("n-d4-triceps", "Extensión de tríceps", exercise({ id: "n-d4-triceps-e", name: "Extensión de tríceps en polea alta", sets: 3, reps: 12, restSeconds: 60 })),
-    ],
+    structure: createStructure([
+      {
+        id: "n-d4-activacion",
+        name: "Movilidad + activación",
+        role: "warmup",
+        exercises: nachoCircuits.upperBody.map((item) => ({
+          ...item,
+          id: item.id.replace("n-d2", "n-d4"),
+        })),
+      },
+      individualSection(
+        "n-d4-press",
+        "Press inclinado",
+        exercise({
+          id: "n-d4-press-e",
+          name: "Press inclinado",
+          sets: 4,
+          reps: 12,
+          restSeconds: 90,
+          instructions: "Con mancuernas",
+        }),
+      ),
+      individualSection(
+        "n-d4-apertura",
+        "Apertura",
+        exercise({
+          id: "n-d4-apertura-e",
+          name: "Apertura en banco plano",
+          sets: 3,
+          reps: 12,
+          restSeconds: 60,
+        }),
+      ),
+      individualSection(
+        "n-d4-remo",
+        "Remo T",
+        exercise({
+          id: "n-d4-remo-e",
+          name: "Remo T",
+          sets: 4,
+          reps: 12,
+          restSeconds: 90,
+        }),
+      ),
+      individualSection(
+        "n-d4-biceps",
+        "Curl de bíceps",
+        exercise({
+          id: "n-d4-biceps-e",
+          name: "Curl de bíceps en banco Scott",
+          sets: 4,
+          reps: 12,
+          restSeconds: 90,
+          instructions: "Barra W o EZ",
+        }),
+      ),
+      individualSection(
+        "n-d4-triceps",
+        "Extensión de tríceps",
+        exercise({
+          id: "n-d4-triceps-e",
+          name: "Extensión de tríceps en polea alta",
+          sets: 3,
+          reps: 12,
+          restSeconds: 60,
+        }),
+      ),
+    ]),
   },
   {
     id: "nacho-dia-5",
@@ -501,14 +861,70 @@ const nachoRoutines: Routine[] = [
     title: "Full body",
     objective: "Trabajo completo de fuerza y estabilidad",
     durationMinutes: 60,
-    blocks: [
-      { id: "n-d5-activacion", name: "Movilidad + activación", type: "circuit-2-rounds", exercises: nachoCircuits.fullBody },
-      individualBlock("n-d5-hack", "Hack 45", exercise({ id: "n-d5-hack-e", name: "Hack 45", sets: 5, reps: 8, restSeconds: 90 })),
-      individualBlock("n-d5-remo", "Remo bajo", exercise({ id: "n-d5-remo-e", name: "Remo bajo", sets: 4, reps: 12, restSeconds: 90 })),
-      individualBlock("n-d5-vuelos", "Vuelos frontales", exercise({ id: "n-d5-vuelos-e", name: "Vuelos frontales", sets: 3, reps: 15, restSeconds: 60 })),
-      individualBlock("n-d5-aductores", "Aductores", exercise({ id: "n-d5-aductores-e", name: "Aductores en máquina", sets: 4, reps: 12, restSeconds: 90 })),
-      individualBlock("n-d5-estocadas", "Estocadas fijas", exercise({ id: "n-d5-estocadas-e", name: "Estocadas fijas", sets: 4, reps: 15, restSeconds: 90, instructions: "Con banda en la rodilla · Liviano" })),
-    ],
+    structure: createStructure([
+      {
+        id: "n-d5-activacion",
+        name: "Movilidad + activación",
+        role: "warmup",
+        exercises: nachoCircuits.fullBody,
+      },
+      individualSection(
+        "n-d5-hack",
+        "Hack 45",
+        exercise({
+          id: "n-d5-hack-e",
+          name: "Hack 45",
+          sets: 5,
+          reps: 8,
+          restSeconds: 90,
+        }),
+      ),
+      individualSection(
+        "n-d5-remo",
+        "Remo bajo",
+        exercise({
+          id: "n-d5-remo-e",
+          name: "Remo bajo",
+          sets: 4,
+          reps: 12,
+          restSeconds: 90,
+        }),
+      ),
+      individualSection(
+        "n-d5-vuelos",
+        "Vuelos frontales",
+        exercise({
+          id: "n-d5-vuelos-e",
+          name: "Vuelos frontales",
+          sets: 3,
+          reps: 15,
+          restSeconds: 60,
+        }),
+      ),
+      individualSection(
+        "n-d5-aductores",
+        "Aductores",
+        exercise({
+          id: "n-d5-aductores-e",
+          name: "Aductores en máquina",
+          sets: 4,
+          reps: 12,
+          restSeconds: 90,
+        }),
+      ),
+      individualSection(
+        "n-d5-estocadas",
+        "Estocadas fijas",
+        exercise({
+          id: "n-d5-estocadas-e",
+          name: "Estocadas fijas",
+          sets: 4,
+          reps: 15,
+          restSeconds: 90,
+          instructions: "Con banda en la rodilla · Liviano",
+        }),
+      ),
+    ]),
   },
 ];
 
@@ -519,8 +935,8 @@ const testRoutines: Routine[] = [
     title: "Rutina de prueba",
     objective: "Espacio aislado para probar RTTP",
     durationMinutes: 30,
-    blocks: [
-      individualBlock(
+    structure: createStructure([
+      individualSection(
         "test-bloque-1",
         "Bloque de prueba",
         exercise({
@@ -532,7 +948,7 @@ const testRoutines: Routine[] = [
           instructions: "Podés editar o reemplazar este ejercicio",
         }),
       ),
-    ],
+    ]),
   },
 ];
 

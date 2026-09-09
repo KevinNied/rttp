@@ -31,7 +31,7 @@ El snapshot permite consultar la sesión aunque la rutina se edite o elimine
 después.
 
 El cronómetro comienza al iniciar la rutina y usa una marca temporal, por lo que
-sigue midiendo correctamente entre bloques y mientras la pantalla está
+sigue midiendo correctamente entre secciones y mientras la pantalla está
 bloqueada. Al salir de la ejecución se pausa y al retomarla continúa desde el
 tiempo acumulado. La posición, las series registradas, el feedback pendiente y
 el descanso activo también se conservan en el dispositivo. Una recarga recupera
@@ -42,7 +42,7 @@ Si un ejercicio define descanso, completar la serie inicia una cuenta regresiva
 que puede pausarse, reanudarse u omitirse. Los ejercicios sin descanso no
 muestran esa interfaz.
 
-Durante la ejecución, la vista general resume el avance por bloque y ejercicio
+Durante la ejecución, la vista general resume el avance por sección y ejercicio
 sin interrumpir el cronómetro. Un ejercicio temporalmente no disponible puede
 posponerse: sus series pendientes se conservan sin marcarlas como omitidas y
 vuelven a incorporarse al final de la rutina. Si el atleta decide omitirlas de
@@ -77,9 +77,9 @@ El contrato se separa en:
 - relación obligatoria con el perfil del atleta.
 
 Las claves del snapshot y del detalle de series usan el mismo contrato inglés
-del dominio (`athleteId`, `blocks`, `exercises`, `stepId`, `reps`, `skipped`,
-entre otras), aunque los nombres y comentarios escritos por el usuario se
-conservan en su idioma original.
+del dominio (`athleteId`, `structure`, `sections`, `sectionId`, `iteration`,
+`exercises`, `stepId`, `reps`, `skipped`, entre otras), aunque los nombres y
+comentarios escritos por el usuario se conservan en su idioma original.
 
 La función RPC `save_workout_activity` crea la actividad y sus series de forma
 atómica. La restricción única sobre `scheduled_workout_id` mantiene la
