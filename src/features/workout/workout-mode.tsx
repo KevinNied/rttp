@@ -93,6 +93,8 @@ export function WorkoutMode({
     section.exercises.length > 1 &&
     (section.presentation === "compact" ||
       /entrada|activación|movilidad/i.test(section.name));
+  const isSingleSequentialRoutine =
+    rutina.structure.sections.length === 1 && section.kind === "sequential";
   const registrosResueltos = pasos.filter((item) => {
     const itemRecord = registros[item.stepId];
     return itemRecord?.completed || itemRecord?.skipped;
@@ -152,6 +154,7 @@ export function WorkoutMode({
     reps: registroAnterior?.reps ?? paso.minReps,
     completed: false,
     skipped: false,
+    weightEdited: false,
   };
   const registro = registros[paso.stepId] ?? valorInicial;
   const mostrarVistaResumida =
@@ -219,18 +222,54 @@ export function WorkoutMode({
     }));
   }
 
+  function trasladarPesoALaSiguienteSerie(
+    actuales: Record<string, TrainingSetRecord>,
+  ) {
+    const siguientePasoDelEjercicio = pasos
+      .slice(indiceActivo + 1)
+      .find((item) => item.id === paso.id);
+    if (!siguientePasoDelEjercicio) return actuales;
+
+    const registroActual = actuales[paso.stepId] ?? valorInicial;
+    const registroSiguiente = actuales[siguientePasoDelEjercicio.stepId];
+    if (
+      !registroActual.completed ||
+      registroSiguiente?.completed ||
+      registroSiguiente?.skipped ||
+      registroSiguiente?.weightEdited
+    ) {
+      return actuales;
+    }
+
+    return {
+      ...actuales,
+      [siguientePasoDelEjercicio.stepId]: {
+        ...(registroSiguiente ?? {
+          reps: siguientePasoDelEjercicio.minReps,
+          completed: false,
+          skipped: false,
+        }),
+        weight: registroActual.weight,
+        weightEdited: false,
+      },
+    };
+  }
+
   function avanzar() {
     setDragX(0);
     setRestTimer(null);
-    if (registro.deferred) {
-      setRegistros((actuales) => ({
-        ...actuales,
+    setRegistros((actuales) => {
+      const siguientes = trasladarPesoALaSiguienteSerie(actuales);
+      if (!registro.deferred) return siguientes;
+
+      return {
+        ...siguientes,
         [paso.stepId]: {
-          ...(actuales[paso.stepId] ?? valorInicial),
+          ...(siguientes[paso.stepId] ?? valorInicial),
           deferred: false,
         },
-      }));
-    }
+      };
+    });
     const siguiente = siguienteIndiceDeFlujo(indiceActivo + 1);
 
     if (siguiente < 0) {
@@ -443,23 +482,23 @@ export function WorkoutMode({
 
   return (
     <div className="mx-auto flex h-dvh max-w-[1760px] flex-col overflow-hidden px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] md:px-8 md:py-5 xl:px-10">
-      <div>
-        <div className="mb-3 flex items-center justify-between">
+      <div className="mx-auto w-full max-w-lg xl:max-w-4xl">
+        <div className="mb-3 grid grid-cols-[5rem_minmax(0,1fr)_5rem] items-center">
           <Button
             variant="ghost"
             size="icon"
             onClick={onExit}
             aria-label="Salir del entrenamiento"
-            className="size-9 rounded-full border border-indigo-200/10 text-indigo-100/55 hover:bg-indigo-300/10 hover:text-white"
+            className="size-9 justify-self-start rounded-full border border-indigo-200/10 text-indigo-100/55 hover:bg-indigo-300/10 hover:text-white"
           >
             <ArrowLeft />
           </Button>
-          <div className="min-w-0 px-3 text-center">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-cyan-50/90">
+          <div className="min-w-0 px-2 text-center">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.11em] text-cyan-50/90 sm:text-[11px] sm:tracking-[0.15em]">
               Rutina en curso
             </div>
             <div className="mt-1 flex min-w-0 items-center justify-center gap-2 text-xs font-medium text-indigo-50/65">
-              <span className="max-w-44 truncate">{rutina.title}</span>
+              <span className="min-w-0 truncate">{rutina.title}</span>
               <span className="text-white/25">·</span>
               <span className="inline-flex shrink-0 items-center gap-1 tabular-nums text-cyan-50/75">
                 <Clock3 className="size-3" />
@@ -467,7 +506,7 @@ export function WorkoutMode({
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-end gap-2">
             <Button
               variant="ghost"
               size="icon"
@@ -531,33 +570,36 @@ export function WorkoutMode({
             </div>
           </div>
         )}
-        <div className="mb-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3">
-          <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-100/65">
-            Sección {paso.sectionIndex + 1} de{" "}
-            {rutina.structure.sections.length}
-          </div>
-          <div className="mt-1 flex items-end justify-between gap-3">
-            <div className="min-w-0 truncate text-sm font-medium text-white/90">
-              {paso.sectionName}
+        {!isSingleSequentialRoutine && (
+          <div className="mb-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3">
+            <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-100/65">
+              Sección {paso.sectionIndex + 1} de{" "}
+              {rutina.structure.sections.length}
             </div>
-            <div className="flex shrink-0 items-center gap-1.5 text-[10px] font-medium">
-              {paso.sectionKind === "rounds" ? (
-                <>
-                  <span className="rounded-full bg-violet-300/10 px-2.5 py-1 text-violet-100/80">
-                    Ronda {paso.round} de {paso.rondas}
-                  </span>
+            <div className="mt-1 flex items-end justify-between gap-3">
+              <div className="min-w-0 truncate text-sm font-medium text-white/90">
+                {paso.sectionName}
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 text-[10px] font-medium">
+                {paso.sectionKind === "rounds" ? (
+                  <>
+                    <span className="rounded-full bg-violet-300/10 px-2.5 py-1 text-violet-100/80">
+                      Ronda {paso.round} de {paso.rondas}
+                    </span>
+                    <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
+                      Ejercicio {paso.posicion + 1} de{" "}
+                      {paso.ejerciciosEnRonda}
+                    </span>
+                  </>
+                ) : (
                   <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
-                    Ejercicio {paso.posicion + 1} de {paso.ejerciciosEnRonda}
+                    Serie {paso.round} de {paso.sets}
                   </span>
-                </>
-              ) : (
-                <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
-                  Serie {paso.round} de {paso.sets}
-                </span>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {mostrarVistaResumida ? (
           <WorkoutRoundSummary
@@ -606,38 +648,43 @@ export function WorkoutMode({
               >
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(34,211,238,.15),transparent_37%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.16),transparent_42%)]" />
                 <div className="relative flex flex-col">
-                  <div className="flex items-start justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-50/65">
+                  <div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.09em] text-indigo-50/65 sm:text-[11px] sm:tracking-[0.12em]">
                         {registro.deferred
                           ? "Retomado para completar"
                           : "Ejercicio actual"}
                       </div>
-                      <h1 className="mt-2 text-[2rem] font-normal leading-tight tracking-[-0.04em]">
-                        {paso.name}
-                      </h1>
+                      <div className="flex shrink-0 items-center gap-2">
+                        {isSingleSequentialRoutine && (
+                          <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-[10px] font-medium text-cyan-100/80 sm:px-2.5">
+                            Serie {paso.round} de {paso.sets}
+                          </span>
+                        )}
+                        <WorkoutSkipSheet
+                          rutina={rutina}
+                          paso={paso}
+                          registro={registro}
+                          posponerEjercicio={posponerEjercicio}
+                          omitir={omitir}
+                        />
+                        {(registro.completed || registro.skipped) && (
+                          <div
+                            className={cn(
+                              "grid size-10 place-items-center rounded-full border",
+                              registro.completed
+                                ? "border-cyan-200/25 bg-cyan-300 text-indigo-950"
+                                : "border-orange-200/20 bg-orange-300/10 text-orange-200",
+                            )}
+                          >
+                            {registro.completed ? <Check /> : <SkipForward />}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <WorkoutSkipSheet
-                        rutina={rutina}
-                        paso={paso}
-                        registro={registro}
-                        posponerEjercicio={posponerEjercicio}
-                        omitir={omitir}
-                      />
-                      {(registro.completed || registro.skipped) && (
-                        <div
-                          className={cn(
-                            "grid size-10 place-items-center rounded-full border",
-                            registro.completed
-                              ? "border-cyan-200/25 bg-cyan-300 text-indigo-950"
-                              : "border-orange-200/20 bg-orange-300/10 text-orange-200",
-                          )}
-                        >
-                          {registro.completed ? <Check /> : <SkipForward />}
-                        </div>
-                      )}
-                    </div>
+                    <h1 className="mt-2 text-[2rem] font-normal leading-tight tracking-[-0.04em]">
+                      {paso.name}
+                    </h1>
                   </div>
 
                   {paso.instructions && (
@@ -735,7 +782,9 @@ export function WorkoutMode({
                         step={0.5}
                         emptyWhenZero
                         value={registro.weight}
-                        onChange={(weight) => actualizar({ weight })}
+                        onChange={(weight) =>
+                          actualizar({ weight, weightEdited: true })
+                        }
                       />
                     </div>
 

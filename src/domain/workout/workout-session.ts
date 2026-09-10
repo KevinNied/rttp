@@ -4,6 +4,7 @@ export type TrainingSetRecord = {
   completed: boolean;
   skipped: boolean;
   deferred?: boolean;
+  weightEdited?: boolean;
 };
 
 export type TrainingSetRecords = Record<string, TrainingSetRecord>;
