@@ -13,33 +13,20 @@ No representa trabajo comprometido ni un orden definitivo de implementación.
 
 ## Progreso por ejercicio
 
-### Objetivo
+Las decisiones de la primera versión ya no están abiertas. El contrato aprobado,
+la arquitectura propuesta y el bloqueo de migración viven en
+[exercise-progress.md](./exercise-progress.md).
 
-Mostrar la evolución de un atleta en un ejercicio a través del tiempo para que
-pueda entender su progreso y el coach pueda ajustar cargas.
+Antes de implementar se debe aprobar
+[exercise-catalog-classification.csv](./exercise-catalog-classification.csv).
 
-### Alcance posible
+### Evoluciones posteriores
 
-- Gráfico de peso utilizado por fecha.
-- Seguimiento de repeticiones y series completadas.
-- Volumen total por sesión: peso por repeticiones.
-- Mejor marca y evolución de una repetición máxima estimada.
-- Filtros por período y comparación entre sesiones.
-- Acceso desde el historial, el detalle de una rutina o una futura biblioteca
-  de ejercicios.
-
-### Primera versión sugerida
-
-Desde el detalle de un ejercicio, mostrar un gráfico lineal con el mayor peso
-registrado por sesión, acompañado por la última marca, la mejor marca y la
-variación del período seleccionado.
-
-### Decisiones pendientes
-
-- Cómo identificar el mismo ejercicio entre rutinas distintas sin depender
-  únicamente de su nombre.
-- Qué métrica debe ser la principal: peso máximo, volumen o repetición máxima
-  estimada.
-- Cómo representar ejercicios sin peso o con cargas no convencionales.
-- Si los registros omitidos o incompletos participan de las métricas.
-- Qué períodos y comparaciones deben estar disponibles en la primera versión.
+- Seguimiento por tiempo y distancia.
+- Objetivos, hitos y alertas por ejercicio.
+- Recomendaciones automáticas de carga.
+- Administración global para archivar, corregir, fusionar o separar
+  definiciones.
+- Edición manual de marcas con auditoría.
+- Insights avanzados para coaches.
+- Comparación entre atletas.

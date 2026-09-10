@@ -17,6 +17,7 @@
 - [Confirmed UX decisions](#confirmed-ux-decisions)
 - [Data, persistence, and security](#data-persistence-and-security)
 - [Success measures](#success-measures)
+- [Approved next increment](#approved-next-increment)
 - [Deferred roadmap](#deferred-roadmap)
 - [Explicitly out of scope](#explicitly-out-of-scope)
 - [Supporting product documents](#supporting-product-documents)
@@ -220,6 +221,11 @@ Progress contains RTTP workout activities and completed external activities.
 The detailed history contract lives in
 [activity-log.md](./activity-log.md).
 
+Exercise-level progress is the next approved increment, but is not part of the
+current application until its catalog classification and database migration are
+complete. Its contract lives in
+[exercise-progress.md](./exercise-progress.md).
+
 ### Profile and appearance
 
 Profile shows account data, assigned coach when present, appearance preference,
@@ -318,22 +324,36 @@ release with real users.
 - Role and ownership rules are enforced consistently in domain, application,
   persistence, and UI layers.
 
+## Approved next increment
+
+Exercise-level progress is approved with:
+
+- a shared canonical exercise catalog;
+- stable identity across routines, templates and historical activities;
+- load-and-repetition, repetition-only and untracked exercise types;
+- per-session charts, latest and best marks, and period comparison;
+- athlete and assigned-coach read access;
+- explicit kg/lb conversion without rewriting original records.
+
+Implementation is blocked until every row in
+[exercise-catalog-classification.csv](./exercise-catalog-classification.csv) is
+reviewed. The full product, metric and migration contract is documented in
+[exercise-progress.md](./exercise-progress.md).
+
 ## Deferred roadmap
 
-The next product opportunities are:
+The next product opportunities after exercise-level progress are:
 
-1. Exercise-level progress with stable exercise identity, historical load
-   trends, best mark, latest mark, and period comparison.
-2. Supabase Auth, secure sessions, and restrictive Row Level Security.
-3. Public or invite-based routine links distinct from sharing with an assigned
+1. Supabase Auth, secure sessions, and restrictive Row Level Security.
+2. Public or invite-based routine links distinct from sharing with an assigned
    coach.
-4. Grouped recurrence management for editing or deleting one occurrence versus
+3. Grouped recurrence management for editing or deleting one occurrence versus
    an entire series.
-5. Adherence, weekly load, and training-volume insights.
-6. Coach comments and asynchronous athlete-coach communication.
-7. Calendar, Strava, Garmin, and wearable integrations.
-8. Push reminders and notifications.
-9. Automated coverage for workout recovery, completion, cancellation, agenda
+4. Adherence, weekly load, and training-volume insights.
+5. Coach comments and asynchronous athlete-coach communication.
+6. Calendar, Strava, Garmin, and wearable integrations.
+7. Push reminders and notifications.
+8. Automated coverage for workout recovery, completion, cancellation, agenda
    recurrence, history deletion, and permissions.
 
 Detailed product ideas that are not yet committed belong in
@@ -362,5 +382,7 @@ Unless promoted through a new product decision, the current product excludes:
   persistence.
 - [Activity history](./activity-log.md): completed workout snapshots, duration,
   deletion, and historical integrity.
+- [Exercise progress](./exercise-progress.md): canonical identity, metrics,
+  navigation, units, coach access, and migration contract.
 - [Architecture](./architecture.md): source boundaries and dependency direction.
 - [Pending features](./pending-features.md): uncommitted future product ideas.
