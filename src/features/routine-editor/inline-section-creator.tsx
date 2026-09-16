@@ -43,9 +43,7 @@ export function InlineSectionCreator({
 
   function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const normalizedName = name.trim();
-    if (!normalizedName) return;
-    const sectionId = onCreate(normalizedName, kind);
+    const sectionId = onCreate(name.trim(), kind);
     pendingFocusRef.current = sectionId;
     reset();
   }
@@ -59,7 +57,7 @@ export function InlineSectionCreator({
         className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-app-surface px-4 py-3 text-xs font-medium text-foreground/65 transition-colors hover:border-primary/35 hover:bg-app-elevated hover:text-foreground dark:border-violet-200/15 dark:bg-violet-300/[0.025] dark:text-violet-100/55 dark:hover:border-violet-200/30 dark:hover:bg-violet-300/[0.06] dark:hover:text-violet-100"
       >
         <Plus className="size-3.5" />
-        Crear sección
+        Crear bloque
       </button>
     );
   }
@@ -73,8 +71,8 @@ export function InlineSectionCreator({
         autoFocus
         value={name}
         onChange={(event) => setName(event.target.value)}
-        placeholder="Nombre de la sección"
-        aria-label="Nombre de la nueva sección"
+        placeholder="Nombre o enfoque del bloque (opcional)"
+        aria-label="Nombre opcional del nuevo bloque"
         className="h-11 border-border bg-app-panel text-base dark:border-white/10 dark:bg-black/20"
       />
 
@@ -115,11 +113,10 @@ export function InlineSectionCreator({
         </button>
         <button
           type="submit"
-          disabled={!name.trim()}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-35"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           <Check className="size-3.5" />
-          Crear sección
+          Crear bloque
         </button>
       </div>
     </form>

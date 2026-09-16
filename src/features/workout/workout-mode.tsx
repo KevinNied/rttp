@@ -19,10 +19,14 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { formatDuration } from "@/lib/format";
+import { WorkoutAnnotation } from "@/lib/rttp-activity";
 import { Routine } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
-import { repeticionesObjetivo } from "@/domain/routine/routine-metrics";
+import {
+  optionalBlockName,
+  repeticionesObjetivo,
+} from "@/domain/routine/routine-metrics";
 import { pasosDeRutina } from "@/domain/routine/routine-steps";
 import {
   elapsedSecondsForTimer,
@@ -36,6 +40,10 @@ import { WorkoutOverviewSheet } from "@/features/workout/workout-overview-sheet"
 import { WorkoutRoundSummary } from "@/features/workout/workout-round-summary";
 import { WorkoutSkipSheet } from "@/features/workout/workout-skip-sheet";
 import { TextWithLinks } from "@/features/shared/text-with-links";
+import {
+  WorkoutAnnotationScope,
+  WorkoutAnnotationSheet,
+} from "@/features/workout/workout-annotation-sheet";
 
 export function WorkoutMode({
   rutina,
@@ -47,6 +55,8 @@ export function WorkoutMode({
   setIndiceActivo,
   restTimer,
   setRestTimer,
+  annotations,
+  setAnnotations,
   onExit,
   onCancel,
   onFinish,
@@ -62,6 +72,8 @@ export function WorkoutMode({
   setIndiceActivo: React.Dispatch<React.SetStateAction<number>>;
   restTimer: RestTimerState | null;
   setRestTimer: React.Dispatch<React.SetStateAction<RestTimerState | null>>;
+  annotations: WorkoutAnnotation[];
+  setAnnotations: React.Dispatch<React.SetStateAction<WorkoutAnnotation[]>>;
   onExit: () => void;
   onCancel: () => void;
   onFinish: () => void;
@@ -92,7 +104,7 @@ export function WorkoutMode({
     section.kind === "rounds" &&
     section.exercises.length > 1 &&
     (section.presentation === "compact" ||
-      /entrada|activación|movilidad/i.test(section.name));
+      /entrada|activación|movilidad/i.test(section.name ?? ""));
   const isSingleSequentialRoutine =
     rutina.structure.sections.length === 1 && section.kind === "sequential";
   const registrosResueltos = pasos.filter((item) => {
@@ -220,6 +232,45 @@ export function WorkoutMode({
         ...patch,
       },
     }));
+  }
+
+  function agregarAclaracion(
+    scope: WorkoutAnnotationScope,
+    text: string,
+  ) {
+    const base = {
+      id: `aclaracion-${crypto.randomUUID()}`,
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    const annotation: WorkoutAnnotation =
+      scope === "set"
+        ? {
+            ...base,
+            scope,
+            stepId: paso.stepId,
+            exerciseId: paso.id,
+            exerciseName: paso.name,
+            sectionId: paso.sectionId,
+            sectionName: paso.sectionName,
+            iteration: paso.round,
+          }
+        : scope === "exercise"
+          ? {
+              ...base,
+              scope,
+              exerciseId: paso.id,
+              exerciseName: paso.name,
+              sectionId: paso.sectionId,
+              sectionName: paso.sectionName,
+            }
+          : {
+              ...base,
+              scope,
+              sectionId: paso.sectionId,
+              sectionName: paso.sectionName,
+            };
+    setAnnotations((current) => [...current, annotation]);
   }
 
   function trasladarPesoALaSiguienteSerie(
@@ -537,7 +588,7 @@ export function WorkoutMode({
         {isCompactSection && (
           <div className="mb-3 flex items-center justify-between rounded-full border border-white/[0.08] bg-white/[0.025] p-1 pl-3">
             <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-white/60">
-              Vista de la sección
+              Vista del bloque
             </span>
             <div className="flex gap-1">
               {[
@@ -573,14 +624,39 @@ export function WorkoutMode({
         {!isSingleSequentialRoutine && (
           <div className="mb-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3">
             <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-100/65">
-              Sección {paso.sectionIndex + 1} de{" "}
+              Bloque {paso.sectionIndex + 1} de{" "}
               {rutina.structure.sections.length}
             </div>
             <div className="mt-1 flex items-end justify-between gap-3">
-              <div className="min-w-0 truncate text-sm font-medium text-white/90">
-                {paso.sectionName}
-              </div>
+              {optionalBlockName(paso.sectionName) ? (
+                <div className="min-w-0 truncate text-sm font-medium text-white/90">
+                  {optionalBlockName(paso.sectionName)}
+                </div>
+              ) : (
+                <div />
+              )}
               <div className="flex shrink-0 items-center gap-1.5 text-[10px] font-medium">
+                {mostrarVistaResumida && (
+                  <WorkoutAnnotationSheet
+                    step={paso}
+                    annotations={annotations}
+                    onAdd={agregarAclaracion}
+                    onUpdate={(id, text) =>
+                      setAnnotations((current) =>
+                        current.map((annotation) =>
+                          annotation.id === id
+                            ? { ...annotation, text }
+                            : annotation,
+                        ),
+                      )
+                    }
+                    onDelete={(id) =>
+                      setAnnotations((current) =>
+                        current.filter((annotation) => annotation.id !== id),
+                      )
+                    }
+                  />
+                )}
                 {paso.sectionKind === "rounds" ? (
                   <>
                     <span className="rounded-full bg-violet-300/10 px-2.5 py-1 text-violet-100/80">
@@ -661,6 +737,27 @@ export function WorkoutMode({
                             Serie {paso.round} de {paso.sets}
                           </span>
                         )}
+                        <WorkoutAnnotationSheet
+                          step={paso}
+                          annotations={annotations}
+                          onAdd={agregarAclaracion}
+                          onUpdate={(id, text) =>
+                            setAnnotations((current) =>
+                              current.map((annotation) =>
+                                annotation.id === id
+                                  ? { ...annotation, text }
+                                  : annotation,
+                              ),
+                            )
+                          }
+                          onDelete={(id) =>
+                            setAnnotations((current) =>
+                              current.filter(
+                                (annotation) => annotation.id !== id,
+                              ),
+                            )
+                          }
+                        />
                         <WorkoutSkipSheet
                           rutina={rutina}
                           paso={paso}
@@ -690,7 +787,7 @@ export function WorkoutMode({
                   {paso.instructions && (
                     <div className="mt-4 flex w-full flex-col rounded-xl border border-violet-300/15 bg-violet-300/[0.07] px-3.5 py-3">
                       <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-violet-100/65">
-                        Aclaraciones
+                        Indicaciones del profesor
                       </span>
                       <span className="mt-1 text-[13px] font-medium leading-relaxed text-violet-50/85">
                         <TextWithLinks>{paso.instructions}</TextWithLinks>

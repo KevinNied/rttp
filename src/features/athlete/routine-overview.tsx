@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 import {
   cantidadEjercicios,
+  optionalBlockName,
   repeticionesObjetivo,
   sectionKindLabel,
 } from "@/domain/routine/routine-metrics";
@@ -68,8 +69,8 @@ export function OverviewRutina({
             <span className="mb-1 block text-cyan-100/60">{authorLabel}</span>
             {countLabel(
               rutina.structure.sections.length,
-              "sección",
-              "secciones",
+              "bloque",
+              "bloques",
             )}{" "}
             · {countLabel(ejercicios, "ejercicio")}
             {rutina.durationMinutes ? ` · ${rutina.durationMinutes} min` : ""}
@@ -123,11 +124,13 @@ export function OverviewRutina({
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <div className="text-[9px] uppercase tracking-wider text-white/30">
-                            Sección {index + 1}
+                            Bloque {index + 1}
                           </div>
-                          <h3 className="mt-1 text-sm font-medium">
-                            {section.name}
-                          </h3>
+                          {optionalBlockName(section.name) && (
+                            <h3 className="mt-1 text-sm font-medium">
+                              {optionalBlockName(section.name)}
+                            </h3>
+                          )}
                         </div>
                         <Badge className="border-white/10 bg-black/25 text-[8px] text-white/45">
                           {sectionKindLabel(section.kind)}

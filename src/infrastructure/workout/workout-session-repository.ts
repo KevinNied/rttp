@@ -1,4 +1,5 @@
 import { ScheduledWorkout } from "@/lib/rttp-agenda";
+import { normalizeWorkoutAnnotations } from "@/lib/rttp-activity";
 
 import {
   TrainingSetRecords,
@@ -30,7 +31,12 @@ export function readWorkoutSession(
       parsed.records !== null &&
       Number.isFinite(parsed.finishedElapsedSeconds) &&
       typeof parsed.feedback === "string";
-    if (valid) return parsed;
+    if (valid) {
+      return {
+        ...parsed,
+        annotations: normalizeWorkoutAnnotations(parsed.annotations),
+      };
+    }
   } catch {
     console.warn(`No se pudo leer la sesión de ${workoutId}.`);
   }

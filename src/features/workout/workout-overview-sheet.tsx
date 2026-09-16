@@ -16,6 +16,7 @@ import { Routine } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
 import { RoutineStep } from "@/domain/routine/routine-steps";
+import { optionalBlockName } from "@/domain/routine/routine-metrics";
 import { TrainingSetRecords } from "@/domain/workout/workout-session";
 
 export function WorkoutOverviewSheet({
@@ -72,12 +73,14 @@ export function WorkoutOverviewSheet({
               )}
             >
               <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-cyan-100/65">
-                Sección {blockIndex + 1} de{" "}
+                Bloque {blockIndex + 1} de{" "}
                 {rutina.structure.sections.length}
               </div>
-              <div className="mt-1 text-sm font-medium text-white">
-                {itemBlock.name}
-              </div>
+              {optionalBlockName(itemBlock.name) && (
+                <div className="mt-1 text-sm font-medium text-white">
+                  {optionalBlockName(itemBlock.name)}
+                </div>
+              )}
               <div className="mt-3 space-y-2">
                 {itemBlock.exercises.map((exercise) => {
                   const exerciseSteps = pasos.filter(

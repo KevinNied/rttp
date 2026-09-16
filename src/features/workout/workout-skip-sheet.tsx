@@ -101,12 +101,12 @@ export function WorkoutSkipSheet({
           {
             alcance: "seccion" as const,
             icono: LayoutGrid,
-            title: "Saltar sección",
+            title: "Saltar bloque",
             texto:
               paso.sectionIndex ===
               rutina.structure.sections.length - 1
                 ? "Omitir lo restante y finalizar la rutina."
-                : `Pasar directamente a la sección ${paso.sectionIndex + 2}.`,
+                : `Pasar directamente al bloque ${paso.sectionIndex + 2}.`,
           },
         ].map((opcion) => (
           <SheetClose

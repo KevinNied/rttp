@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { ActivitySet } from "@/lib/rttp-activity";
+import { ActivitySet, WorkoutAnnotation } from "@/lib/rttp-activity";
 import {
   localDate,
   NewScheduledWorkout,
@@ -70,6 +70,7 @@ export function ExperienciaAtleta({
     elapsedSeconds: number;
     effort: number;
     feedback: string;
+    annotations: WorkoutAnnotation[];
   }) => void;
   onSaveRoutine: (routine: Routine) => void;
   onCreateRoutine: (routine: Routine) => void;
@@ -98,7 +99,7 @@ export function ExperienciaAtleta({
     : 0;
   const [pantalla, setPantalla] = useState<"home" | "workout" | "final">(() =>
     entrenamientoInicial
-      ? (sesionRestaurada?.phase ?? "workout")
+      ? "workout"
       : (sesionRestaurada?.phase ?? "home"),
   );
   const [indiceActivo, setIndiceActivo] = useState(
@@ -121,6 +122,9 @@ export function ExperienciaAtleta({
   );
   const [restTimer, setRestTimer] = useState<RestTimerState | null>(
     sesionRestaurada?.restTimer ?? null,
+  );
+  const [annotations, setAnnotations] = useState<WorkoutAnnotation[]>(
+    sesionRestaurada?.annotations ?? [],
   );
   const [routineBeingEdited, setRoutineBeingEdited] =
     useState<Routine | null>(null);
@@ -146,10 +150,12 @@ export function ExperienciaAtleta({
       records: recordsForSession(registros, entrenamiento.id),
       finishedElapsedSeconds,
       feedback,
+      annotations,
       restTimer,
     });
   }, [
     atleta.id,
+    annotations,
     entrenamiento,
     feedback,
     finishedElapsedSeconds,
@@ -167,6 +173,7 @@ export function ExperienciaAtleta({
     setRestTimer(null);
     setFinishedElapsedSeconds(0);
     setFeedback("");
+    setAnnotations([]);
     setTimer(workoutPersistence.restartTimer(sesionId));
   }
 
@@ -195,6 +202,7 @@ export function ExperienciaAtleta({
       title: null,
       category: null,
     });
+    setAnnotations([]);
     setTimer(workoutPersistence.resumeTimer(creado.id));
     setEntrenamiento(creado);
     setPantalla("workout");
@@ -212,6 +220,7 @@ export function ExperienciaAtleta({
         records: recordsForSession(registros, entrenamiento.id),
         finishedElapsedSeconds,
         feedback,
+        annotations,
         restTimer,
       });
     }
@@ -232,6 +241,7 @@ export function ExperienciaAtleta({
     setRestTimer(null);
     setFinishedElapsedSeconds(0);
     setFeedback("");
+    setAnnotations([]);
     onCloseScheduled();
   }
 
@@ -245,6 +255,7 @@ export function ExperienciaAtleta({
       setRestTimer(null);
       setFinishedElapsedSeconds(0);
       setFeedback("");
+      setAnnotations([]);
     }
     onDeleteRoutine(id);
   }
@@ -277,6 +288,8 @@ export function ExperienciaAtleta({
         setIndiceActivo={setIndiceActivo}
         restTimer={restTimer}
         setRestTimer={setRestTimer}
+        annotations={annotations}
+        setAnnotations={setAnnotations}
         onExit={cerrarEntrenamiento}
         onCancel={cancelarEntrenamiento}
         onFinish={() => {
@@ -315,6 +328,7 @@ export function ExperienciaAtleta({
               elapsedSeconds: finishedElapsedSeconds,
               effort,
               feedback: feedback.trim(),
+              annotations,
             });
             completedSessionRef.current = true;
             workoutPersistence.clearTimer(entrenamiento.id);
@@ -322,6 +336,7 @@ export function ExperienciaAtleta({
             setRegistros((actuales) =>
               recordsWithoutSession(actuales, entrenamiento.id),
             );
+            setAnnotations([]);
           }
           setEntrenamiento(undefined);
           setPantalla("home");
@@ -348,6 +363,7 @@ export function ExperienciaAtleta({
         setIndiceActivo(0);
         setEntrenamiento(undefined);
         setRestTimer(null);
+        setAnnotations([]);
       }}
       onStart={iniciar}
       onCreateAndEdit={(routine) => {

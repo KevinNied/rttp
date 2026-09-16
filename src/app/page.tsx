@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 
 import { ActivityHistory } from "@/components/activity-history";
 import { SportsSchedule } from "@/features/schedule/sports-schedule";
-import { activityId, ActivitySet, CompletedActivity } from "@/lib/rttp-activity";
+import {
+  activityId,
+  ActivitySet,
+  CompletedActivity,
+  WorkoutAnnotation,
+} from "@/lib/rttp-activity";
 import {
   createWorkoutId,
   NewScheduledWorkout,
@@ -295,6 +300,7 @@ export default function Home() {
         effort: null,
         feedback: "",
         notes: item.notes,
+        annotations: [],
         sets: [],
         recordedById: usuario?.id ?? item.athleteId,
       };
@@ -314,6 +320,7 @@ export default function Home() {
     elapsedSeconds,
     effort,
     feedback,
+    annotations,
   }: {
     entrenamiento: ScheduledWorkout;
     rutina: Routine;
@@ -321,6 +328,7 @@ export default function Home() {
     elapsedSeconds: number;
     effort: number;
     feedback: string;
+    annotations: WorkoutAnnotation[];
   }) {
     const actividad: CompletedActivity = {
       id: activityId(entrenamiento.id),
@@ -333,6 +341,7 @@ export default function Home() {
       routineSnapshot: {
         ...snapshotRoutine(rutinaCompletada),
         durationSeconds: elapsedSeconds,
+        annotations,
       },
       date: entrenamiento.date,
       completedAt: new Date().toISOString(),
@@ -341,6 +350,7 @@ export default function Home() {
       effort,
       feedback,
       notes: entrenamiento.notes,
+      annotations,
       sets,
       recordedById: usuario?.id ?? entrenamiento.athleteId,
     };
@@ -728,7 +738,7 @@ export default function Home() {
         />
       ) : (
         <ExperienciaAtleta
-          key={`${atleta.id}-${entrenamientoActivo?.id ?? "routines"}`}
+          key={`${atleta.id}-${entrenamientoActivo?.id ?? rutinaDeEntrenamiento?.id ?? "routines"}`}
           atleta={atleta}
           viewer={usuario}
           users={users}

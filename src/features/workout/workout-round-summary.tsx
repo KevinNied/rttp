@@ -119,7 +119,7 @@ export function WorkoutRoundSummary({
           onClick={() => omitir("seccion")}
           className="mt-3 w-full text-center text-[11px] font-medium text-white/55 transition-colors hover:text-white/80"
         >
-          Saltar esta sección
+          Saltar este bloque
         </button>
       </div>
     </div>

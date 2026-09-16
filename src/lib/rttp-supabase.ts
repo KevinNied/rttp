@@ -1,6 +1,7 @@
 import {
   CompletedActivity,
   ActivitySet,
+  normalizeWorkoutAnnotations,
   RoutineActivitySnapshot,
 } from "@/lib/rttp-activity";
 import {
@@ -438,6 +439,9 @@ export async function loadSupabaseData(): Promise<PersistedData> {
       effort: row.effort,
       feedback: row.feedback,
       notes: row.notes,
+      annotations: normalizeWorkoutAnnotations(
+        row.routine_snapshot?.annotations,
+      ),
       recordedById: row.registered_by_id,
       sets: sets
         .filter((set) => set.activity_id === row.id)

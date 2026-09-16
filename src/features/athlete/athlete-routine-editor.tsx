@@ -41,6 +41,7 @@ export function AthleteRoutineEditor({
     actualizarEjercicio,
     eliminarEjercicio,
     updateSectionKind,
+    updateSectionName,
     agregarEjercicioVacio,
     addSection,
     moverEjercicio,
@@ -190,6 +191,7 @@ export function AthleteRoutineEditor({
                     current === section.id ? null : section.id,
                   )
                 }
+                onNameChange={(name) => updateSectionName(section.id, name)}
                 onKindChange={(kind) => updateSectionKind(section.id, kind)}
                 addExercise={
                   <button

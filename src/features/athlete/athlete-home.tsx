@@ -273,8 +273,8 @@ export function HomeAtleta({
                       LayoutGrid,
                       countLabel(
                         visibleRoutine.structure.sections.length,
-                        "sección",
-                        "secciones",
+                        "bloque",
+                        "bloques",
                       ),
                     ],
                   ].map(([Icon, value]) => {

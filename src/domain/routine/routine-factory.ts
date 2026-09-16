@@ -67,7 +67,7 @@ export function nuevaRutinaBase(
       sections: [
         {
           id: `seccion-${crypto.randomUUID()}`,
-          name: "Sección 1",
+          name: "",
           kind: "sequential",
           role: "custom",
           presentation: "standard",

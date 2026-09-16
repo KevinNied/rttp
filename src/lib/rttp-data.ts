@@ -26,7 +26,7 @@ export type SectionRole =
 
 type BaseRoutineSection = {
   id: string;
-  name: string;
+  name: string | null;
   role: SectionRole;
   presentation: "standard" | "compact";
   exercises: Exercise[];

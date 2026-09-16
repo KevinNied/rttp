@@ -1,3 +1,5 @@
+import { WorkoutAnnotation } from "@/lib/rttp-activity";
+
 export type TrainingSetRecord = {
   weight: number;
   reps: number;
@@ -31,6 +33,7 @@ export type WorkoutSessionState = {
   records: TrainingSetRecords;
   finishedElapsedSeconds: number;
   feedback: string;
+  annotations: WorkoutAnnotation[];
   restTimer: RestTimerState | null;
 };
 

@@ -7,17 +7,22 @@ import {
 } from "@dnd-kit/sortable";
 import { ChevronDown } from "lucide-react";
 
+import { Input } from "@/components/ui/input";
 import { countLabel } from "@/lib/format";
 import { RoutineSection, SectionKind } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
-import { sectionKindLabel } from "@/domain/routine/routine-metrics";
+import {
+  optionalBlockName,
+  sectionKindLabel,
+} from "@/domain/routine/routine-metrics";
 
 export function SeccionEditor({
   section,
   index,
   abierto,
   onToggle,
+  onNameChange,
   onKindChange,
   addExercise,
   children,
@@ -26,6 +31,7 @@ export function SeccionEditor({
   index: number;
   abierto: boolean;
   onToggle: () => void;
+  onNameChange: (name: string) => void;
   onKindChange: (kind: SectionKind) => void;
   addExercise: React.ReactNode;
   children: React.ReactNode;
@@ -66,7 +72,12 @@ export function SeccionEditor({
           >
             {index + 1}
           </span>
-          <span className="text-sm font-medium">{section.name}</span>
+          <span className="text-sm font-medium">Bloque {index + 1}</span>
+          {optionalBlockName(section.name) && (
+            <span className="max-w-48 truncate text-xs text-white/60">
+              {optionalBlockName(section.name)}
+            </span>
+          )}
           <span className="hidden text-xs text-white/55 sm:inline">
             {sectionKindLabel(section.kind)}
           </span>
@@ -85,6 +96,19 @@ export function SeccionEditor({
       </button>
       {abierto && (
         <>
+          <div className="border-t border-white/[0.05] bg-black/10 px-3 py-3">
+            <label className="block">
+              <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">
+                Nombre o enfoque del bloque (opcional)
+              </span>
+              <Input
+                value={optionalBlockName(section.name) ?? ""}
+                onChange={(event) => onNameChange(event.target.value)}
+                placeholder="Ej. Fuerza de tren inferior"
+                className="h-10 border-white/10 bg-black/20 text-sm"
+              />
+            </label>
+          </div>
           <div className="grid grid-cols-2 gap-2 border-y border-white/[0.05] bg-black/10 px-3 py-3">
             {(["sequential", "rounds"] as const).map((kind) => (
               <button

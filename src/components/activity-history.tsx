@@ -13,10 +13,15 @@ import {
   Trash2,
 } from "lucide-react";
 
-import { CompletedActivity } from "@/lib/rttp-activity";
+import {
+  CompletedActivity,
+  WorkoutAnnotation,
+} from "@/lib/rttp-activity";
 import { activityCategories } from "@/lib/rttp-agenda";
 import { countLabel, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+import { optionalBlockName } from "@/domain/routine/routine-metrics";
 
 type FiltroActividad = "todas" | "routines" | "externas";
 
@@ -39,7 +44,7 @@ function groupSections(actividad: CompletedActivity) {
   const fallbackGroups = actividad.sets.reduce<
     {
       id: string;
-      name: string;
+      name: string | null;
       sets: CompletedActivity["sets"];
     }[]
   >((actuales, serie) => {
@@ -106,7 +111,7 @@ function resumenActividad(actividad: CompletedActivity) {
       actividad.type === "routine"
         ? [
             countLabel(seriesCompletadas, "serie", "series"),
-            countLabel(sections.length, "sección", "secciones"),
+            countLabel(sections.length, "bloque", "bloques"),
           ]
         : [categoriaActividad(actividad.category) ?? "Actividad externa"],
   };
@@ -139,6 +144,34 @@ function groupExerciseSets(sets: CompletedActivity["sets"]) {
 function setResult(set: CompletedActivity["sets"][number]) {
   if (set.skipped) return "Omitida";
   return `${set.reps} reps${set.weight > 0 ? ` · ${set.weight} kg` : ""}`;
+}
+
+function AnnotationList({
+  annotations,
+  className,
+}: {
+  annotations: WorkoutAnnotation[];
+  className?: string;
+}) {
+  if (annotations.length === 0) return null;
+
+  return (
+    <div className={cn("space-y-2", className)}>
+      {annotations.map((annotation) => (
+        <div
+          key={annotation.id}
+          className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.055] px-3 py-2.5"
+        >
+          <div className="text-[8px] font-semibold uppercase tracking-[0.12em] text-cyan-700/70 dark:text-cyan-100/45">
+            Aclaración
+          </div>
+          <p className="mt-1 whitespace-pre-wrap text-[11px] leading-relaxed text-foreground/70 dark:text-white/60">
+            {annotation.text}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function ActivityChip({ icon, label }: { icon: ReactNode; label: string }) {
@@ -187,6 +220,8 @@ function ActivityCopy({
 
 function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
   const { sections, seriesCompletadas } = resumenActividad(actividad);
+  const annotations =
+    actividad.annotations ?? actividad.routineSnapshot?.annotations ?? [];
   const [openSectionId, setOpenSectionId] = useState(sections[0]?.id ?? "");
   const duracion =
     actividad.durationSeconds ??
@@ -238,13 +273,18 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                 Detalle de la sesión
               </div>
               <div className="mt-1 text-xs text-foreground/50 dark:text-white/35">
-                Abrí una sección para revisar sus ejercicios y cargas.
+                Abrí un bloque para revisar sus ejercicios y cargas.
               </div>
             </div>
           </div>
-          {sections.map((section) => {
+          {sections.map((section, sectionIndex) => {
             const exerciseGroups = groupExerciseSets(section.sets);
             const isOpen = openSectionId === section.id;
+            const blockAnnotations = annotations.filter(
+              (annotation) =>
+                annotation.scope === "block" &&
+                annotation.sectionId === section.id,
+            );
 
             return (
               <div
@@ -262,10 +302,15 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                   className="flex w-full items-center justify-between gap-4 bg-app-elevated/70 px-4 py-3.5 text-left transition-colors hover:bg-app-elevated dark:bg-white/[0.03] dark:hover:bg-white/[0.05]"
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-foreground/85 dark:text-white/80">
-                      {section.name}
+                    <div className="text-[9px] font-medium uppercase tracking-[0.12em] text-foreground/45 dark:text-white/30">
+                      Bloque {sectionIndex + 1}
                     </div>
-                    <div className="mt-1 text-xs text-foreground/50 dark:text-white/35">
+                    {optionalBlockName(section.name) && (
+                      <div className="mt-1 truncate text-sm font-medium text-foreground/85 dark:text-white/80">
+                        {optionalBlockName(section.name)}
+                      </div>
+                    )}
+                    <div className="mt-1.5 text-xs text-foreground/50 dark:text-white/35">
                       {countLabel(
                         exerciseGroups.length,
                         "ejercicio",
@@ -284,16 +329,35 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
 
                 {isOpen && (
                   <div className="divide-y divide-border border-t border-border dark:divide-white/[0.05] dark:border-white/[0.06]">
+                    {blockAnnotations.length > 0 && (
+                      <div className="px-4 py-3.5">
+                        <AnnotationList annotations={blockAnnotations} />
+                      </div>
+                    )}
                     {exerciseGroups.map((exercise) => {
                       const completedSets = exercise.sets.filter(
                         (set) => !set.skipped,
+                      );
+                      const exerciseAnnotations = annotations.filter(
+                        (annotation) =>
+                          annotation.scope === "exercise" &&
+                          annotation.sectionId === section.id &&
+                          annotation.exerciseId === exercise.id,
+                      );
+                      const setAnnotations = annotations.filter(
+                        (annotation) =>
+                          annotation.scope === "set" &&
+                          exercise.sets.some(
+                            (set) => set.stepId === annotation.stepId,
+                          ),
                       );
                       const uniqueResults = new Set(
                         completedSets.map((set) => setResult(set)),
                       );
                       const hasUniformResult =
                         completedSets.length === exercise.sets.length &&
-                        uniqueResults.size === 1;
+                        uniqueResults.size === 1 &&
+                        setAnnotations.length === 0;
 
                       return (
                         <div
@@ -311,6 +375,10 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                                 "series",
                               )}
                             </div>
+                            <AnnotationList
+                              annotations={exerciseAnnotations}
+                              className="mt-2"
+                            />
                           </div>
 
                           {hasUniformResult ? (
@@ -320,19 +388,30 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                               {setResult(exercise.sets[0])}
                             </div>
                           ) : (
-                            <div className="flex flex-wrap gap-1.5 md:justify-end">
+                            <div className="space-y-2">
                               {exercise.sets.map((set) => (
-                                <span
-                                  key={set.stepId}
-                                  className={cn(
-                                    "rounded-full border px-2.5 py-1 text-xs",
-                                    set.skipped
-                                      ? "border-orange-200/10 bg-orange-200/[0.04] text-orange-100/55"
-                                      : "border-cyan-200/10 bg-cyan-300/[0.04] text-cyan-100/60",
-                                  )}
-                                >
-                                  S{set.iteration} · {setResult(set)}
-                                </span>
+                                <div key={set.stepId}>
+                                  <div className="flex md:justify-end">
+                                    <span
+                                      className={cn(
+                                        "rounded-full border px-2.5 py-1 text-xs",
+                                        set.skipped
+                                          ? "border-orange-200/10 bg-orange-200/[0.04] text-orange-700/70 dark:text-orange-100/55"
+                                          : "border-cyan-200/15 bg-cyan-300/[0.05] text-cyan-700/75 dark:text-cyan-100/60",
+                                      )}
+                                    >
+                                      S{set.iteration} · {setResult(set)}
+                                    </span>
+                                  </div>
+                                  <AnnotationList
+                                    annotations={setAnnotations.filter(
+                                      (annotation) =>
+                                        annotation.scope === "set" &&
+                                        annotation.stepId === set.stepId,
+                                    )}
+                                    className="mt-2"
+                                  />
+                                </div>
                               ))}
                             </div>
                           )}

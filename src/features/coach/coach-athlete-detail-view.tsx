@@ -110,6 +110,7 @@ export function CoachAthleteDetailView({
     actualizarEjercicio,
     eliminarEjercicio,
     updateSectionKind,
+    updateSectionName,
     agregarEjercicioVacio,
     addSection,
     moverEjercicio,
@@ -143,7 +144,7 @@ export function CoachAthleteDetailView({
           </h1>
           <p className={pageDescriptionClassName}>
             {seccionDetalle === "routines"
-              ? "Armá secciones, completá ejercicios y ajustá la estructura antes de asignar nuevas cargas."
+              ? "Armá bloques, completá ejercicios y ajustá la estructura antes de asignar nuevas cargas."
               : seccionDetalle === "agenda"
                 ? "Programá sesiones internas y externas para darle contexto semanal al plan del atleta."
                 : "Revisá lo que ya completó y corregí registros externos incluso después de realizarlos."}
@@ -400,6 +401,9 @@ export function CoachAthleteDetailView({
                           actual === section.id ? null : section.id,
                         )
                       }
+                      onNameChange={(name) =>
+                        updateSectionName(section.id, name)
+                      }
                       onKindChange={(kind) =>
                         updateSectionKind(section.id, kind)
                       }
@@ -440,7 +444,7 @@ export function CoachAthleteDetailView({
               ) : (
                 <div className="p-5 text-sm text-white/50 md:p-7">
                   Abrí <span className="text-white/75">Vista general</span> para
-                  revisar todas las secciones y ejercicios sin modificar el
+                  revisar todos los bloques y ejercicios sin modificar el
                   plan personal del atleta.
                 </div>
               )}

@@ -58,7 +58,7 @@ export function DialogoNuevaRutina({
         sections: [
           {
             id: `seccion-${timestamp}`,
-            name: "Sección 1",
+            name: "",
             kind: "sequential",
             role: "custom",
             presentation: "standard",
@@ -86,7 +86,7 @@ export function DialogoNuevaRutina({
         <DialogHeader>
           <DialogTitle>Crear rutina para {atleta.name}</DialogTitle>
           <DialogDescription className="text-white/40">
-            Empezá con una sección secuencial vacía y personalizala cuando
+            Empezá con un bloque secuencial vacío y personalizalo cuando
             quieras.
           </DialogDescription>
         </DialogHeader>
@@ -133,8 +133,8 @@ export function DialogoNuevaRutina({
                   Constructor flexible
                 </div>
                 <div className="mt-1 text-[10px] leading-relaxed text-white/35">
-                  Mové ejercicios dentro de una sección o arrastralos hacia
-                  otra.
+                  Mové ejercicios dentro de un bloque o arrastralos hacia
+                  otro.
                 </div>
               </div>
             </div>

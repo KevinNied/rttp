@@ -85,13 +85,25 @@ export function useRoutineEditor(rutinaGuardada: Routine) {
     }));
   }
 
+  function updateSectionName(sectionId: string, name: string) {
+    setRutina((current) => ({
+      ...current,
+      structure: {
+        ...current.structure,
+        sections: current.structure.sections.map((section) =>
+          section.id === sectionId ? { ...section, name } : section,
+        ),
+      },
+    }));
+  }
+
   function agregarEjercicio(
     item: Exercise,
     sectionId: string,
     newSectionName?: string,
     newSectionKind: SectionKind = "sequential",
   ) {
-    if (sectionId === "nuevo" && newSectionName) {
+    if (sectionId === "nuevo") {
       const id = `seccion-${crypto.randomUUID()}`;
       setRutina((actual) => ({
         ...actual,
@@ -101,7 +113,7 @@ export function useRoutineEditor(rutinaGuardada: Routine) {
             ...actual.structure.sections,
             {
               id,
-              name: newSectionName,
+              name: newSectionName?.trim() ?? "",
               kind: newSectionKind,
               role: "custom",
               presentation: "standard",
@@ -167,7 +179,7 @@ export function useRoutineEditor(rutinaGuardada: Routine) {
           ...current.structure.sections,
           {
             id,
-            name,
+            name: name.trim(),
             kind,
             role: "custom",
             presentation: "standard",
@@ -278,6 +290,7 @@ export function useRoutineEditor(rutinaGuardada: Routine) {
     actualizarEjercicio,
     eliminarEjercicio,
     updateSectionKind,
+    updateSectionName,
     agregarEjercicioVacio,
     addSection,
     moverEjercicio,

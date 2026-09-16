@@ -1,5 +1,14 @@
 import { Exercise, Routine, RoutineSection } from "@/lib/rttp-data";
 
+const genericBlockName = /^(?:bloque|secci[oó]n)\s+\d+$/i;
+
+export function optionalBlockName(name: string | null | undefined) {
+  const normalizedName = name?.trim() ?? "";
+  return normalizedName && !genericBlockName.test(normalizedName)
+    ? normalizedName
+    : null;
+}
+
 export function sectionKindLabel(kind: RoutineSection["kind"]) {
   return {
     sequential: "Ejercicio por ejercicio",
