@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RTTP · Alternativas de Home atleta</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #07080c;
+        --panel: #11131a;
+        --raised: #181b25;
+        --line: rgba(255, 255, 255, 0.09);
+        --soft: rgba(255, 255, 255, 0.58);
+        --faint: rgba(255, 255, 255, 0.34);
+        --cyan: #67e8f9;
+        --violet: #c4b5fd;
+        --ink: #11152f;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background:
+          radial-gradient(circle at 88% 0%, rgba(34, 211, 238, 0.12), transparent 28rem),
+          radial-gradient(circle at 8% 48%, rgba(124, 58, 237, 0.12), transparent 32rem),
+          var(--bg);
+        color: #f8fafc;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      .board {
+        width: min(1500px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 52px 0 80px;
+      }
+
+      .intro {
+        max-width: 850px;
+        margin-bottom: 42px;
+      }
+
+      .eyebrow,
+      .kicker {
+        color: rgba(103, 232, 249, 0.7);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        margin-top: 10px;
+        font-size: clamp(34px, 5vw, 64px);
+        font-weight: 350;
+        letter-spacing: -0.055em;
+      }
+
+      .intro p {
+        max-width: 680px;
+        margin-top: 16px;
+        color: var(--soft);
+        font-size: 15px;
+        line-height: 1.7;
+      }
+
+      .concept {
+        margin-top: 34px;
+        padding: 28px;
+        border: 1px solid var(--line);
+        border-radius: 34px;
+        background: rgba(11, 13, 19, 0.82);
+        box-shadow: 0 40px 100px rgba(0, 0, 0, 0.28);
+      }
+
+      .concept-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 24px;
+        align-items: end;
+        margin-bottom: 24px;
+      }
+
+      .concept h2 {
+        margin-top: 7px;
+        font-size: 30px;
+        font-weight: 450;
+        letter-spacing: -0.04em;
+      }
+
+      .concept-summary {
+        max-width: 680px;
+        margin-top: 9px;
+        color: var(--soft);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .tag {
+        align-self: start;
+        padding: 8px 12px;
+        border: 1px solid rgba(103, 232, 249, 0.18);
+        border-radius: 999px;
+        background: rgba(103, 232, 249, 0.07);
+        color: rgba(207, 250, 254, 0.86);
+        font-size: 10px;
+        white-space: nowrap;
+      }
+
+      .frames {
+        display: grid;
+        grid-template-columns: 356px minmax(0, 1fr);
+        gap: 22px;
+        align-items: start;
+      }
+
+      .frame-label {
+        margin-bottom: 9px;
+        color: var(--faint);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .phone,
+      .desktop {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background:
+          radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.1), transparent 42%),
+          #090a0f;
+      }
+
+      .phone {
+        min-height: 690px;
+        padding: 22px 16px 86px;
+        border-radius: 36px;
+      }
+
+      .desktop {
+        min-height: 690px;
+        padding: 26px 28px 32px 112px;
+        border-radius: 24px;
+      }
+
+      .side {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 84px;
+        padding: 25px 12px;
+        border-right: 1px solid var(--line);
+        background: rgba(5, 6, 10, 0.88);
+      }
+
+      .brand {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        margin: 0 auto 30px;
+        border-radius: 12px;
+        background: linear-gradient(145deg, #302c67, #0b7182);
+        color: white;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .side-dot {
+        width: 42px;
+        height: 42px;
+        margin: 10px auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .side-dot.active {
+        background: rgba(196, 181, 253, 0.14);
+        box-shadow: inset 0 0 0 1px rgba(196, 181, 253, 0.08);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 23px;
+      }
+
+      .wordmark {
+        font-size: 11px;
+        font-weight: 750;
+        letter-spacing: 0.16em;
+      }
+
+      .avatar {
+        width: 32px;
+        height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 50%;
+        background: linear-gradient(140deg, #2f345e, #183841);
+      }
+
+      .screen-title {
+        margin-top: 5px;
+        font-size: 27px;
+        font-weight: 400;
+        letter-spacing: -0.045em;
+      }
+
+      .desktop .screen-title {
+        font-size: 34px;
+      }
+
+      .screen-copy {
+        margin-top: 8px;
+        color: var(--soft);
+        font-size: 11px;
+        line-height: 1.55;
+      }
+
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 23px;
+        background: rgba(255, 255, 255, 0.035);
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 20px;
+        background:
+          radial-gradient(circle at 92% 0%, rgba(34, 211, 238, 0.18), transparent 43%),
+          radial-gradient(circle at 0% 100%, rgba(124, 58, 237, 0.16), transparent 48%),
+          var(--panel);
+      }
+
+      .hero-title {
+        margin-top: 15px;
+        font-size: 25px;
+        font-weight: 430;
+        letter-spacing: -0.04em;
+      }
+
+      .hero-copy {
+        max-width: 430px;
+        margin-top: 7px;
+        color: var(--soft);
+        font-size: 11px;
+        line-height: 1.55;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 16px;
+      }
+
+      .pill {
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.22);
+        color: var(--soft);
+        font-size: 9px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 19px;
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 39px;
+        align-items: center;
+        justify-content: center;
+        padding: 0 16px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 10px;
+      }
+
+      .button.primary {
+        border-color: transparent;
+        background: var(--cyan);
+        color: var(--ink);
+        font-weight: 750;
+      }
+
+      .week {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 5px;
+        margin-top: 15px;
+      }
+
+      .day {
+        display: grid;
+        min-width: 0;
+        height: 51px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        color: var(--faint);
+        font-size: 8px;
+      }
+
+      .day strong {
+        display: block;
+        color: rgba(255, 255, 255, 0.82);
+        font-size: 11px;
+      }
+
+      .day.today {
+        border-color: rgba(103, 232, 249, 0.28);
+        background: rgba(103, 232, 249, 0.09);
+        color: var(--cyan);
+      }
+
+      .day.done strong {
+        color: var(--cyan);
+      }
+
+      .section-title {
+        font-size: 13px;
+        font-weight: 620;
+      }
+
+      .subtle {
+        color: var(--faint);
+        font-size: 9px;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .mini-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .mini {
+        min-height: 104px;
+        padding: 15px;
+      }
+
+      .metric {
+        margin-top: 8px;
+        font-size: 24px;
+        font-weight: 430;
+      }
+
+      .dock {
+        position: absolute;
+        right: 16px;
+        bottom: 14px;
+        left: 16px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+        padding: 7px;
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        background: rgba(18, 20, 28, 0.94);
+        backdrop-filter: blur(14px);
+      }
+
+      .dock span {
+        padding: 9px 2px;
+        border-radius: 14px;
+        color: var(--faint);
+        font-size: 8px;
+        text-align: center;
+      }
+
+      .dock .active {
+        background: rgba(103, 232, 249, 0.1);
+        color: rgba(207, 250, 254, 0.9);
+      }
+
+      .focus-desktop {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(260px, 0.55fr);
+        gap: 14px;
+        margin-top: 22px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 12px;
+      }
+
+      .schedule-card,
+      .rhythm-card,
+      .quick-card {
+        padding: 17px;
+      }
+
+      .schedule-item {
+        display: grid;
+        grid-template-columns: 47px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .schedule-item:first-of-type {
+        margin-top: 10px;
+      }
+
+      .time {
+        color: var(--cyan);
+        font-size: 10px;
+      }
+
+      .item-title {
+        font-size: 11px;
+      }
+
+      .item-copy {
+        margin-top: 3px;
+        color: var(--faint);
+        font-size: 8px;
+      }
+
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(92px, 1fr));
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      .calendar-day {
+        min-height: 310px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.025);
+      }
+
+      .calendar-day.today {
+        border-color: rgba(103, 232, 249, 0.28);
+        background: rgba(103, 232, 249, 0.05);
+      }
+
+      .event {
+        margin-top: 12px;
+        padding: 10px;
+        border-radius: 13px;
+        background: rgba(196, 181, 253, 0.1);
+        color: rgba(237, 233, 254, 0.86);
+        font-size: 9px;
+        line-height: 1.45;
+      }
+
+      .event.cyan {
+        background: rgba(103, 232, 249, 0.1);
+        color: rgba(207, 250, 254, 0.9);
+      }
+
+      .agenda-mobile {
+        margin-top: 17px;
+        padding: 15px;
+      }
+
+      .day-selector {
+        display: flex;
+        gap: 7px;
+        margin-top: 14px;
+        overflow: hidden;
+      }
+
+      .day-chip {
+        min-width: 47px;
+        padding: 9px 5px;
+        border: 1px solid var(--line);
+        border-radius: 15px;
+        color: var(--faint);
+        font-size: 8px;
+        text-align: center;
+      }
+
+      .day-chip strong {
+        display: block;
+        margin-top: 4px;
+        color: rgba(255, 255, 255, 0.8);
+        font-size: 12px;
+      }
+
+      .day-chip.active {
+        border-color: rgba(103, 232, 249, 0.3);
+        background: rgba(103, 232, 249, 0.1);
+        color: var(--cyan);
+      }
+
+      .timeline {
+        margin-top: 12px;
+      }
+
+      .timeline-item {
+        display: grid;
+        grid-template-columns: 44px 1fr;
+        gap: 10px;
+        padding: 13px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .adaptive-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+        gap: 14px;
+        margin-top: 22px;
+      }
+
+      .priority {
+        padding: 22px;
+        background:
+          linear-gradient(125deg, rgba(103, 232, 249, 0.1), transparent 58%),
+          var(--panel);
+      }
+
+      .progress-line {
+        height: 5px;
+        margin-top: 17px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .progress-line span {
+        display: block;
+        width: 42%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, var(--cyan), var(--violet));
+      }
+
+      .feed {
+        margin-top: 12px;
+      }
+
+      .feed-row {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 13px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .feed-icon {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        place-items: center;
+        border-radius: 11px;
+        background: rgba(196, 181, 253, 0.11);
+        color: var(--violet);
+        font-size: 11px;
+      }
+
+      .recommendation {
+        margin-top: 14px;
+        padding: 15px;
+        border: 1px solid rgba(103, 232, 249, 0.15);
+        border-radius: 19px;
+        background: rgba(103, 232, 249, 0.05);
+      }
+
+      .notes {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 20px;
+      }
+
+      .note {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.022);
+      }
+
+      .note strong {
+        display: block;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 10px;
+      }
+
+      .note span {
+        display: block;
+        margin-top: 5px;
+        color: var(--faint);
+        font-size: 9px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 1050px) {
+        .frames {
+          grid-template-columns: 1fr;
+        }
+
+        .phone {
+          width: 356px;
+          max-width: 100%;
+        }
+      }
+
+      @media (max-width: 700px) {
+        .board {
+          width: min(100% - 20px, 1500px);
+          padding-top: 28px;
+        }
+
+        .concept {
+          padding: 15px;
+          border-radius: 24px;
+        }
+
+        .concept-head,
+        .notes {
+          grid-template-columns: 1fr;
+        }
+
+        .desktop-wrap {
+          overflow-x: auto;
+        }
+
+        .desktop {
+          width: 900px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <header class="intro">
+        <div class="eyebrow">RTTP · Exploración de producto</div>
+        <h1>Tres caminos para el Home del atleta</h1>
+        <p>
+          Wireframes de arquitectura, no propuestas visuales finales. Los tres
+          usan datos que RTTP ya tiene y mantienen una única acción primaria por
+          estado.
+        </p>
+      </header>
+
+      <section class="concept">
+        <div class="concept-head">
+          <div>
+            <div class="kicker">Opción 1 · Ejecución primero</div>
+            <h2>Hoy en foco</h2>
+            <p class="concept-summary">
+              Evoluciona el Home actual: la rutina de hoy domina, la semana da
+              contexto y el inicio no planificado queda disponible sin competir
+              con la acción principal.
+            </p>
+          </div>
+          <div class="tag">Recomendada · menor riesgo</div>
+        </div>
+
+        <div class="frames">
+          <div>
+            <div class="frame-label">Mobile · 390 px</div>
+            <div class="phone">
+              <div class="topbar">
+                <div class="wordmark">RTTP</div>
+                <div class="avatar"></div>
+              </div>
+              <div class="kicker">Miércoles 23</div>
+              <h3 class="screen-title">Tu entrenamiento</h3>
+              <p class="screen-copy">Todo listo para continuar donde quedaste.</p>
+
+              <div class="card hero" style="margin-top: 20px">
+                <div class="kicker">En curso · 42%</div>
+                <div class="hero-title">Preparación física 1</div>
+                <div class="hero-copy">
+                  Fuerza básica · Bloque 3 de 6 · Hip thrust
+                </div>
+                <div class="progress-line"><span></span></div>
+                <div class="meta">
+                  <span class="pill">18 min</span>
+                  <span class="pill">14 ejercicios</span>
+                </div>
+                <div class="actions">
+                  <span class="button primary">Continuar rutina →</span>
+                  <span class="button">Vista general</span>
+                </div>
+              </div>
+
+              <div class="card" style="margin-top: 12px; padding: 15px">
+                <div class="row">
+                  <div class="section-title">Esta semana</div>
+                  <div class="subtle">3 semanas activas</div>
+                </div>
+                <div class="week">
+                  <div class="day done">LUN<strong>21</strong></div>
+                  <div class="day">MAR<strong>22</strong></div>
+                  <div class="day today">MIÉ<strong>23</strong></div>
+                  <div class="day">JUE<strong>24</strong></div>
+                  <div class="day">VIE<strong>25</strong></div>
+                  <div class="day">SÁB<strong>26</strong></div>
+                  <div class="day">DOM<strong>27</strong></div>
+                </div>
+              </div>
+
+              <div class="mini-grid">
+                <div class="card mini">
+                  <div class="kicker">Próximo</div>
+                  <div class="section-title" style="margin-top: 10px">
+                    Viernes · 18:30
+                  </div>
+                  <div class="subtle" style="margin-top: 5px">
+                    Preparación física 3
+                  </div>
+                </div>
+                <div class="card mini">
+                  <div class="kicker">Inicio libre</div>
+                  <div class="section-title" style="margin-top: 10px">
+                    Elegí una rutina
+                  </div>
+                  <div class="subtle" style="margin-top: 5px">
+                    Para una sesión no planificada
+                  </div>
+                </div>
+              </div>
+
+              <nav class="dock">
+                <span class="active">Inicio</span><span>Rutinas</span>
+                <span>Agenda</span><span>Progreso</span>
+              </nav>
+            </div>
+          </div>
+
+          <div class="desktop-wrap">
+            <div class="frame-label">Web · 1440 px</div>
+            <div class="desktop">
+              <aside class="side">
+                <div class="brand">RP</div>
+                <div class="side-dot active"></div>
+                <div class="side-dot"></div>
+                <div class="side-dot"></div>
+                <div class="side-dot"></div>
+              </aside>
+              <div class="topbar">
+                <div>
+                  <div class="kicker">Miércoles 23</div>
+                  <h3 class="screen-title">Tu entrenamiento</h3>
+                  <p class="screen-copy">
+                    Una sola prioridad, con el resto de la semana a la vista.
+                  </p>
+                </div>
+                <div class="avatar"></div>
+              </div>
+              <div class="focus-desktop">
+                <div class="card hero" style="min-height: 312px">
+                  <div class="kicker">En curso · 42%</div>
+                  <div class="hero-title" style="font-size: 34px">
+                    Preparación física 1
+                  </div>
+                  <div class="hero-copy">
+                    Retomá en Hip thrust · Serie 1 de 4 · Bloque 3 de 6
+                  </div>
+                  <div class="progress-line"><span></span></div>
+                  <div class="meta">
+                    <span class="pill">18 min acumulados</span>
+                    <span class="pill">14 ejercicios</span>
+                    <span class="pill">6 bloques</span>
+                  </div>
+                  <div class="actions" style="margin-top: 45px">
+                    <span class="button primary">Continuar rutina →</span>
+                    <span class="button">Vista general</span>
+                  </div>
+                </div>
+                <div class="stack">
+                  <div class="card schedule-card">
+                    <div class="row">
+                      <div class="section-title">Esta semana</div>
+                      <div class="subtle">Ver agenda</div>
+                    </div>
+                    <div class="week">
+                      <div class="day done">L<strong>21</strong></div>
+                      <div class="day">M<strong>22</strong></div>
+                      <div class="day today">X<strong>23</strong></div>
+                      <div class="day">J<strong>24</strong></div>
+                      <div class="day">V<strong>25</strong></div>
+                      <div class="day">S<strong>26</strong></div>
+                      <div class="day">D<strong>27</strong></div>
+                    </div>
+                  </div>
+                  <div class="card rhythm-card">
+                    <div class="kicker">Tu ritmo</div>
+                    <div class="metric">3 semanas</div>
+                    <div class="subtle">Una sesión para igualar la anterior</div>
+                  </div>
+                </div>
+              </div>
+              <div class="mini-grid">
+                <div class="card quick-card">
+                  <div class="kicker">Próximo turno</div>
+                  <div class="section-title" style="margin-top: 8px">
+                    Viernes 18:30 · Preparación física 3
+                  </div>
+                </div>
+                <div class="card quick-card">
+                  <div class="kicker">Sesión no planificada</div>
+                  <div class="section-title" style="margin-top: 8px">
+                    Abrir mis rutinas →
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="notes">
+          <div class="note">
+            <strong>Fortaleza</strong>
+            <span>Reduce decisiones y lleva al atleta al entrenamiento en un toque.</span>
+          </div>
+          <div class="note">
+            <strong>Riesgo</strong>
+            <span>La agenda sigue siendo contexto secundario para atletas multideporte.</span>
+          </div>
+          <div class="note">
+            <strong>Mejor para</strong>
+            <span>Uso diario frecuente y evolución segura del Home actual.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="concept">
+        <div class="concept-head">
+          <div>
+            <div class="kicker">Opción 2 · Semana primero</div>
+            <h2>La semana como mapa</h2>
+            <p class="concept-summary">
+              Convierte Home en una lectura deportiva integral. La agenda ocupa
+              el centro y cada día combina rutinas RTTP, deportes externos y
+              descanso.
+            </p>
+          </div>
+          <div class="tag">Más contexto · más planificación</div>
+        </div>
+
+        <div class="frames">
+          <div>
+            <div class="frame-label">Mobile · 390 px</div>
+            <div class="phone">
+              <div class="topbar">
+                <div class="wordmark">RTTP</div>
+                <div class="avatar"></div>
+              </div>
+              <div class="kicker">Tu semana</div>
+              <h3 class="screen-title">23–27 de septiembre</h3>
+              <div class="day-selector">
+                <div class="day-chip">LUN<strong>21</strong></div>
+                <div class="day-chip">MAR<strong>22</strong></div>
+                <div class="day-chip active">MIÉ<strong>23</strong></div>
+                <div class="day-chip">JUE<strong>24</strong></div>
+                <div class="day-chip">VIE<strong>25</strong></div>
+              </div>
+
+              <div class="card agenda-mobile">
+                <div class="row">
+                  <div>
+                    <div class="section-title">Hoy</div>
+                    <div class="subtle" style="margin-top: 4px">
+                      1 sesión · en curso
+                    </div>
+                  </div>
+                  <span class="pill">42%</span>
+                </div>
+                <div class="timeline">
+                  <div class="timeline-item">
+                    <div class="time">Ahora</div>
+                    <div>
+                      <div class="section-title">Preparación física 1</div>
+                      <div class="subtle" style="margin-top: 4px">
+                        Hip thrust · Serie 1 de 4
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="actions">
+                  <span class="button primary" style="width: 100%">
+                    Continuar rutina →
+                  </span>
+                </div>
+              </div>
+
+              <div class="card agenda-mobile">
+                <div class="section-title">Lo que sigue</div>
+                <div class="timeline">
+                  <div class="timeline-item">
+                    <div class="time">VIE</div>
+                    <div>
+                      <div class="item-title">Preparación física 3</div>
+                      <div class="item-copy">18:30 · 55 min</div>
+                    </div>
+                  </div>
+                  <div class="timeline-item">
+                    <div class="time">SÁB</div>
+                    <div>
+                      <div class="item-title">Fútbol</div>
+                      <div class="item-copy">10:00 · Actividad externa</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card quick-card" style="margin-top: 12px">
+                <div class="row">
+                  <div>
+                    <div class="kicker">Tu ritmo</div>
+                    <div class="section-title" style="margin-top: 7px">
+                      3 semanas activas
+                    </div>
+                  </div>
+                  <span class="button">Ver progreso</span>
+                </div>
+              </div>
+
+              <nav class="dock">
+                <span class="active">Inicio</span><span>Rutinas</span>
+                <span>Agenda</span><span>Progreso</span>
+              </nav>
+            </div>
+          </div>
+
+          <div class="desktop-wrap">
+            <div class="frame-label">Web · 1440 px</div>
+            <div class="desktop">
+              <aside class="side">
+                <div class="brand">RP</div>
+                <div class="side-dot active"></div>
+                <div class="side-dot"></div>
+                <div class="side-dot"></div>
+                <div class="side-dot"></div>
+              </aside>
+              <div class="topbar">
+                <div>
+                  <div class="kicker">Tu semana</div>
+                  <h3 class="screen-title">Plan de entrenamiento</h3>
+                  <p class="screen-copy">
+                    Rutinas, deporte y recuperación en una sola lectura.
+                  </p>
+                </div>
+                <div class="actions" style="margin: 0">
+                  <span class="button">Semana anterior</span>
+                  <span class="button">Semana siguiente</span>
+                </div>
+              </div>
+
+              <div class="calendar-grid">
+                <div class="calendar-day">
+                  <div class="subtle">LUN 21</div>
+                  <div class="event cyan">✓ Preparación física 2</div>
+                </div>
+                <div class="calendar-day">
+                  <div class="subtle">MAR 22</div>
+                  <div class="event">Running · 40 min</div>
+                </div>
+                <div class="calendar-day today">
+                  <div class="kicker">HOY · MIÉ 23</div>
+                  <div class="event cyan">
+                    En curso<br /><strong>Preparación física 1</strong><br />42%
+                  </div>
+                  <div class="actions">
+                    <span class="button primary" style="padding: 0 11px">
+                      Continuar
+                    </span>
+                  </div>
+                </div>
+                <div class="calendar-day">
+                  <div class="subtle">JUE 24</div>
+                  <div class="event">Recuperación</div>
+                </div>
+                <div class="calendar-day">
+                  <div class="subtle">VIE 25</div>
+                  <div class="event cyan">18:30 · Prep física 3</div>
+                </div>
+                <div class="calendar-day">
+                  <div class="subtle">SÁB 26</div>
+                  <div class="event">10:00 · Fútbol</div>
+                </div>
+                <div class="calendar-day">
+                  <div class="subtle">DOM 27</div>
+                  <div class="event" style="opacity: 0.48">Descanso</div>
+                </div>
+              </div>
+
+              <div class="mini-grid">
+                <div class="card quick-card">
+                  <div class="row">
+                    <div>
+                      <div class="kicker">Tu ritmo</div>
+                      <div class="section-title" style="margin-top: 8px">
+                        3 semanas activas · 2 sesiones esta semana
+                      </div>
+                    </div>
+                    <span class="button">Ver progreso</span>
+                  </div>
+                </div>
+                <div class="card quick-card">
+                  <div class="row">
+                    <div>
+                      <div class="kicker">Entrenamiento libre</div>
+                      <div class="section-title" style="margin-top: 8px">
+                        Empezar una rutina no planificada
+                      </div>
+                    </div>
+                    <span class="button">Abrir rutinas</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="notes">
+          <div class="note">
+            <strong>Fortaleza</strong>
+            <span>Hace visible la relación entre gimnasio, deporte externo y descanso.</span>
+          </div>
+          <div class="note">
+            <strong>Riesgo</strong>
+            <span>Puede sentirse más como agenda que como punto de entrada al workout.</span>
+          </div>
+          <div class="note">
+            <strong>Mejor para</strong>
+            <span>Atletas con varias disciplinas y planificación semanal activa.</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="concept">
+        <div class="concept-head">
+          <div>
+            <div class="kicker">Opción 3 · Home adaptativo</div>
+            <h2>Próxima mejor acción</h2>
+            <p class="concept-summary">
+              El contenido cambia con el estado del atleta: continuar, comenzar,
+              cerrar una actividad externa o planificar. Debajo aparece un feed
+              breve de contexto y progreso.
+            </p>
+          </div>
+          <div class="tag">Más personal · más lógica</div>
+        </div>
+
+        <div class="frames">
+          <div>
+            <div class="frame-label">Mobile · 390 px</div>
+            <div class="phone">
+              <div class="topbar">
+                <div class="wordmark">RTTP</div>
+                <div class="avatar"></div>
+              </div>
+              <div class="kicker">Ahora</div>
+              <h3 class="screen-title">Volvé al bloque 3</h3>
+              <p class="screen-copy">
+                Tu sesión quedó pausada hace 18 minutos.
+              </p>
+
+              <div class="card priority" style="margin-top: 18px">
+                <div class="kicker">Preparación física 1</div>
+                <div class="hero-title">Hip thrust</div>
+                <div class="hero-copy">Serie 1 de 4 · 42% completado</div>
+                <div class="progress-line"><span></span></div>
+                <div class="actions">
+                  <span class="button primary" style="width: 100%">
+                    Continuar donde quedé →
+                  </span>
+                </div>
+              </div>
+
+              <div class="card" style="margin-top: 12px; padding: 16px">
+                <div class="row">
+                  <div class="section-title">Después</div>
+                  <div class="subtle">Ver agenda</div>
+                </div>
+                <div class="feed">
+                  <div class="feed-row">
+                    <div class="feed-icon">25</div>
+                    <div>
+                      <div class="item-title">Preparación física 3</div>
+                      <div class="item-copy">Viernes · 18:30</div>
+                    </div>
+                    <div class="subtle">→</div>
+                  </div>
+                  <div class="feed-row">
+                    <div class="feed-icon">26</div>
+                    <div>
+                      <div class="item-title">Fútbol</div>
+                      <div class="item-copy">Sábado · 10:00</div>
+                    </div>
+                    <div class="subtle">→</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="recommendation">
+                <div class="kicker">Tu ritmo</div>
+                <div class="section-title" style="margin-top: 7px">
+                  Estás a una sesión de igualar la semana pasada.
+                </div>
+              </div>
+
+              <nav class="dock">
+                <span class="active">Inicio</span><span>Rutinas</span>
+                <span>Agenda</span><span>Progreso</span>
+              </nav>
+            </div>
+          </div>
+
+          <div class="desktop-wrap">
+            <div class="frame-label">Web · 1440 px</div>
+            <div class="desktop">
+              <aside class="side">
+                <div class="brand">RP</div>
+                <div class="side-dot active"></div>
+                <div class="side-dot"></div>
+                <div class="side-dot"></div>
+                <div class="side-dot"></div>
+              </aside>
+              <div class="topbar">
+                <div>
+                  <div class="kicker">Buenas tardes</div>
+                  <h3 class="screen-title">Tu próxima mejor acción</h3>
+                  <p class="screen-copy">
+                    RTTP ordena el contexto; vos solo elegís cuándo seguir.
+                  </p>
+                </div>
+                <div class="avatar"></div>
+              </div>
+
+              <div class="adaptive-grid">
+                <div class="card priority" style="min-height: 320px">
+                  <div class="row">
+                    <div class="kicker">Retomar entrenamiento</div>
+                    <span class="pill">Pausada hace 18 min</span>
+                  </div>
+                  <div class="hero-title" style="font-size: 36px">
+                    Preparación física 1
+                  </div>
+                  <div class="hero-copy">
+                    Hip thrust · Serie 1 de 4 · Bloque 3 de 6
+                  </div>
+                  <div class="progress-line"><span></span></div>
+                  <div class="meta">
+                    <span class="pill">42% completado</span>
+                    <span class="pill">18 min acumulados</span>
+                  </div>
+                  <div class="actions" style="margin-top: 52px">
+                    <span class="button primary">Continuar donde quedé →</span>
+                    <span class="button">Revisar rutina</span>
+                  </div>
+                </div>
+
+                <div class="stack">
+                  <div class="card schedule-card">
+                    <div class="row">
+                      <div class="section-title">Después</div>
+                      <div class="subtle">Ver agenda</div>
+                    </div>
+                    <div class="feed">
+                      <div class="feed-row">
+                        <div class="feed-icon">25</div>
+                        <div>
+                          <div class="item-title">Prep física 3</div>
+                          <div class="item-copy">Viernes · 18:30</div>
+                        </div>
+                        <div class="subtle">→</div>
+                      </div>
+                      <div class="feed-row">
+                        <div class="feed-icon">26</div>
+                        <div>
+                          <div class="item-title">Fútbol</div>
+                          <div class="item-copy">Sábado · 10:00</div>
+                        </div>
+                        <div class="subtle">→</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="recommendation" style="margin: 0">
+                    <div class="kicker">Tu ritmo</div>
+                    <div class="section-title" style="margin-top: 7px">
+                      Una sesión para igualar la semana pasada.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="mini-grid">
+                <div class="card quick-card">
+                  <div class="kicker">Última actividad</div>
+                  <div class="section-title" style="margin-top: 8px">
+                    Preparación física 2 · lunes
+                  </div>
+                  <div class="subtle" style="margin-top: 5px">
+                    36 series · Esfuerzo 4/5
+                  </div>
+                </div>
+                <div class="card quick-card">
+                  <div class="kicker">Sin planificación</div>
+                  <div class="section-title" style="margin-top: 8px">
+                    Elegir otra rutina →
+                  </div>
+                  <div class="subtle" style="margin-top: 5px">
+                    Acceso secundario, siempre disponible
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="notes">
+          <div class="note">
+            <strong>Fortaleza</strong>
+            <span>La jerarquía se adapta y siempre explica qué conviene hacer ahora.</span>
+          </div>
+          <div class="note">
+            <strong>Riesgo</strong>
+            <span>Requiere definir prioridades para todos los estados y evitar cambios sorpresivos.</span>
+          </div>
+          <div class="note">
+            <strong>Mejor para</strong>
+            <span>Una experiencia premium que pueda crecer con progreso por ejercicio.</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

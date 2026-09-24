@@ -380,6 +380,8 @@ Unless promoted through a new product decision, the current product excludes:
 
 ## Supporting product documents
 
+- [UX/UI audit](./ux-audit.md): complete evidence, findings, and recommendations
+  from the product design audit, organized by phase.
 - [Routine sections](./routine-sections.md): canonical routine structure,
   execution strategies, and migration rules.
 - [Self-directed training](./self-directed-training.md): athlete-owned routines,
