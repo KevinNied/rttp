@@ -25,15 +25,28 @@ Al finalizar una sesión se registra:
 - peso y repeticiones registrados;
 - esfuerzo percibido;
 - feedback del atleta;
+- aclaraciones del atleta con alcance de serie, ejercicio o bloque;
 - fecha y hora de finalización.
 
 El snapshot permite consultar la sesión aunque la rutina se edite o elimine
 después.
 
-En el historial, el detalle se organiza por secciones desplegables. Cada ejercicio
+En el historial, el detalle se organiza por bloques desplegables. Cada ejercicio
 aparece una sola vez y agrupa sus series: los resultados repetidos se condensan
 en una única lectura y las cargas variables conservan el detalle de cada serie.
 Esto mantiene legibles tanto las sesiones breves como las rutinas extensas.
+
+Las aclaraciones describen cómo se realizó la sesión y no modifican las
+indicaciones prescriptas por el coach. Durante el entrenamiento se pueden crear,
+editar o eliminar con tres alcances:
+
+- serie: aparece junto al resultado de esa serie;
+- ejercicio: aparece una vez dentro del ejercicio;
+- bloque: aparece una vez debajo del encabezado del bloque.
+
+Cada aclaración conserva un identificador estable, texto, fecha de creación y un
+snapshot legible de su objetivo. No se repite una aclaración de ejercicio o
+bloque en cada serie.
 
 La Home del atleta resume la semana calendario con un timeline de sesiones
 completadas, en curso, programadas u omitidas. También muestra una racha de
@@ -41,18 +54,18 @@ semanas activas calculada desde este historial. La semana actual no interrumpe
 la racha mientras todavía esté abierta.
 
 El cronómetro comienza al iniciar la rutina y usa una marca temporal, por lo que
-sigue midiendo correctamente entre secciones y mientras la pantalla está
+sigue midiendo correctamente entre bloques y mientras la pantalla está
 bloqueada. Al salir de la ejecución se pausa y al retomarla continúa desde el
 tiempo acumulado. La posición, las series registradas, el feedback pendiente y
-el descanso activo también se conservan en el dispositivo. Una recarga recupera
-la pantalla exacta de la sesión, y completar o eliminar el entrenamiento limpia
-todo el estado temporal.
+las aclaraciones y el descanso activo también se conservan en el dispositivo.
+Una recarga recupera la pantalla exacta de la sesión, y completar o eliminar el
+entrenamiento limpia todo el estado temporal.
 
 Si un ejercicio define descanso, completar la serie inicia una cuenta regresiva
 que puede pausarse, reanudarse u omitirse. Los ejercicios sin descanso no
 muestran esa interfaz.
 
-Durante la ejecución, la vista general resume el avance por sección y ejercicio
+Durante la ejecución, la vista general resume el avance por bloque y ejercicio
 sin interrumpir el cronómetro. Un ejercicio temporalmente no disponible puede
 posponerse: sus series pendientes se conservan sin marcarlas como omitidas y
 vuelven a incorporarse al final de la rutina. Si el atleta decide omitirlas de
@@ -103,6 +116,10 @@ comentarios escritos por el usuario se conservan en su idioma original.
 La función RPC `save_workout_activity` crea la actividad y sus series de forma
 atómica. La restricción única sobre `scheduled_workout_id` mantiene la
 idempotencia.
+
+Las aclaraciones se conservan dentro de `routine_snapshot` porque describen el
+contexto inmutable de una ejecución terminada. Las actividades anteriores que
+no contienen ese campo se normalizan como una lista vacía.
 
 Mientras no existe autenticación, las políticas permiten acceso anónimo de forma
 temporal. Al incorporar Supabase Auth, Row Level Security deberá:

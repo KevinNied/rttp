@@ -128,6 +128,7 @@ over decorative density.
 Home provides immediate context without duplicating the full agenda:
 
 - today's scheduled or in-progress training;
+- direct resume of an in-progress workout without routing through the library;
 - the next scheduled workout;
 - quick access to the routine library and agenda;
 - a Monday-to-Sunday weekly timeline;
@@ -153,9 +154,11 @@ their authorship visible.
 - Unsaved editor changes require an RTTP confirmation for internal navigation
   and browser protection for reload or tab close.
 
-Routine composition uses ordered sections and exercises. Creation of sections
-and exercises is inline for low-friction editing. Drag and drop is available
-where reordering is supported.
+Routine composition uses ordered blocks and exercises. Creation of blocks and
+exercises is inline for low-friction editing. A block name is optional and only
+appears when it communicates intent; its position remains visible as
+`Bloque N`. Drag and drop is available where reordering is supported. The
+technical persistence contract remains `Routine.structure.sections`.
 
 ### Routine structure
 
@@ -174,13 +177,15 @@ The workout mode is an immersive step-by-step experience.
 
 - The athlete can start, pause, resume, and explicitly cancel a workout.
 - Position, recorded sets, elapsed time, active rest, postponed exercises,
-  effort, and pending feedback survive reloads.
+  scoped annotations, effort, and pending feedback survive reloads.
 - Leaving the workout pauses it; cancelling removes the in-progress occurrence
   and its temporary state without creating a completed activity.
 - Weight and repetitions can be recorded per set.
 - A configured rest starts a controllable countdown after completing a set.
 - An unavailable exercise can be postponed and returned to later.
 - The overview remains available without abandoning the active session.
+- The athlete can create, edit, and remove annotations scoped to the current
+  set, exercise, or block without changing coach instructions.
 - Finishing creates one immutable historical activity and clears temporary
   execution state.
 
@@ -211,6 +216,7 @@ The detailed agenda contract lives in
 Progress contains RTTP workout activities and completed external activities.
 
 - RTTP activities store an immutable routine snapshot and set-level results.
+- Workout annotations remain attached to their set, exercise, or block context.
 - Duration is stored in seconds and displayed without forced minute rounding.
 - Long routines group results by section and exercise for readable scaling.
 - Empty notes or feedback use a minimal inline state rather than an empty card.
@@ -265,11 +271,11 @@ The following questions from the initial concept are resolved.
 
 | Area | Confirmed decision |
 | --- | --- |
-| Workout overview | Structured section cards with hierarchy, progress, and a compact preparation option. |
+| Workout overview | Structured block cards with hierarchy, progress, and a compact preparation option. |
 | Workout navigation | Step-by-step execution with explicit previous/next actions, overview access, and swipeable preparation cards. |
-| Set progress | Per-set controls plus section and routine progress. |
-| Feedback | Effort and session feedback are captured at workout completion; exercise notes remain part of routine content. |
-| Routine builder | Section-based cards with inline creation, drag-and-drop reordering, and explicit saving. |
+| Set progress | Per-set controls plus block and routine progress. |
+| Feedback | Effort and session feedback are captured at workout completion; coach instructions and athlete annotations remain separate. |
+| Routine builder | Block-based cards with optional intent names, inline creation, drag-and-drop reordering, and explicit saving. |
 | Athlete ownership | Athletes can create personal routines; coach routines remain read-only. |
 | Sports planning | Weekly agenda shared by RTTP routines and external sports. |
 | Historical detail | Dedicated Progress surface backed by immutable activity snapshots. |
