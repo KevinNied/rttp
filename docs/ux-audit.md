@@ -1,10 +1,10 @@
 # Auditoría integral UX/UI de RTTP
 
-> **Estado:** Fases 0–5 completadas; Fase 6 pendiente.
+> **Estado:** Fases 0–6 completadas.
 >
-> **Versión auditada:** 0.13.7.
+> **Versiones auditadas:** 0.13.7 durante las Fases 0–5 y 0.13.8 durante la Fase 6.
 >
-> **Fecha de corte:** 23 de septiembre de 2026.
+> **Fecha de corte:** 24 de septiembre de 2026.
 >
 > **Alcance:** diagnóstico y recomendaciones; no constituye aprobación para implementar cambios.
 
@@ -26,24 +26,24 @@ instancia de auditoría y se conservan como evidencia histórica.
 | 3 | Walkthrough de flujos críticos | Completa | 17 |
 | 4 | UI fina y detalle | Completa | 23 |
 | 5 | Responsive y multiplataforma | Completa | 12 |
-| 6 | Accesibilidad | Pendiente | — |
+| 6 | Accesibilidad | Completa | 15 |
 
-Hasta la Fase 5 se documentaron **83 hallazgos con identificador**, además del inventario integral, mapa de flujos y preguntas abiertas de la Fase 0.
+La auditoría completa documenta **98 hallazgos con identificador**, además del inventario integral, mapa de flujos y preguntas abiertas de la Fase 0.
 
-## Resumen ejecutivo provisional
+## Resumen ejecutivo definitivo
 
-La priorización global definitiva se cerrará después de la Fase 6. Hasta ahora, los problemas transversales de mayor impacto son:
+Los diez problemas transversales que más daño producen hoy son:
 
-1. El sistema visual mezcla tokens semánticos con colores físicos y estilos locales, produciendo inconsistencias y fallas graves de contraste en light mode.
-2. Un coach sin atletas no puede entrar a su workspace y completar su primera tarea.
-3. La interfaz puede mostrar “Guardado” sin distinguir persistencia local, outbox y sincronización remota.
-4. Si la carga remota inicial falla, algunas mutaciones pueden parecer exitosas y perderse al recargar.
-5. La Home del atleta y la del coach dedican demasiado espacio inicial a ausencia o inventario antes de mostrar la próxima acción.
-6. La creación y duplicación de rutinas tienen desvíos de flujo: drafts vacíos persistidos y “Duplicar y editar” sin apertura del editor.
-7. La edición mobile no conserva todas las capacidades de desktop y utiliza controles táctiles demasiado pequeños.
-8. Los viewports bajos y landscape rompen superficies críticas: acceso, workout, omisión y creación de rutinas.
-9. La navegación y el vocabulario no siempre describen el contenido real: “Progreso”, “Rutinas” del coach y “Vista atleta” prometen alcances distintos.
-10. Los estados de carga, éxito, error, sincronización, reversibilidad y reduced motion no tienen un contrato transversal.
+1. **La persistencia no comunica su estado real.** La interfaz puede mostrar “Guardado” antes de conocer el resultado remoto y algunas mutaciones pueden perderse si falla la hidratación inicial.
+2. **Un coach sin atletas queda fuera de su workspace.** El primer uso impide completar la tarea que debería desbloquear el producto: agregar al primer atleta.
+3. **Light mode falla contraste en acciones críticas.** “Completar serie” llega a aproximadamente `1.17:1`, por lo que el CTA principal puede resultar ilegible.
+4. **Hay controles editables sin foco visible.** Los campos centrales del workout y del editor eliminan el ring y el borde de foco; un usuario de teclado puede perder su posición.
+5. **Viewports bajos y landscape bloquean tareas.** Acceso, workout, omisión y creación de rutinas pueden ocultar contenido o acciones sin una vía clara para alcanzarlos.
+6. **Crear y duplicar rutinas tiene desvíos de flujo.** Se persisten drafts vacíos y “Duplicar y editar” no conserva abierto el editor esperado.
+7. **Estados y progreso no siempre se exponen a tecnologías asistivas.** Filtros, tabs, selección de rutina, Agenda, esfuerzo final y la barra de progreso dependen de apariencia o reciben nombres incorrectos.
+8. **La Home prioriza inventario o ausencia antes que continuidad.** Tanto atleta como coach tardan en encontrar la próxima acción relevante.
+9. **La edición mobile pierde capacidades y precisión.** No permite eliminar ejercicios y concentra controles táctiles pequeños en tareas frecuentes y destructivas.
+10. **El feedback transversal es incompleto.** Faltan contratos consistentes para carga, éxito, error, sincronización, anuncios accesibles y reducción de movimiento.
 
 ## Índice
 
@@ -2812,6 +2812,450 @@ No hay overflow en este cambio; el problema es de aprovechamiento y densidad.
 
 ## Fase 6 — Accesibilidad
 
-**Estado:** pendiente.
+**Estado:** completada, sin modificar código ni contratos de datos.
 
-Esta sección incorporará la auditoría de contraste AA, navegación completa por teclado, foco visible, orden de tabulación, labels y nombres accesibles, semántica, anuncios de error, foco atrapado en overlays y comunicación que no dependa únicamente del color.
+### Resumen ejecutivo
+
+RTTP tiene una base de accesibilidad mejor que la que su heterogeneidad visual
+sugiere. La aplicación declara `lang="es-AR"`, mantiene un `main` único por
+superficie, conserva jerarquías de encabezado razonables, nombra los controles
+iconográficos principales y utiliza primitives de Base UI para dialogs, sheets,
+popovers y calendario. Los overlays probados atrapan el foco y lo restauran al
+trigger; el editor incorpora un sensor de teclado para drag-and-drop; las
+acciones por gesto tienen alternativas visibles; y las rutas principales
+refluyen sin scroll horizontal incluso a 320 px.
+
+La deuda crítica está en la capa que conecta ese HTML con el estado visual. La
+interfaz comunica selección, progreso, foco y confirmación de forma clara para
+quien ve la pantalla, pero no siempre lo hace de forma programática. A eso se
+suman el contraste crítico de light mode, inputs sin indicador de foco, un
+countdown anunciado cada segundo y ausencia total de reduced motion.
+
+La Fase 6 formaliza **15 hallazgos**:
+
+- 1 crítico;
+- 6 altos;
+- 8 medios;
+- ningún bajo.
+
+No constituye una certificación WCAG ni reemplaza pruebas con personas usuarias.
+Es una auditoría heurística y técnica orientada a WCAG 2.2 AA sobre la versión
+actual del producto.
+
+---
+
+### 1. Método y cobertura
+
+Se combinaron cuatro fuentes de evidencia:
+
+1. **Revisión estática:** landmarks, encabezados, nombres, labels, estados ARIA,
+   regiones vivas, foco, drag-and-drop y movimiento en `src/`.
+2. **Navegación real por teclado:** tabulación, activación, Escape, focus trap,
+   restauración del foco y DnD con `Space`/`Escape`.
+3. **Inspección del árbol accesible:** rutas de atleta y coach, workout,
+   dialogs, sheets, editor, Agenda y preview.
+4. **Validación visual y computada:** temas dark/light, `320`, `390`, `958` y
+   `1440px`, más viewports bajos y landscape ya cubiertos en las Fases 1 y 5.
+
+Flujos recorridos:
+
+- acceso correcto e inválido;
+- Home, Rutinas, Agenda, Historial y Perfil del atleta;
+- inicio y cancelación de workout;
+- diálogo y sheet con foco atrapado;
+- Home, directorio, detalle, editor, Agenda, Plantillas y preview del coach;
+- error por atleta duplicado;
+- navegación con cambios sin guardar;
+- reordenamiento de ejercicios con teclado.
+
+---
+
+### 2. Qué ya funciona bien
+
+- [RootLayout](../src/app/layout.tsx#L49) declara `lang="es-AR"` y viewport
+  compatible con safe areas.
+- Las rutas principales inspeccionadas tienen un único `main`, un `h1` visible
+  y no presentan IDs duplicados ni `tabindex` positivos.
+- No se encontraron controles visibles sin nombre accesible en las rutas
+  principales de atleta o coach.
+- Los iconos decorativos de Lucide no reemplazan el nombre de las acciones:
+  salir, cancelar, editar, eliminar, ajustar repeticiones y peso, abrir
+  overview y cambiar tema tienen nombre.
+- [Dialog](../src/components/ui/dialog.tsx#L26) y
+  [Sheet](../src/components/ui/sheet.tsx#L37) exponen `role="dialog"`, título y
+  descripción; en las pruebas mantuvieron el foco dentro del overlay y lo
+  devolvieron al trigger.
+- Las confirmaciones destructivas enfocan primero la acción segura. Al cancelar
+  un workout, por ejemplo, el foco inicial quedó en “Seguir entrenando”.
+- El calendario basado en React DayPicker expone grid, días seleccionados y
+  navegación de mes.
+- La navegación mobile sí marca la ruta activa con `aria-current="page"` en
+  [AppShell](../src/features/shell/app-shell.tsx#L331).
+- Los acordeones del historial comunican su expansión con `aria-expanded`.
+- El editor expone grupos y nombres específicos para tipo de repeticiones,
+  unidad de descanso y acciones por ejercicio.
+- [useRoutineEditor](../src/features/routine-editor/use-routine-editor.ts#L22)
+  incorpora `KeyboardSensor`; un ejercicio pudo levantarse y cancelarse sin
+  mouse, manteniendo el foco en el handle.
+- Agenda ofrece botones de programación y edición como alternativa al drag,
+  drop y doble click.
+- Las rutas principales de ambos roles no generaron overflow horizontal a
+  `320px`.
+- Los errores globales y de formularios usan `role="alert"`.
+- La creación de plantillas usa `role="status"` para anunciar el éxito.
+
+---
+
+### 3. Hallazgos
+
+#### A11Y-001 — El CTA principal del workout es ilegible en light mode
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-001 |
+| Ubicación | Workout · [WorkoutMode](../src/features/workout/workout-mode.tsx#L899), tokens de [globals.css](../src/app/globals.css#L138) |
+| Categoría | A11y / Contraste |
+| Qué pasa | “Completar serie” combina `bg-indigo-50` y `text-indigo-950`, pero light mode redefine ambos colores hacia tonos oscuros. La medición inicial fue aproximadamente `1.17:1`; la verificación final, con composición del fondo en producción, dio `1.41:1`. |
+| Por qué importa | Es la acción primaria del flujo principal y queda muy por debajo de `4.5:1` para texto normal. Usuarios con baja visión o bajo contraste ambiental pueden no leerla. Incumple WCAG 1.4.3. |
+| Propuesta | Reemplazar colores físicos por `primary`/`primary-foreground`, fijar pares validados por tema y agregar pruebas automáticas de contraste para CTAs críticos. |
+| Severidad | **Crítico** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-002 — Texto secundario y navegación fallan contraste en ambos temas
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-002 |
+| Ubicación | Sistema visual transversal · [globals.css](../src/app/globals.css#L55), [AppShell](../src/features/shell/app-shell.tsx#L124), Home y workout |
+| Categoría | A11y / Contraste |
+| Qué pasa | La auditoría computada encontró ratios de `1.94:1` a `3.88:1` en rol del sidebar, navegación inactiva, descripciones, labels y acciones secundarias. También existen textos de 8–11 px con opacidades bajas. |
+| Por qué importa | La jerarquía se construye reduciendo opacidad hasta volver ilegible información necesaria. La falla afecta light y dark mode y no se limita a contenido decorativo. Incumple WCAG 1.4.3. |
+| Propuesta | Consolidar `foreground`, `foreground-secondary` y `muted-foreground` con mínimos de `4.5:1`; reservar opacidades bajas para decoración y validar ambas paletas en CI visual. |
+| Severidad | **Alto** |
+| Esfuerzo | M |
+
+---
+
+#### A11Y-003 — Campos críticos eliminan todo indicador de foco visible
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-003 |
+| Ubicación | Workout · [CampoPrescripcion](../src/features/workout/prescription-field.tsx#L83); editor · [ExerciseRow](../src/features/routine-editor/exercise-row.tsx#L78) |
+| Categoría | A11y / Teclado / Foco |
+| Qué pasa | Los inputs de repeticiones, peso, nombre, aclaraciones y descanso usan `focus-visible:ring-0`; varios también tienen borde de `0px` y fondo transparente. En ejecución, `:focus-visible` fue verdadero pero outline, ring y borde efectivo permanecieron invisibles. |
+| Por qué importa | El usuario puede tabular y editar, pero no sabe qué campo tiene el foco. En workout puede modificar una carga equivocada; en el editor puede escribir sobre otro dato. Incumple WCAG 2.4.7 y 2.4.11. |
+| Propuesta | Aplicar un `focus-within` visible al contenedor o restaurar ring/borde de al menos 2 px y contraste 3:1 sin alterar la densidad del layout. |
+| Severidad | **Alto** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-004 — La barra de progreso se anuncia con el nombre “x”
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-004 |
+| Ubicación | Workout · [Progress](../src/features/workout/workout-mode.tsx#L581), primitive [progress.tsx](../src/components/ui/progress.tsx#L7) |
+| Categoría | A11y / Semántica |
+| Qué pasa | El DOM expone `role="progressbar"`, valor y porcentaje, pero no recibe label ni `aria-labelledby`. Base UI termina aportando el nombre accesible “x”, sin significado para el usuario. |
+| Por qué importa | Quien usa lector de pantalla escucha un progreso correctamente tipado pero no sabe qué está progresando. Incumple WCAG 4.1.2. |
+| Propuesta | Nombrar el control como “Progreso de la rutina” y conservar `aria-valuenow`/`aria-valuetext`; no mostrar un label visual adicional si no aporta a la jerarquía. |
+| Severidad | **Alto** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-005 — Los selectores propios no comunican qué opción está activa
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-005 |
+| Ubicación | Filtros de [AthleteHome](../src/features/athlete/athlete-home.tsx#L175) y [ActivityHistory](../src/components/activity-history.tsx#L563); tabs de [CoachAthleteDetailView](../src/features/coach/coach-athlete-detail-view.tsx#L162); [SelectorRutina](../src/features/routine-editor/routine-selector.tsx#L22); tipo y finalización de [Agenda](../src/features/schedule/sports-schedule.tsx#L208) |
+| Categoría | A11y / Semántica |
+| Qué pasa | “Todas/Mías/Coach”, “Rutinas/Agenda/Actividades”, rutina activa, “Rutina RTTP/Actividad externa” y otros grupos se renderizan como botones comunes. La selección existe solo en clases de color; no hay `aria-pressed`, `aria-selected`, `aria-current` ni patrón `tablist`. |
+| Por qué importa | Un lector de pantalla puede activar las opciones, pero no identificar cuál está seleccionada ni comprender el contrato del grupo. También se pierde la navegación con flechas esperada en tabs. Incumple WCAG 1.3.1 y 4.1.2. |
+| Propuesta | Usar el primitive `Tabs` cuando cambia un panel; usar grupos de botones con `aria-pressed` para filtros y toggles; asociar nombre de grupo e implementar foco por flechas donde corresponda. |
+| Severidad | **Alto** |
+| Esfuerzo | M |
+
+---
+
+#### A11Y-006 — La navegación desktop no expone la ruta actual
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-006 |
+| Ubicación | Navegación desktop · [AppShell](../src/features/shell/app-shell.tsx#L124) |
+| Categoría | A11y / Navegación |
+| Qué pasa | La opción activa cambia de fondo y color, pero los botones desktop no reciben `aria-current`. La navegación mobile sí lo implementa. |
+| Por qué importa | Un usuario de lector de pantalla no obtiene el mismo contexto de ubicación que un usuario visual. Incumple WCAG 1.3.1 y debilita 2.4.8. |
+| Propuesta | Reutilizar en desktop la misma asignación `aria-current="page"` de mobile; si la navegación continúa usando botones, conservar nombre y destino coherentes. |
+| Severidad | **Medio** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-007 — El descanso puede anunciarse una vez por segundo
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-007 |
+| Ubicación | Workout · [contador de descanso](../src/features/workout/workout-mode.tsx#L823) |
+| Categoría | A11y / Contenido dinámico |
+| Qué pasa | Todo el countdown tiene `role="timer"` y `aria-live="polite"`. Como el contenido cambia cada segundo, un lector puede encolar anuncios continuos mientras el usuario intenta operar Pausar, Reanudar o Terminar descanso. |
+| Por qué importa | El feedback útil se convierte en interrupción sostenida durante la tarea principal y puede ocultar otros anuncios. |
+| Propuesta | Mantener el valor consultable sin live region; anunciar solo hitos relevantes y “Descanso terminado” en una región `status` separada. |
+| Severidad | **Alto** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-008 — Las confirmaciones de guardado no se anuncian
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-008 |
+| Ubicación | Editor del atleta · [AthleteRoutineEditor](../src/features/athlete/athlete-routine-editor.tsx#L101); editor del coach · [CoachAthleteDetailView](../src/features/coach/coach-athlete-detail-view.tsx#L269) |
+| Categoría | A11y / Feedback |
+| Qué pasa | “Cambios guardados” aparece visualmente durante un intervalo corto, pero es un `div` sin `role="status"` ni `aria-live`. La creación de plantillas sí usa el patrón correcto. |
+| Por qué importa | Un usuario que no ve la actualización no recibe confirmación de que terminó la acción. Incumple WCAG 4.1.3. |
+| Propuesta | Reutilizar una región de estado persistente y anunciar transiciones reales: Sin guardar, Guardando, Sincronizado, Pendiente o Error. |
+| Severidad | **Medio** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-009 — Los errores no están asociados al campo que los originó
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-009 |
+| Ubicación | Acceso · [LandingAcceso](../src/features/landing/access-landing.tsx#L90); alta de atleta · [DialogoNuevoAtleta](../src/features/routine-editor/new-athlete-dialog.tsx#L86) |
+| Categoría | A11y / Formularios |
+| Qué pasa | Los errores usan `role="alert"` y el email recibe `aria-invalid`, pero el mensaje no tiene ID ni se enlaza con `aria-describedby` o `aria-errormessage`. El foco permanece en el submit. |
+| Por qué importa | El error se anuncia al aparecer, pero al volver al campo no puede consultarse su explicación ni su relación programática. Incumple WCAG 3.3.1 y debilita 1.3.1. |
+| Propuesta | Dar un ID estable al mensaje, enlazarlo desde el input y llevar el foco al primer campo inválido cuando corresponda. |
+| Severidad | **Medio** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-010 — El drag-and-drop habla en inglés y expone IDs internos
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-010 |
+| Ubicación | Editor de rutinas · [useRoutineEditor](../src/features/routine-editor/use-routine-editor.ts#L22), [ExerciseRow](../src/features/routine-editor/exercise-row.tsx#L48) |
+| Categoría | A11y / Teclado / Copy |
+| Qué pasa | El sensor de teclado funciona, pero las instrucciones dicen “To pick up a draggable item…” y los anuncios incluyen IDs como `papapapa-1788920698728`. |
+| Por qué importa | La única guía auditiva para reordenar cambia de idioma y describe implementación en lugar de posición o destino. La operación existe, pero no resulta comprensible ni verificable. |
+| Propuesta | Configurar instrucciones y announcements de DndKit en español, usando nombre del ejercicio, bloque y posición humana. |
+| Severidad | **Medio** |
+| Esfuerzo | M |
+
+---
+
+#### A11Y-011 — No existe un mecanismo para saltar la navegación repetida
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-011 |
+| Ubicación | Shell desktop · [AppShell](../src/features/shell/app-shell.tsx#L124) |
+| Categoría | A11y / Navegación / Foco |
+| Qué pasa | En desktop hay ocho controles de shell antes de la primera acción del contenido y no existe “Saltar al contenido”. El `main` tampoco tiene un destino enfocable. |
+| Por qué importa | Cada cambio de pantalla obliga a recorrer navegación, tema y sesión antes de operar la vista. Incumple WCAG 2.4.1. |
+| Propuesta | Agregar un skip link visible al foco y un `id`/`tabIndex={-1}` estable en `main`; conservar el foco de página al navegar. |
+| Severidad | **Medio** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-012 — El esfuerzo final depende del color y no expone selección
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-012 |
+| Ubicación | Cierre del workout · [RutinaCompletada](../src/features/workout/completed-routine.tsx#L50) |
+| Categoría | A11y / Semántica / Color |
+| Qué pasa | Los cinco botones tienen nombres como “Esfuerzo 4 de 5”, pero no existe `radiogroup`, `radio`, `aria-checked` ni `aria-pressed`. El valor inicial `4` y el seleccionado se distinguen solo mediante color y relleno de llamas. |
+| Por qué importa | El lector puede encontrar cinco acciones, pero no saber cuál representa la respuesta actual. Una persona con dificultad para distinguir color tampoco obtiene una señal textual. Incumple WCAG 1.4.1 y 4.1.2. |
+| Propuesta | Implementar un radiogroup con label persistente “Esfuerzo percibido”, `aria-checked` y una confirmación textual del valor; revisar además si preseleccionar 4 es una decisión de producto deseada. |
+| Severidad | **Alto** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-013 — El feedback final depende de un placeholder
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-013 |
+| Ubicación | Cierre del workout · [RutinaCompletada](../src/features/workout/completed-routine.tsx#L72) |
+| Categoría | A11y / Formularios |
+| Qué pasa | El textarea usa “¿Querés contarle algo a tu entrenador?” como placeholder, sin label visible ni nombre programático explícito. El texto desaparece al escribir. |
+| Por qué importa | Después de ingresar contenido ya no queda una instrucción persistente que explique el propósito del campo. Debilita WCAG 3.3.2 y la comprensión para usuarios con dificultades cognitivas. |
+| Propuesta | Agregar un label breve y persistente, por ejemplo “Comentario para tu entrenador”, manteniendo el placeholder solo como ejemplo. |
+| Severidad | **Medio** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-014 — Algunos disclosures no exponen su estado
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-014 |
+| Ubicación | Bloques del editor · [SectionEditor](../src/features/routine-editor/section-editor.tsx#L57) |
+| Categoría | A11y / Semántica |
+| Qué pasa | El encabezado de bloque abre y cierra su contenido, y rota un chevron, pero no declara `aria-expanded` ni enlaza el panel con `aria-controls`. |
+| Por qué importa | El control se anuncia como botón sin indicar si el bloque está abierto ni qué región controla. Incumple WCAG 4.1.2. |
+| Propuesta | Añadir `aria-expanded`, `aria-controls` e ID estable del panel; mantener el mismo patrón que los acordeones del historial. |
+| Severidad | **Medio** |
+| Esfuerzo | S |
+
+---
+
+#### A11Y-015 — El producto ignora la preferencia de movimiento reducido
+
+| Campo | Contenido |
+|---|---|
+| ID | A11Y-015 |
+| Ubicación | Sistema transversal · [globals.css](../src/app/globals.css#L1), [Dialog](../src/components/ui/dialog.tsx#L26), [Sheet](../src/components/ui/sheet.tsx#L37), [Popover](../src/components/ui/popover.tsx#L21) |
+| Categoría | A11y / Movimiento |
+| Qué pasa | No existe `prefers-reduced-motion`, `motion-reduce` ni configuración equivalente. Con la preferencia `reduce`, el CTA del workout conservó `0.15s` y la sheet `0.2s`, además de animaciones de entrada, salida, escala y slide. |
+| Por qué importa | El sistema operativo expresa una necesidad que el producto ignora. Transiciones de escala y desplazamiento pueden generar malestar y no son necesarias para entender el estado. Incumple WCAG 2.3.3 como criterio AAA y, sobre todo, la regla de accesibilidad por defecto definida para RTTP. |
+| Propuesta | Crear una política global que reduzca o elimine transformaciones y desplazamientos, conserve cambios de opacidad breves y desactive animaciones decorativas. |
+| Severidad | **Medio** |
+| Esfuerzo | M |
+
+---
+
+### 4. Reflow, zoom y viewports bajos
+
+La validación a `320px` no encontró overflow horizontal en Home, Rutinas,
+Agenda, Historial o Perfil del atleta, ni en Resumen, Atletas, Plantillas o
+detalle del coach. Esto constituye una base positiva para WCAG 1.4.10.
+
+Sin embargo, reflow no significa que todo el contenido sea alcanzable. Los
+hallazgos UX-501, UX-503, UX-504 y UX-505 de la Fase 5 siguen siendo riesgos de
+accesibilidad altos: en viewports bajos o landscape, `overflow-hidden`,
+centrado vertical y overlays sin scroll pueden ocultar inputs o acciones. Deben
+corregirse en la misma ola que contraste y foco, aunque no se dupliquen como
+nuevos IDs A11Y.
+
+---
+
+### 5. Priorización de accesibilidad
+
+#### Bloqueante
+
+1. A11Y-001 — Contraste del CTA principal en light mode.
+
+#### Alta prioridad
+
+2. A11Y-003 — Foco invisible en campos críticos.
+3. A11Y-004 — Nombre incorrecto de la barra de progreso.
+4. A11Y-005 — Selectores sin estado programático.
+5. A11Y-007 — Countdown anunciado cada segundo.
+6. A11Y-012 — Esfuerzo final sin selección accesible.
+7. A11Y-002 — Contraste transversal de texto secundario.
+
+#### Corrección posterior
+
+8. A11Y-006 — Ruta desktop sin `aria-current`.
+9. A11Y-008 — Guardado sin región de estado.
+10. A11Y-009 — Errores no asociados a inputs.
+11. A11Y-010 — DnD sin localización ni anuncios humanos.
+12. A11Y-011 — Ausencia de skip link.
+13. A11Y-013 — Feedback final sin label persistente.
+14. A11Y-014 — Bloques sin estado expandido.
+15. A11Y-015 — Sin reduced motion.
+
+---
+
+## Plan de implementación por olas
+
+La auditoría no aprueba todavía la implementación. Si se autoriza, el orden
+recomendado es el siguiente.
+
+### Ola 1 — Tokens y unificación visual
+
+**Objetivo:** corregir la base transversal con alto impacto y bajo riesgo de
+lógica.
+
+- Reemplazar colores físicos por roles semánticos.
+- Corregir contraste AA en ambos temas, empezando por workout, navegación,
+  labels y acciones.
+- Unificar estados de foco en buttons, inputs, selects y controles compuestos.
+- Adoptar primitives canónicos para tabs, toggles, cards, badges y feedback.
+- Añadir `prefers-reduced-motion`.
+- Elevar targets táctiles sin cambiar comportamiento.
+
+**Gate de salida:** contraste AA medido, foco visible por teclado en todas las
+superficies críticas, light/dark sin regresiones y tests visuales en `390`,
+`958` y `1440px`.
+
+### Ola 2 — Jerarquía de Home y navegación
+
+**Objetivo:** hacer evidente dónde está el usuario y cuál es su siguiente
+acción.
+
+- Aplicar “Hoy en foco” a la Home del atleta.
+- Reordenar Home del coach hacia continuidad y pendientes.
+- Corregir nomenclatura: Historial, Plantillas y Previsualizar inicio.
+- Dar rutas reales a Rutinas, Agenda y Actividades del atleta seleccionado.
+- Exponer estado activo en navegación desktop y agregar skip link.
+- Resolver el ingreso del coach sin atletas sin cambiar permisos ni modelo.
+
+**Gate de salida:** primer uso y retorno resuelven su acción principal sin
+desvíos; ubicación y navegación son comprensibles visualmente y con lector.
+
+### Ola 3 — Flujos, estados faltantes y copy
+
+**Objetivo:** eliminar pérdidas de trabajo, callejones sin salida y feedback
+ambiguo.
+
+- Corregir duplicación/creación de rutinas y persistencia prematura de drafts.
+- Diseñar el contrato Sin guardar → Guardando → Sincronizado/Pendiente/Error.
+- Evitar pérdida de mutaciones ante fallas de hidratación.
+- Hacer persistente y alcanzable el guardado del editor.
+- Corregir progressbar, timers, esfuerzo final, errors y regiones de estado.
+- Resolver viewports bajos, sheets y dialogs recortados.
+- Agregar Undo donde la acción sea reversible y confirmar solo destrucción.
+- Completar loading, vacío, parcial, error, offline y datos extensos.
+
+**Gate de salida:** los flujos críticos se completan, recuperan y reanudan sin
+pérdida; cada resultado se comunica por más de un canal perceptivo.
+
+### Ola 4 — Movimiento, pulido y accesibilidad fina
+
+**Objetivo:** completar consistencia, percepción de velocidad y validación
+asistiva.
+
+- Localizar instrucciones y anuncios de DnD.
+- Afinar motion con propósito y reduced motion.
+- Sustituir spinners y saltos por skeletons cuando corresponda.
+- Completar labels, descriptions, `aria-expanded`, `aria-controls` y estados
+  de selección restantes.
+- Validar VoiceOver/Safari, NVDA/Chrome y teclado sin lector.
+- Realizar pruebas con usuarios con baja visión y usuarios de lector de
+  pantalla.
+
+**Gate de salida:** checklist WCAG 2.2 AA sin bloqueantes conocidos, recorridos
+por rol documentados y regresión responsive completa.
+
+---
+
+### Cierre
+
+Las seis fases solicitadas están completas y documentadas. La auditoría deja
+una dirección clara: **primero estabilizar el lenguaje visual y los contratos
+de estado; después simplificar jerarquía y navegación; luego corregir flujos;
+y recién al final pulir movimiento y accesibilidad fina**.
+
+No se implementó ningún cambio de producto durante esta fase. La sesión de
+prueba quedó en `athlete@test.com`, tema oscuro, sin workout activo ni datos
+temporales creados.
