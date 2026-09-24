@@ -51,6 +51,9 @@ export function SeccionEditor({
     >
       <button
         id={`section-toggle-${section.id}`}
+        type="button"
+        aria-expanded={abierto}
+        aria-controls={`section-content-${section.id}`}
         onClick={onToggle}
         className={cn(
           "flex w-full items-center justify-between px-4 py-3 text-left transition-colors xl:px-5 xl:py-4",
@@ -88,17 +91,17 @@ export function SeccionEditor({
           </span>
           <ChevronDown
             className={cn(
-              "size-3.5 text-white/25 transition-transform",
+              "size-3.5 text-content-muted transition-transform",
               abierto && "rotate-180",
             )}
           />
         </div>
       </button>
       {abierto && (
-        <>
+        <div id={`section-content-${section.id}`}>
           <div className="border-t border-white/[0.05] bg-black/10 px-3 py-3">
             <label className="block">
-              <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.12em] text-white/45">
+              <span className="mb-2 block text-[10px] font-medium uppercase tracking-[0.12em] text-content-muted">
                 Nombre o enfoque del bloque (opcional)
               </span>
               <Input
@@ -120,7 +123,7 @@ export function SeccionEditor({
                   "rounded-xl border px-3 py-2.5 text-left transition-colors",
                   section.kind === kind
                     ? "border-cyan-200/25 bg-cyan-300/[0.08] text-cyan-50"
-                    : "border-white/[0.07] bg-white/[0.025] text-white/40 hover:text-white/70",
+                    : "border-white/[0.07] bg-white/[0.025] text-content-muted hover:text-white/70",
                 )}
               >
                 <span className="block text-sm font-medium">
@@ -143,7 +146,7 @@ export function SeccionEditor({
               <div className="m-3">{addExercise}</div>
             </div>
           </SortableContext>
-        </>
+        </div>
       )}
     </div>
   );

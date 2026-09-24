@@ -31,6 +31,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   generateRecurrenceDates,
@@ -205,7 +206,11 @@ function FormularioEntrenamiento({
   return (
     <div className="space-y-5">
       <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2 rounded-2xl bg-black/25 p-1">
+          <div
+            role="group"
+            aria-label="Tipo de entrenamiento"
+            className="grid grid-cols-2 gap-2 rounded-2xl bg-black/25 p-1"
+          >
             {[
               ["routine", "Rutina RTTP"],
               ["external", "Actividad externa"],
@@ -213,12 +218,13 @@ function FormularioEntrenamiento({
               <button
                 key={value}
                 type="button"
+                aria-pressed={origin === value}
                 onClick={() => setOrigen(value as "routine" | "external")}
                 className={cn(
                   "rounded-xl px-3 py-2.5 text-xs transition-colors",
                   origin === value
                     ? "bg-cyan-300 text-indigo-950"
-                    : "text-white/40 hover:text-white/70",
+                    : "text-content-muted hover:text-white/70",
                 )}
               >
                 {label}
@@ -229,7 +235,7 @@ function FormularioEntrenamiento({
           {origin === "routine" ? (
             <label className="block space-y-2">
               <span className="text-xs text-white/55">Rutina</span>
-              <select
+              <Select
                 value={routineId}
                 onChange={(event) => {
                   const id = event.target.value;
@@ -237,14 +243,14 @@ function FormularioEntrenamiento({
                   const rutina = routines.find((actual) => actual.id === id);
                   if (rutina) setDuracion(String(rutina.durationMinutes ?? ""));
                 }}
-                className="h-10 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
+                className="border-white/10 bg-black/35 text-white"
               >
                 {activeRoutines.map((rutina) => (
                     <option key={rutina.id} value={rutina.id}>
                       {rutina.title}
                     </option>
                   ))}
-              </select>
+              </Select>
             </label>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -259,19 +265,19 @@ function FormularioEntrenamiento({
               </label>
               <label className="space-y-2">
                 <span className="text-xs text-white/55">Categoría</span>
-                <select
+                <Select
                   value={category}
                   onChange={(event) =>
                     setCategoria(event.target.value as ActivityCategory)
                   }
-                  className="h-10 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
+                  className="border-white/10 bg-black/35 text-white"
                 >
                   {activityCategories.map((opcion) => (
                     <option key={opcion.value} value={opcion.value}>
                       {opcion.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </label>
             </div>
           )}
@@ -463,7 +469,7 @@ function TarjetaEntrenamiento({
           <div className="line-clamp-2 text-xs font-medium leading-snug text-white/90">
             {tituloEntrenamiento(item, routines)}
           </div>
-          <div className="mt-1.5 flex items-center gap-1.5 text-[9px] text-white/35">
+          <div className="mt-1.5 flex items-center gap-1.5 text-[9px] text-content-muted">
             {item.time && <span>{item.time}</span>}
             {item.time && <span>·</span>}
             {item.durationMinutes && (
@@ -495,7 +501,7 @@ function TarjetaEntrenamiento({
         ) : null}
       </div>
       {item.notes && (
-        <p className="mt-2 line-clamp-2 text-[9px] leading-relaxed text-white/30">
+        <p className="mt-2 line-clamp-2 text-[9px] leading-relaxed text-content-muted">
           {item.notes}
         </p>
       )}
@@ -547,7 +553,7 @@ function TarjetaEntrenamiento({
               variant="ghost"
               aria-label="Omitir entrenamiento"
               onClick={() => onUpdate({ ...item, status: "skipped" })}
-              className="group/action relative rounded-full text-white/30 hover:bg-orange-300/10 hover:text-orange-200"
+              className="group/action relative rounded-full text-content-muted hover:bg-orange-300/10 hover:text-orange-200"
             >
               <SkipForward />
               <EtiquetaAccion>Omitir</EtiquetaAccion>
@@ -572,7 +578,7 @@ function TarjetaEntrenamiento({
             variant="ghost"
             aria-label="Restaurar entrenamiento omitido"
             onClick={() => onUpdate({ ...item, status: "scheduled" })}
-            className="group/action relative rounded-full text-white/30 hover:bg-cyan-300/10 hover:text-cyan-200"
+            className="group/action relative rounded-full text-content-muted hover:bg-cyan-300/10 hover:text-cyan-200"
           >
             <RotateCcw />
             <EtiquetaAccion>Restaurar</EtiquetaAccion>
@@ -585,7 +591,7 @@ function TarjetaEntrenamiento({
                 size="icon-sm"
                 variant="ghost"
                 aria-label="Eliminar entrenamiento"
-                className="group/action relative rounded-full text-white/30 hover:bg-red-300/10 hover:text-red-200"
+                className="group/action relative rounded-full text-content-muted hover:bg-red-300/10 hover:text-red-200"
               >
                 <Trash2 />
                 <EtiquetaAccion>Eliminar</EtiquetaAccion>
@@ -595,14 +601,14 @@ function TarjetaEntrenamiento({
           <DialogContent className="border-white/10 bg-app-panel text-white">
             <DialogHeader>
               <DialogTitle>¿Eliminar este entrenamiento?</DialogTitle>
-              <DialogDescription className="text-white/40">
+              <DialogDescription className="text-content-muted">
                 Se quitará de la agenda de {atleta.name}. Esta acción no elimina
                 la rutina asociada.
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
               <DialogClose
-                render={<Button variant="ghost" className="text-white/45" />}
+                render={<Button variant="ghost" className="text-content-muted" />}
               >
                 Cancelar
               </DialogClose>
@@ -742,7 +748,7 @@ export function SportsSchedule({
             <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
               Agenda deportiva
             </h1>
-            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-white/35 md:text-sm">
+            <p className="mt-2 max-w-2xl text-xs leading-relaxed text-content-muted md:text-sm">
               Organizá rutinas y actividades externas en un mismo lugar.
             </p>
           </div>
@@ -795,7 +801,7 @@ export function SportsSchedule({
                 {etiquetaFecha(dias[0], "larga")} —{" "}
                 {etiquetaFecha(dias[6], "larga")}
               </div>
-              <div className="mt-1 text-[10px] text-white/25">
+              <div className="mt-1 text-[10px] text-content-muted">
                 {entrenamientosDeSemana.length}{" "}
                 {entrenamientosDeSemana.length === 1
                   ? "entrenamiento"
@@ -812,7 +818,7 @@ export function SportsSchedule({
                   setSemana(actual);
                   setFechaSeleccionada(hoy);
                 }}
-                className="hidden rounded-full text-[10px] text-white/40 hover:bg-white/[0.06] hover:text-white sm:flex"
+                className="hidden rounded-full text-[10px] text-content-muted hover:bg-white/[0.06] hover:text-white sm:flex"
               >
                 Hoy
               </Button>
@@ -825,7 +831,7 @@ export function SportsSchedule({
                   setSemana(anterior);
                   setFechaSeleccionada(anterior);
                 }}
-                className="rounded-full text-white/45 hover:bg-white/[0.06] hover:text-white"
+                className="rounded-full text-content-muted hover:bg-white/[0.06] hover:text-white"
               >
                 <ChevronLeft />
               </Button>
@@ -838,7 +844,7 @@ export function SportsSchedule({
                   setSemana(siguiente);
                   setFechaSeleccionada(siguiente);
                 }}
-                className="rounded-full text-white/45 hover:bg-white/[0.06] hover:text-white"
+                className="rounded-full text-content-muted hover:bg-white/[0.06] hover:text-white"
               >
                 <ChevronRight />
               </Button>
@@ -849,13 +855,17 @@ export function SportsSchedule({
             {dias.map((dia, index) => (
               <button
                 key={dia}
+                type="button"
+                aria-pressed={fechaSeleccionada === dia}
+                aria-current={dia === hoy ? "date" : undefined}
+                aria-label={`${nombresDias[index]} ${new Date(`${dia}T12:00:00`).getDate()}${dia === hoy ? ", hoy" : ""}`}
                 onClick={() => setFechaSeleccionada(dia)}
                 onDoubleClick={() => openCreateForDate(dia)}
                 className={cn(
                   "rounded-xl px-1 py-2 text-center transition-colors",
                   fechaSeleccionada === dia
                     ? "bg-cyan-300 text-indigo-950"
-                    : "text-white/35",
+                    : "text-content-muted",
                 )}
               >
                 <span className="block text-[8px] uppercase">
@@ -879,7 +889,7 @@ export function SportsSchedule({
           </div>
 
           <div className="min-h-72 p-3 lg:hidden">
-            <div className="mb-3 text-xs text-white/45">
+            <div className="mb-3 text-xs text-content-muted">
               {etiquetaFecha(fechaSeleccionada, "larga")}
             </div>
             <div className="space-y-2">
@@ -897,9 +907,9 @@ export function SportsSchedule({
               ) && (
                 <div className="grid min-h-48 place-items-center rounded-2xl border border-dashed border-white/[0.08] text-center">
                   <div>
-                    <CalendarDays className="mx-auto size-5 text-white/20" />
-                    <div className="mt-2 text-xs text-white/30">Día libre</div>
-                    <div className="mt-1 text-[9px] text-white/20">
+                    <CalendarDays className="mx-auto size-5 text-content-muted" />
+                    <div className="mt-2 text-xs text-content-muted">Día libre</div>
+                    <div className="mt-1 text-[9px] text-content-muted">
                       Programá una rutina o actividad.
                     </div>
                   </div>
@@ -944,10 +954,14 @@ export function SportsSchedule({
                   )}
                 >
                   <button
+                    type="button"
+                    aria-pressed={fechaSeleccionada === dia}
+                    aria-current={dia === hoy ? "date" : undefined}
+                    aria-label={`${nombresDias[index]} ${new Date(`${dia}T12:00:00`).getDate()}${dia === hoy ? ", hoy" : ""}`}
                     onClick={() => setFechaSeleccionada(dia)}
                     className="mb-3 w-full rounded-xl py-2 text-center transition-colors hover:bg-white/[0.04]"
                   >
-                    <span className="block text-[8px] uppercase tracking-wider text-white/25">
+                    <span className="block text-[8px] uppercase tracking-wider text-content-muted">
                       {nombresDias[index]}
                     </span>
                     <span
@@ -968,7 +982,7 @@ export function SportsSchedule({
                       />
                     ))}
                     {items.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-white/[0.06] px-2 py-5 text-center text-xs text-white/0 transition-colors group-hover/day:border-white/10 group-hover/day:text-white/35">
+                      <div className="rounded-xl border border-dashed border-white/[0.06] px-2 py-5 text-center text-xs text-white/0 transition-colors group-hover/day:border-white/10 group-hover/day:text-content-muted">
                         Doble click para programar
                       </div>
                     )}
@@ -983,7 +997,7 @@ export function SportsSchedule({
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-medium">Rutinas disponibles</div>
-              <div className="mt-1 text-[10px] text-white/25">
+              <div className="mt-1 text-[10px] text-content-muted">
                 <span className="hidden xl:inline">
                   Arrastralas a un día o programalas.
                 </span>
@@ -1016,7 +1030,7 @@ export function SportsSchedule({
                     {rutina.title}
                   </div>
                   {rutina.durationMinutes && (
-                    <div className="mt-1 flex items-center gap-1 text-[9px] text-white/25">
+                    <div className="mt-1 flex items-center gap-1 text-[9px] text-content-muted">
                       <Clock3 className="size-3" />
                       {rutina.durationMinutes} min
                     </div>

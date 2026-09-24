@@ -89,7 +89,7 @@ export function CoachTemplatesView({
       </div>
       <div className="rounded-3xl border border-white/[0.07] bg-app-surface/70 p-4 md:p-5 xl:p-6">
         {templates.length === 0 ? (
-          <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5 text-xs text-white/35">
+          <div className="mt-4 rounded-2xl border border-dashed border-white/10 px-4 py-5 text-xs text-content-muted">
             Todavía no tenés plantillas. Personalizá una rutina y guardala
             acá para asignarla rápidamente.
           </div>
@@ -106,11 +106,11 @@ export function CoachTemplatesView({
                       {plantilla.title}
                     </div>
                   </div>
-                  <Badge className="shrink-0 border-white/[0.08] bg-white/[0.04] text-[9px] text-white/45">
+                  <Badge className="shrink-0 border-white/[0.08] bg-white/[0.04] text-[9px] text-content-muted">
                     Plantilla
                   </Badge>
                 </div>
-                <div className="mt-2 text-[10px] text-white/30">
+                <div className="mt-2 text-[10px] text-content-muted">
                   {countLabel(cantidadEjercicios(plantilla), "ejercicio")}
                   {plantilla.durationMinutes
                     ? ` · ${plantilla.durationMinutes} min`
@@ -133,7 +133,7 @@ export function CoachTemplatesView({
                           variant="ghost"
                           size="icon-sm"
                           aria-label={`Eliminar plantilla ${plantilla.title}`}
-                          className="rounded-full text-white/35 hover:bg-red-400/10 hover:text-red-200"
+                          className="rounded-full text-content-muted hover:bg-red-400/10 hover:text-red-200"
                         />
                       }
                     >
@@ -144,7 +144,7 @@ export function CoachTemplatesView({
                         <DialogTitle>
                           ¿Eliminar “{plantilla.title}”?
                         </DialogTitle>
-                        <DialogDescription className="text-white/40">
+                        <DialogDescription className="text-content-muted">
                           La plantilla dejará de estar disponible para
                           nuevas asignaciones. Las rutinas que ya asignaste
                           no se modificarán.

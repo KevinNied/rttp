@@ -21,6 +21,7 @@ export function FilaEjercicio({
   onUpdate: (item: Exercise) => void;
   onDelete: () => void;
 }) {
+  const exerciseLabel = item.name.trim() || "nuevo ejercicio";
   const {
     attributes,
     listeners,
@@ -28,8 +29,10 @@ export function FilaEjercicio({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id, data: { sectionId } });
-  const exerciseLabel = item.name.trim() || "nuevo ejercicio";
+  } = useSortable({
+    id: item.id,
+    data: { sectionId, label: exerciseLabel },
+  });
   const [restUnit, setRestUnit] = useState<"seconds" | "minutes">(() =>
     item.restSeconds !== null &&
     item.restSeconds >= 60 &&
@@ -62,7 +65,7 @@ export function FilaEjercicio({
           {...attributes}
           {...listeners}
           aria-label={`Arrastrar ${exerciseLabel}`}
-          className="touch-none cursor-grab rounded-lg p-1 text-white/20 transition-colors hover:bg-white/[0.06] hover:text-white/55 active:cursor-grabbing"
+          className="touch-none cursor-grab rounded-lg p-1 text-content-muted transition-colors hover:bg-white/[0.06] hover:text-white/55 active:cursor-grabbing"
         >
           <GripVertical className="size-4" />
         </button>
@@ -84,7 +87,7 @@ export function FilaEjercicio({
               item.name ? `Nombre de ${item.name}` : "Nombre del nuevo ejercicio"
             }
             placeholder="Nombre del ejercicio"
-            className="h-6 rounded-none border-0 bg-transparent p-0 text-sm font-medium shadow-none placeholder:text-white/25 focus-visible:ring-0 dark:bg-transparent xl:text-base"
+            className="h-6 rounded-md border-0 bg-transparent p-0 text-sm font-medium shadow-none placeholder:text-content-muted focus-visible:ring-2 focus-visible:ring-ring/70 dark:bg-transparent xl:text-base"
           />
           <Input
             value={item.instructions}
@@ -93,7 +96,7 @@ export function FilaEjercicio({
             }
             aria-label={`Aclaraciones de ${exerciseLabel}`}
             placeholder="+ Aclaración opcional"
-            className="mt-1 h-7 rounded-none border-0 bg-transparent p-0 text-xs text-violet-100/70 shadow-none placeholder:text-white/45 focus-visible:ring-0 dark:bg-transparent xl:text-sm"
+            className="mt-1 h-7 rounded-md border-0 bg-transparent p-0 text-xs text-violet-100/70 shadow-none placeholder:text-content-muted focus-visible:ring-2 focus-visible:ring-ring/70 dark:bg-transparent xl:text-sm"
           />
         </div>
       </div>
@@ -283,7 +286,7 @@ export function FilaEjercicio({
                 });
               }}
               aria-label={`Descanso de ${exerciseLabel}`}
-              className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-2 text-center text-xs tabular-nums shadow-none focus-visible:ring-0 dark:bg-transparent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+              className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-2 text-center text-xs tabular-nums shadow-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/70 dark:bg-transparent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
             <div
               role="group"
@@ -305,7 +308,7 @@ export function FilaEjercicio({
                     "rounded text-[10px] transition-colors",
                     restUnit === unit
                       ? "bg-white/10 text-white"
-                      : "text-white/45 hover:text-white/75",
+                      : "text-content-muted hover:text-white/75",
                   )}
                 >
                   {unit === "seconds" ? "s" : "min"}
@@ -321,7 +324,7 @@ export function FilaEjercicio({
           variant="ghost"
           size="icon-sm"
           onClick={onDelete}
-          className="hidden text-indigo-100/20 hover:bg-red-400/10 hover:text-red-200 md:inline-flex"
+          className="hidden text-content-muted hover:bg-red-400/10 hover:text-red-200 md:inline-flex"
           aria-label={`Eliminar ${exerciseLabel}`}
         >
           <X />

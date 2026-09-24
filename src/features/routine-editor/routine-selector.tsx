@@ -21,6 +21,8 @@ export function SelectorRutina({
 }) {
   return (
     <div
+      role="group"
+      aria-label="Seleccionar rutina"
       className={cn(
         "grid grid-cols-2 gap-2",
         desktopVertical && "xl:grid-cols-1 xl:gap-3",
@@ -29,9 +31,11 @@ export function SelectorRutina({
       {routines.map((rutina, index) => (
         <button
           key={rutina.id}
+          type="button"
+          aria-pressed={rutina.id === rutinaActiva?.id}
           onClick={() => onSelect(rutina.id)}
           className={cn(
-            "rounded-2xl border p-3 text-left transition-all",
+            "rounded-2xl border p-3 text-left transition-[color,background-color,border-color,box-shadow] duration-[var(--motion-fast)] ease-[var(--ease-standard)]",
             desktopVertical && "xl:p-4",
             rutina.id === rutinaActiva?.id
               ? index % 2 === 0
@@ -57,14 +61,14 @@ export function SelectorRutina({
           </div>
           <div
             className={cn(
-              "mt-1 text-[10px] text-indigo-100/35",
+              "mt-1 text-[10px] text-content-muted",
               desktopVertical && "xl:mt-2 xl:text-xs",
             )}
           >
             {countLabel(cantidadEjercicios(rutina), "ejercicio")}
           </div>
           {authorLabel && (
-            <div className="mt-1 truncate text-[9px] text-cyan-100/45">
+            <div className="mt-1 truncate text-[9px] text-content-muted">
               {authorLabel(rutina)}
             </div>
           )}

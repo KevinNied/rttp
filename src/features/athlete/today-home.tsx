@@ -178,7 +178,7 @@ export function HomeHoy({
                             ? (rutina?.title ?? "Rutina no disponible")
                             : entrenamiento.title}
                         </h2>
-                        <p className="mt-2 text-xs leading-relaxed text-white/35">
+                        <p className="mt-2 text-xs leading-relaxed text-content-muted">
                           {entrenamiento.origin === "routine" ? (
                             <TextWithLinks>
                               {rutina?.objective ?? "Rutina asignada para hoy."}
@@ -285,13 +285,13 @@ export function HomeHoy({
           <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 md:p-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div className="max-w-xl">
-                <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/55">
+                <div className="text-[10px] uppercase tracking-[0.18em] text-info dark:text-cyan-200">
                   Inicio rápido
                 </div>
                 <h2 className="mt-2 text-lg font-medium text-white/90">
                   ¿Salió un entrenamiento no planificado?
                 </h2>
-                <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
+                <p className="mt-2 text-xs leading-relaxed text-content-muted md:text-sm">
                   Entrá a tus rutinas y empezá una al instante sin depender de
                   la agenda.
                 </p>
@@ -317,7 +317,7 @@ export function HomeHoy({
               <h2 className="mt-4 text-lg font-medium">
                 No tenés entrenamientos para hoy
               </h2>
-              <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-white/35">
+              <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-content-muted">
                 Podés descansar, revisar tu semana o programar una rutina desde
                 la agenda.
               </p>
@@ -345,7 +345,7 @@ export function HomeHoy({
                       )?.title ?? "Rutina agendada")
                     : proximoEntrenamiento.title}
                 </h2>
-                <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
+                <p className="mt-2 text-xs leading-relaxed text-content-muted md:text-sm">
                   {new Intl.DateTimeFormat("es-AR", {
                     weekday: "long",
                     day: "numeric",
@@ -366,13 +366,13 @@ export function HomeHoy({
               </div>
             )}
             <div className="rounded-3xl border border-white/[0.08] bg-white/[0.025] p-5 text-left md:p-6">
-              <div className="text-[10px] uppercase tracking-[0.18em] text-cyan-200/55">
+              <div className="text-[10px] uppercase tracking-[0.18em] text-info dark:text-cyan-200">
                 Inicio rápido
               </div>
               <h2 className="mt-2 text-lg font-medium text-white/90">
                 ¿Estás por entrenar?
               </h2>
-              <p className="mt-2 text-xs leading-relaxed text-white/38 md:text-sm">
+              <p className="mt-2 text-xs leading-relaxed text-content-muted md:text-sm">
                 Si te surgió una sesión no planificada, abrí tus rutinas y
                 arrancá en segundos.
               </p>
@@ -404,7 +404,7 @@ export function HomeHoy({
               <button
                 type="button"
                 onClick={() => navigate("/activities")}
-                className="text-xs font-medium text-foreground/55 transition-colors hover:text-foreground dark:text-white/40 dark:hover:text-white/75"
+                className="text-xs font-medium text-content-muted transition-colors hover:text-content-primary"
               >
                 Ver progreso
               </button>
@@ -475,7 +475,7 @@ export function HomeHoy({
                       "cursor-pointer hover:border-primary/35 hover:bg-app-elevated",
                   )}
                 >
-                  <span className="text-[9px] font-semibold uppercase tracking-wider text-foreground/45 dark:text-white/35">
+                  <span className="text-[9px] font-semibold uppercase tracking-wider text-content-muted">
                     {dayLabel}
                   </span>
                   <span className="mt-1 text-sm font-medium tabular-nums">
@@ -501,7 +501,7 @@ export function HomeHoy({
             })}
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[10px] text-foreground/45 dark:text-white/35">
+          <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[10px] text-content-muted">
             {[
               ["bg-cyan-500", "Completado"],
               ["bg-violet-500", "En curso"],
@@ -523,11 +523,11 @@ export function HomeHoy({
             <div className="mt-3 text-3xl font-semibold leading-none tabular-nums">
               {rachaSemanal}
             </div>
-            <div className="mt-1.5 text-xs text-foreground/50 dark:text-white/40">
+            <div className="mt-1.5 text-xs text-content-muted">
               {countLabel(rachaSemanal, "semana activa", "semanas activas")}
             </div>
           </div>
-          <p className="mt-5 max-w-56 text-xs leading-relaxed text-foreground/60 dark:text-white/45">
+          <p className="mt-5 max-w-56 text-xs leading-relaxed text-content-secondary">
             {mensajeSemanal}
           </p>
         </div>

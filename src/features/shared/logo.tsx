@@ -12,10 +12,10 @@ export function Logo() {
         className="size-9 rounded-lg bg-indigo-950 p-1 object-contain drop-shadow-[0_0_14px_rgba(99,102,241,.2)] dark:bg-transparent dark:p-0"
       />
       <div>
-        <div className="text-sm font-semibold tracking-[0.24em] text-white">
+        <div className="text-sm font-semibold tracking-[0.24em] text-content-primary">
           RTTP
         </div>
-        <div className="text-[9px] uppercase tracking-[0.18em] text-indigo-200/40">
+        <div className="text-[9px] uppercase tracking-[0.18em] text-content-muted">
           Return To The Prime
         </div>
       </div>

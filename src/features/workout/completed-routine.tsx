@@ -33,7 +33,7 @@ export function RutinaCompletada({
               <Trophy className="size-6" />
             </div>
             <h1 className="mt-5 text-3xl font-light"> Rutina completada</h1>
-            <p className="mt-2 text-xs text-indigo-100/40">
+            <p className="mt-2 text-xs text-content-muted">
               Excelente trabajo, {atleta.name}.
             </p>
             <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-cyan-200/15 bg-cyan-300/[0.07] px-4 py-2 text-cyan-100/75">
@@ -41,40 +41,89 @@ export function RutinaCompletada({
               <span className="text-sm tabular-nums">
                 {formatDuration(elapsedSeconds)}
               </span>
-              <span className="text-[9px] uppercase tracking-wider text-cyan-100/35">
+              <span className="text-[9px] uppercase tracking-wider text-content-muted">
                 Tiempo total
               </span>
             </div>
-            <div className="my-6 flex justify-center gap-2">
-              {[1, 2, 3, 4, 5].map((value) => (
-                <button
-                  key={value}
-                  onClick={() => setEsfuerzo(value)}
-                  aria-label={`Esfuerzo ${value} de 5`}
-                  className={cn(
-                    "grid size-10 place-items-center rounded-full border",
-                    value <= effort
-                      ? "border-orange-200/20 bg-orange-300/10 text-orange-300"
-                      : "border-indigo-200/10 text-indigo-100/15",
-                  )}
-                >
-                  <Flame
-                    className={cn("size-4", value <= effort && "fill-current")}
-                  />
-                </button>
-              ))}
-            </div>
+            <fieldset className="my-6">
+              <legend className="mb-3 text-sm font-medium text-content-secondary">
+                Esfuerzo percibido
+              </legend>
+              <div className="flex justify-center gap-2">
+                {[1, 2, 3, 4, 5].map((value) => (
+                  <label key={value} className="cursor-pointer rounded-full">
+                    <input
+                      id={`effort-${value}`}
+                      type="radio"
+                      name="effort"
+                      value={value}
+                      checked={effort === value}
+                      onChange={() => setEsfuerzo(value)}
+                      onKeyDown={(event) => {
+                        if (
+                          ![
+                            "ArrowLeft",
+                            "ArrowRight",
+                            "ArrowUp",
+                            "ArrowDown",
+                          ].includes(event.key)
+                        ) {
+                          return;
+                        }
+                        event.preventDefault();
+                        const direction =
+                          event.key === "ArrowRight" ||
+                          event.key === "ArrowDown"
+                            ? 1
+                            : -1;
+                        const nextEffort = ((value - 1 + direction + 5) % 5) + 1;
+                        setEsfuerzo(nextEffort);
+                        requestAnimationFrame(() =>
+                          document.getElementById(`effort-${nextEffort}`)?.focus(),
+                        );
+                      }}
+                      aria-label={`Esfuerzo ${value} de 5`}
+                      className="peer sr-only"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "grid size-11 place-items-center rounded-full border transition-colors peer-focus-visible:ring-3 peer-focus-visible:ring-ring/70",
+                        value <= effort
+                          ? "border-orange-500/40 bg-orange-500/12 text-orange-700 dark:border-orange-200/30 dark:bg-orange-300/10 dark:text-orange-300"
+                          : "border-border text-content-muted",
+                      )}
+                    >
+                      <Flame
+                        className={cn(
+                          "size-4",
+                          value <= effort && "fill-current",
+                        )}
+                      />
+                    </span>
+                  </label>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-content-muted">
+                Seleccionaste {effort} de 5
+              </p>
+            </fieldset>
           </div>
           <div className="xl:text-left">
-            <Textarea
-              value={feedback}
-              onChange={(event) => setFeedback(event.target.value)}
-              placeholder="¿Querés contarle algo a tu entrenador?"
-              className="min-h-24 border-white/10 bg-black/30 text-white placeholder:text-white/25"
-            />
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium text-content-secondary">
+                Comentario para tu entrenador
+              </span>
+              <Textarea
+                value={feedback}
+                onChange={(event) => setFeedback(event.target.value)}
+                placeholder="Contale cómo te sentiste o qué querés ajustar."
+                className="min-h-24 border-input bg-app-surface text-foreground placeholder:text-content-muted dark:bg-black/30"
+              />
+            </label>
             <Button
               onClick={() => onDone(effort)}
-              className="mt-4 h-12 w-full rounded-full bg-indigo-50 text-indigo-950 hover:bg-cyan-100"
+              className="mt-4 h-12 w-full rounded-full"
             >
               Enviar y cerrar
               <CheckCircle2 />

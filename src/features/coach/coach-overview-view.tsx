@@ -70,10 +70,10 @@ export function CoachOverviewView({
             className="rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-4"
           >
             <div className="text-2xl font-light">{cantidad as number}</div>
-            <div className="mt-1 text-[10px] uppercase tracking-wider text-white/45">
+            <div className="mt-1 text-[10px] uppercase tracking-wider text-content-secondary">
               {title as string}
             </div>
-            <div className="mt-1 text-[10px] text-white/25">
+            <div className="mt-1 text-[10px] text-content-muted">
               {detalle as string}
             </div>
           </div>
@@ -86,7 +86,7 @@ export function CoachOverviewView({
           className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4 text-left transition-colors hover:bg-white/[0.04]"
         >
           <div className="text-sm font-medium">Seguí con tus atletas</div>
-          <p className="mt-1 text-xs leading-relaxed text-white/35">
+          <p className="mt-1 text-xs leading-relaxed text-content-muted">
             Entrá directo a la planificación individual y revisá cargas,
             agenda y actividades.
           </p>
@@ -97,7 +97,7 @@ export function CoachOverviewView({
         </button>
         <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] p-4">
           <div className="text-sm font-medium">Rutinas para completar</div>
-          <p className="mt-1 text-xs leading-relaxed text-white/35">
+          <p className="mt-1 text-xs leading-relaxed text-content-muted">
             {atletasConRutinasIncompletas.length === 0
               ? "No hay atletas con rutinas vacías. Todo el contenido base ya está cargado."
               : `${atletasConRutinasIncompletas.length} atleta${atletasConRutinasIncompletas.length === 1 ? "" : "s"} tiene${atletasConRutinasIncompletas.length === 1 ? "" : "n"} al menos una rutina sin ejercicios.`}

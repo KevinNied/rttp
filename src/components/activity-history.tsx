@@ -162,7 +162,7 @@ function AnnotationList({
           key={annotation.id}
           className="rounded-xl border border-cyan-300/15 bg-cyan-300/[0.055] px-3 py-2.5"
         >
-          <div className="text-[8px] font-semibold uppercase tracking-[0.12em] text-cyan-700/70 dark:text-cyan-100/45">
+          <div className="text-[8px] font-semibold uppercase tracking-[0.12em] text-cyan-700/70 dark:text-content-muted">
             Aclaración
           </div>
           <p className="mt-1 whitespace-pre-wrap text-[11px] leading-relaxed text-foreground/70 dark:text-white/60">
@@ -176,8 +176,8 @@ function AnnotationList({
 
 function ActivityChip({ icon, label }: { icon: ReactNode; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-app-elevated px-2.5 py-1 text-[10px] text-foreground/65 dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-white/45">
-      <span className="text-foreground/50 dark:text-white/35">{icon}</span>
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-app-elevated px-2.5 py-1 text-[10px] text-foreground/65 dark:border-white/[0.07] dark:bg-white/[0.04] dark:text-content-muted">
+      <span className="text-foreground/50 dark:text-content-muted">{icon}</span>
       {label}
     </span>
   );
@@ -205,8 +205,8 @@ function ActivityCopy({
         className={cn(
           "text-[9px] uppercase tracking-wider",
           tone === "accent"
-            ? "text-cyan-700/70 dark:text-cyan-100/35"
-            : "text-foreground/45 dark:text-white/25",
+            ? "text-cyan-700/70 dark:text-content-muted"
+            : "text-content-muted dark:text-content-muted",
         )}
       >
         {title}
@@ -235,21 +235,21 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
             <div className="text-lg font-light tabular-nums">
               {formatDuration(duracion)}
             </div>
-            <div className="text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/25">
+            <div className="text-[9px] uppercase tracking-wider text-content-muted dark:text-content-muted">
               {actividad.type === "routine" ? "Tiempo real" : "Duración"}
             </div>
           </div>
         )}
         <div className="rounded-2xl border border-border bg-app-surface p-3 dark:border-white/[0.07] dark:bg-white/[0.025]">
           <div className="text-lg font-light">{seriesCompletadas}</div>
-          <div className="text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/25">
+          <div className="text-[9px] uppercase tracking-wider text-content-muted dark:text-content-muted">
             Series
           </div>
         </div>
         {actividad.effort && (
           <div className="rounded-2xl border border-border bg-app-surface p-3 dark:border-white/[0.07] dark:bg-white/[0.025]">
             <div className="text-lg font-light">{actividad.effort}/5</div>
-            <div className="text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/25">
+            <div className="text-[9px] uppercase tracking-wider text-content-muted dark:text-content-muted">
               Esfuerzo
             </div>
           </div>
@@ -272,7 +272,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
               <div className="text-sm font-medium text-foreground/80 dark:text-white/75">
                 Detalle de la sesión
               </div>
-              <div className="mt-1 text-xs text-foreground/50 dark:text-white/35">
+              <div className="mt-1 text-xs text-foreground/50 dark:text-content-muted">
                 Abrí un bloque para revisar sus ejercicios y cargas.
               </div>
             </div>
@@ -302,7 +302,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                   className="flex w-full items-center justify-between gap-4 bg-app-elevated/70 px-4 py-3.5 text-left transition-colors hover:bg-app-elevated dark:bg-white/[0.03] dark:hover:bg-white/[0.05]"
                 >
                   <div className="min-w-0">
-                    <div className="text-[9px] font-medium uppercase tracking-[0.12em] text-foreground/45 dark:text-white/30">
+                    <div className="text-[9px] font-medium uppercase tracking-[0.12em] text-content-muted dark:text-content-muted">
                       Bloque {sectionIndex + 1}
                     </div>
                     {optionalBlockName(section.name) && (
@@ -310,7 +310,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                         {optionalBlockName(section.name)}
                       </div>
                     )}
-                    <div className="mt-1.5 text-xs text-foreground/50 dark:text-white/35">
+                    <div className="mt-1.5 text-xs text-foreground/50 dark:text-content-muted">
                       {countLabel(
                         exerciseGroups.length,
                         "ejercicio",
@@ -321,7 +321,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                   </div>
                   <ChevronDown
                     className={cn(
-                      "size-4 shrink-0 text-foreground/50 transition-transform dark:text-white/35",
+                      "size-4 shrink-0 text-foreground/50 transition-transform dark:text-content-muted",
                       isOpen && "rotate-180",
                     )}
                   />
@@ -368,7 +368,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                             <div className="text-sm text-foreground/80 dark:text-white/75">
                               {exercise.name}
                             </div>
-                            <div className="mt-1 text-xs text-foreground/45 dark:text-white/30">
+                            <div className="mt-1 text-xs text-content-muted dark:text-content-muted">
                               {countLabel(
                                 exercise.sets.length,
                                 "serie",
@@ -443,7 +443,7 @@ function DetalleExterno({ actividad }: { actividad: CompletedActivity }) {
         />
       )}
       {!tieneDetalle && (
-        <div className="inline-flex items-center gap-2 text-xs text-foreground/60 dark:text-white/40">
+        <div className="inline-flex items-center gap-2 text-xs text-foreground/60 dark:text-content-muted">
           <CheckCircle2 className="size-3.5 text-cyan-200/80 dark:text-cyan-100/50" />
           <span>Sin notas adicionales</span>
         </div>
@@ -502,7 +502,7 @@ export function ActivityHistory({
           <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
             Actividades realizadas
           </h1>
-          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-foreground/50 dark:text-white/35 md:text-sm">
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-foreground/50 dark:text-content-muted md:text-sm">
             Abrí solo la actividad que quieras revisar para mantener el
             historial más ágil.
           </p>
@@ -512,11 +512,11 @@ export function ActivityHistory({
       {activities.length === 0 ? (
         <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-border bg-app-panel px-6 text-center dark:border-white/[0.09] dark:bg-white/[0.02]">
           <div>
-            <Activity className="mx-auto size-6 text-foreground/30 dark:text-white/20" />
+            <Activity className="mx-auto size-6 text-content-muted dark:text-content-muted" />
             <h2 className="mt-3 text-sm font-medium">
               Todavía no hay actividades
             </h2>
-            <p className="mt-2 text-xs text-foreground/45 dark:text-white/30">
+            <p className="mt-2 text-xs text-content-muted dark:text-content-muted">
               Cuando completes una rutina o actividad aparecerá acá.
             </p>
           </div>
@@ -549,14 +549,18 @@ export function ActivityHistory({
                 <div className="text-xl font-light md:text-2xl">
                   {valor as number}
                 </div>
-                <div className="mt-1 text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/30">
+                <div className="mt-1 text-[9px] uppercase tracking-wider text-content-muted dark:text-content-muted">
                   {label as string}
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="mb-4 flex gap-1 rounded-2xl border border-border bg-app-panel p-1 shadow-sm sm:w-fit dark:border-transparent dark:bg-white/[0.025] dark:shadow-none">
+          <div
+            role="group"
+            aria-label="Filtrar actividades"
+            className="mb-4 flex gap-1 rounded-2xl border border-border bg-app-panel p-1 shadow-sm sm:w-fit dark:border-transparent dark:bg-white/[0.025] dark:shadow-none"
+          >
             {[
               ["todas", "Todas"],
               ["routines", "Rutinas"],
@@ -564,12 +568,14 @@ export function ActivityHistory({
             ].map(([value, label]) => (
               <button
                 key={value}
+                type="button"
+                aria-pressed={filtro === value}
                 onClick={() => setFiltro(value as FiltroActividad)}
                 className={cn(
                   "flex-1 rounded-xl px-4 py-2 text-[10px] transition-colors sm:flex-none",
                   filtro === value
                     ? "bg-app-elevated text-foreground shadow-sm dark:bg-white/[0.08] dark:text-white dark:shadow-none"
-                    : "text-foreground/60 hover:bg-app-elevated/70 hover:text-foreground dark:text-white/30 dark:hover:bg-white/[0.04] dark:hover:text-white/60",
+                    : "text-foreground/60 hover:bg-app-elevated/70 hover:text-foreground dark:text-content-muted dark:hover:bg-white/[0.04] dark:hover:text-white/60",
                 )}
               >
                 {label}
@@ -578,7 +584,7 @@ export function ActivityHistory({
           </div>
 
           {visibles.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border py-12 text-center text-xs text-foreground/45 dark:border-white/[0.08] dark:text-white/30">
+            <div className="rounded-2xl border border-dashed border-border py-12 text-center text-xs text-content-muted dark:border-white/[0.08] dark:text-content-muted">
               No hay actividades en esta categoría.
             </div>
           ) : (
@@ -634,12 +640,12 @@ export function ActivityHistory({
                               <div className="truncate text-sm font-medium text-foreground/85 dark:text-white/80">
                                 {actividad.title}
                               </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-foreground/45 dark:text-white/30">
+                              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-content-muted dark:text-content-muted">
                                 <span className="inline-flex items-center gap-1.5 capitalize">
                                   <CalendarDays className="size-3" />
                                   {fechaActividad(actividad.date)}
                                 </span>
-                                <span className="inline-flex items-center gap-1.5 text-foreground/40 dark:text-white/25">
+                                <span className="inline-flex items-center gap-1.5 text-content-muted dark:text-content-muted">
                                   <CheckCircle2 className="size-3" />
                                   {actividad.type === "routine"
                                     ? "Rutina completada"
@@ -649,12 +655,12 @@ export function ActivityHistory({
                             </div>
 
                             <div className="flex items-center gap-2 pl-2">
-                              <span className="hidden text-[10px] text-foreground/40 dark:text-white/25 sm:inline">
+                              <span className="hidden text-[10px] text-content-muted dark:text-content-muted sm:inline">
                                 {expandida ? "Ocultar" : "Ver detalle"}
                               </span>
                               <ChevronDown
                                 className={cn(
-                                  "size-4 shrink-0 text-foreground/50 transition-transform dark:text-white/35",
+                                  "size-4 shrink-0 text-foreground/50 transition-transform dark:text-content-muted",
                                   expandida && "rotate-180",
                                 )}
                               />

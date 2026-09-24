@@ -112,7 +112,7 @@ export function WorkoutOverviewSheet({
                           "grid size-7 shrink-0 place-items-center rounded-full border",
                           completed === exerciseSteps.length
                             ? "border-cyan-200/20 bg-cyan-300 text-indigo-950"
-                            : "border-white/10 text-white/45",
+                            : "border-white/10 text-content-muted",
                         )}
                       >
                         {completed === exerciseSteps.length ? (

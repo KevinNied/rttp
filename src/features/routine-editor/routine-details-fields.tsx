@@ -1,5 +1,7 @@
 "use client";
 
+import { useId } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Routine } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
@@ -14,6 +16,7 @@ export function RoutineDetailsFields({
   compact?: boolean;
 }) {
   const missingTitle = !routine.title.trim();
+  const titleErrorId = useId();
 
   return (
     <div
@@ -42,11 +45,16 @@ export function RoutineDetailsFields({
             onUpdate({ ...routine, title: event.currentTarget.value.trim() })
           }
           aria-invalid={missingTitle}
+          aria-describedby={missingTitle ? titleErrorId : undefined}
           placeholder="Nueva rutina"
-          className="h-11 border-white/10 bg-black/20 px-3 text-lg font-medium text-white placeholder:text-white/30 md:text-lg"
+          className="h-11 border-white/10 bg-black/20 px-3 text-lg font-medium text-white placeholder:text-content-muted md:text-lg"
         />
         {missingTitle && (
-          <span className="block text-xs text-amber-100/80">
+          <span
+            id={titleErrorId}
+            role="alert"
+            className="block text-xs text-warning"
+          >
             El nombre es obligatorio.
           </span>
         )}
@@ -55,7 +63,7 @@ export function RoutineDetailsFields({
       <label className="block min-w-0 space-y-1.5">
         <span className="text-xs font-medium text-white/65">
           Objetivo
-          <span className="ml-1 font-normal text-white/45">(opcional)</span>
+          <span className="ml-1 font-normal text-content-muted">(opcional)</span>
         </span>
         <Input
           value={
@@ -75,14 +83,14 @@ export function RoutineDetailsFields({
             })
           }
           placeholder="Ej. Fuerza y estabilidad"
-          className="h-11 border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-white/30 md:text-sm"
+          className="h-11 border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-content-muted md:text-sm"
         />
       </label>
 
       <label className="block min-w-0 space-y-1.5">
         <span className="text-xs font-medium text-white/65">
           Duración
-          <span className="ml-1 font-normal text-white/45">(min)</span>
+          <span className="ml-1 font-normal text-content-muted">(min)</span>
         </span>
         <Input
           type="number"
@@ -100,7 +108,7 @@ export function RoutineDetailsFields({
             });
           }}
           placeholder="Sin estimar"
-          className="h-11 border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-white/30 md:text-sm"
+          className="h-11 border-white/10 bg-black/20 px-3 text-sm text-white placeholder:text-content-muted md:text-sm"
         />
       </label>
     </div>

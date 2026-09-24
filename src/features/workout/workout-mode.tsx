@@ -548,10 +548,13 @@ export function WorkoutMode({
             <div className="text-[10px] font-semibold uppercase tracking-[0.11em] text-cyan-50/90 sm:text-[11px] sm:tracking-[0.15em]">
               Rutina en curso
             </div>
-            <div className="mt-1 flex min-w-0 items-center justify-center gap-2 text-xs font-medium text-indigo-50/65">
+            <div className="mt-1 flex min-w-0 items-center justify-center gap-2 text-xs font-medium text-content-secondary">
               <span className="min-w-0 truncate">{rutina.title}</span>
-              <span className="text-white/25">·</span>
-              <span className="inline-flex shrink-0 items-center gap-1 tabular-nums text-cyan-50/75">
+              <span className="text-content-subtle">·</span>
+              <span
+                className="inline-flex shrink-0 items-center gap-1 tabular-nums text-content-secondary"
+                aria-label={`Tiempo transcurrido: ${formatDuration(elapsedSeconds)}`}
+              >
                 <Clock3 className="size-3" />
                 {formatDuration(elapsedSeconds)}
               </span>
@@ -580,6 +583,7 @@ export function WorkoutMode({
         </div>
         <Progress
           value={(registrosResueltos / pasos.length) * 100}
+          aria-label="Progreso de la rutina"
           className="h-1 bg-indigo-300/10"
         />
       </div>
@@ -587,7 +591,7 @@ export function WorkoutMode({
       <div className="mx-auto mt-3 flex min-h-0 w-full max-w-lg flex-1 flex-col overflow-y-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden xl:max-w-4xl">
         {isCompactSection && (
           <div className="mb-3 flex items-center justify-between rounded-full border border-white/[0.08] bg-white/[0.025] p-1 pl-3">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-white/60">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-content-secondary">
               Vista del bloque
             </span>
             <div className="flex gap-1">
@@ -610,8 +614,8 @@ export function WorkoutMode({
                   className={cn(
                     "flex items-center gap-1.5 rounded-full px-3 py-2 text-[10px] font-medium transition-colors",
                     vistaCalentamiento === vista
-                      ? "bg-indigo-50 text-indigo-950"
-                      : "text-white/35 hover:text-white/65",
+                      ? "bg-primary text-primary-foreground"
+                      : "text-content-muted hover:text-content-primary",
                   )}
                 >
                   <Icon className="size-3" />
@@ -726,7 +730,7 @@ export function WorkoutMode({
                 <div className="relative flex flex-col">
                   <div>
                     <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.09em] text-indigo-50/65 sm:text-[11px] sm:tracking-[0.12em]">
+                      <div className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.09em] text-content-secondary sm:text-[11px] sm:tracking-[0.12em]">
                         {registro.deferred
                           ? "Retomado para completar"
                           : "Ejercicio actual"}
@@ -767,6 +771,9 @@ export function WorkoutMode({
                         />
                         {(registro.completed || registro.skipped) && (
                           <div
+                            role="status"
+                            aria-live="polite"
+                            aria-atomic="true"
                             className={cn(
                               "grid size-10 place-items-center rounded-full border",
                               registro.completed
@@ -775,6 +782,11 @@ export function WorkoutMode({
                             )}
                           >
                             {registro.completed ? <Check /> : <SkipForward />}
+                            <span className="sr-only">
+                              {registro.completed
+                                ? "Serie completada"
+                                : "Serie omitida"}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -821,11 +833,12 @@ export function WorkoutMode({
                     )}
 
                   {restTimer?.stepId === paso.stepId && (
-                    <div
-                      role="timer"
-                      aria-live="polite"
-                      className="mt-3 rounded-2xl border border-cyan-200/20 bg-cyan-300/[0.08] px-4 py-3"
-                    >
+                    <>
+                      <div
+                        role="timer"
+                        aria-label="Tiempo de descanso restante"
+                        className="mt-3 rounded-2xl border border-cyan-200/20 bg-cyan-300/[0.08] px-4 py-3"
+                      >
                       <div className="flex items-center justify-between gap-3">
                         <div>
                           <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-cyan-50/70">
@@ -860,7 +873,13 @@ export function WorkoutMode({
                           </Button>
                         </div>
                       </div>
-                    </div>
+                      </div>
+                      {restSeconds === 0 && (
+                        <span role="status" className="sr-only">
+                          Descanso terminado
+                        </span>
+                      )}
+                    </>
                   )}
 
                   <div className="mt-4">
@@ -902,7 +921,7 @@ export function WorkoutMode({
                         "mt-5 h-13 w-full rounded-full text-[15px] font-semibold",
                         registro.completed
                           ? "border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15"
-                          : "bg-indigo-50 text-indigo-950 hover:bg-cyan-100",
+                          : "bg-primary text-primary-foreground hover:bg-primary/90",
                       )}
                     >
                       {registro.completed ? (
@@ -934,7 +953,7 @@ export function WorkoutMode({
                 >
                   {mensaje}
                 </div>
-                <div className="mt-1 flex items-center justify-center gap-2 text-xs font-semibold text-indigo-50/65">
+                <div className="mt-1 flex items-center justify-center gap-2 text-xs font-semibold text-content-secondary">
                   <MoveHorizontal className="size-3.5" />
                   Deslizá a la izquierda para avanzar
                 </div>
@@ -953,7 +972,7 @@ export function WorkoutMode({
                 <Button
                   disabled={!registro.completed && !registro.skipped}
                   onClick={avanzar}
-                  className="h-11 flex-[1.5] rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 disabled:bg-indigo-300/10 disabled:text-indigo-100/25"
+                  className="h-11 flex-[1.5] rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200 disabled:bg-indigo-300/10 disabled:text-content-muted"
                 >
                   {proximo ? "Siguiente" : "Finalizar"}
                   <ArrowRight />
@@ -965,7 +984,7 @@ export function WorkoutMode({
                   <ArrowRight className="size-3.5" />
                 </div>
                 <div className="min-w-0 pt-0.5">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-indigo-50/65">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-content-secondary">
                     {!proximo
                       ? "Último paso"
                       : registros[proximo.stepId]?.deferred
@@ -974,7 +993,7 @@ export function WorkoutMode({
                           ? "Siguiente serie"
                           : "Siguiente ejercicio"}
                   </div>
-                  <div className="mt-1 text-sm font-medium leading-snug text-indigo-50/85">
+                  <div className="mt-1 text-sm font-medium leading-snug text-content-primary">
                     {proximo?.name ?? "Finalizar rutina"}
                   </div>
                 </div>

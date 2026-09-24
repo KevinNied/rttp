@@ -87,7 +87,7 @@ export function InlineSectionCreator({
               "rounded-xl border px-3 py-2.5 text-left transition-colors",
               kind === option
                 ? "border-primary/30 bg-app-elevated text-foreground dark:border-cyan-200/25 dark:bg-cyan-300/[0.08] dark:text-cyan-50"
-                : "border-border bg-app-panel text-foreground/60 hover:bg-app-elevated hover:text-foreground dark:border-white/[0.07] dark:bg-white/[0.025] dark:text-white/40 dark:hover:text-white/70",
+                : "border-border bg-app-panel text-foreground/60 hover:bg-app-elevated hover:text-foreground dark:border-white/[0.07] dark:bg-white/[0.025] dark:text-content-muted dark:hover:text-white/70",
             )}
           >
             <span className="block text-sm font-medium">
@@ -106,7 +106,7 @@ export function InlineSectionCreator({
         <button
           type="button"
           onClick={cancel}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-foreground/60 transition-colors hover:bg-app-elevated hover:text-foreground dark:text-white/45 dark:hover:bg-white/[0.05] dark:hover:text-white"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-foreground/60 transition-colors hover:bg-app-elevated hover:text-foreground dark:text-content-muted dark:hover:bg-white/[0.05] dark:hover:text-white"
         >
           <X className="size-3.5" />
           Cancelar

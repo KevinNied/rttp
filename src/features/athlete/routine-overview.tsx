@@ -58,14 +58,14 @@ export function OverviewRutina({
             <Badge className="border-cyan-200/15 bg-cyan-300/10 text-[9px] text-cyan-100">
               Rutina RTTP
             </Badge>
-            <span className="text-[9px] uppercase tracking-wider text-white/25">
+            <span className="text-[9px] uppercase tracking-wider text-content-muted">
               Próxima rutina
             </span>
           </div>
           <DialogTitle className="mt-2 text-2xl font-light tracking-tight">
             {rutina.title}
           </DialogTitle>
-          <DialogDescription className="text-white/40">
+          <DialogDescription className="text-content-muted">
             <span className="mb-1 block text-cyan-100/60">{authorLabel}</span>
             {countLabel(
               rutina.structure.sections.length,
@@ -87,7 +87,7 @@ export function OverviewRutina({
                 <h3 className="mt-4 text-lg font-medium">
                   Rutina en preparación
                 </h3>
-                <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-white/38">
+                <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed text-content-muted">
                   Esta rutina todavía no tiene ejercicios. Cuando esté
                   completa, vas a poder revisar el detalle y arrancarla desde
                   la app.
@@ -123,7 +123,7 @@ export function OverviewRutina({
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <div className="text-[9px] uppercase tracking-wider text-white/30">
+                          <div className="text-[9px] uppercase tracking-wider text-content-muted">
                             Bloque {index + 1}
                           </div>
                           {optionalBlockName(section.name) && (
@@ -132,7 +132,7 @@ export function OverviewRutina({
                             </h3>
                           )}
                         </div>
-                        <Badge className="border-white/10 bg-black/25 text-[8px] text-white/45">
+                        <Badge className="border-white/10 bg-black/25 text-[8px] text-content-muted">
                           {sectionKindLabel(section.kind)}
                         </Badge>
                       </div>
@@ -146,7 +146,7 @@ export function OverviewRutina({
                                 <span className="truncate text-[11px] text-white/75">
                                   {item.name}
                                 </span>
-                                <span className="shrink-0 text-[9px] tabular-nums text-white/35">
+                                <span className="shrink-0 text-[9px] tabular-nums text-content-muted">
                                   {item.sets}×{repeticionesObjetivo(item)}
                                   {item.weight > 0
                                     ? ` · ${item.weight} kg`
@@ -157,7 +157,7 @@ export function OverviewRutina({
                                 </span>
                               </div>
                               {item.instructions && (
-                                <div className="mt-0.5 truncate text-[9px] text-violet-200/40">
+                                <div className="mt-0.5 truncate text-[9px] text-content-muted">
                                   <TextWithLinks>
                                     {item.instructions}
                                   </TextWithLinks>
@@ -172,7 +172,7 @@ export function OverviewRutina({
                 ))}
               </div>
 
-              <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-4 py-2 text-[9px] uppercase tracking-[0.16em] text-white/35">
+              <div className="mx-auto mt-5 flex w-fit items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.035] px-4 py-2 text-[9px] uppercase tracking-[0.16em] text-content-muted">
                 <Check className="size-3 text-cyan-200" />
                 Fin de la rutina
               </div>

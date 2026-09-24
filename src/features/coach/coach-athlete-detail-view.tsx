@@ -39,6 +39,7 @@ import {
 } from "@/domain/routine/routine-access";
 import { OverviewRutina } from "@/features/athlete/routine-overview";
 import { DialogoNuevaRutina } from "@/features/routine-editor/new-routine-dialog";
+import { routineDndAccessibility } from "@/features/routine-editor/dnd-accessibility";
 import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
 import { InlineSectionCreator } from "@/features/routine-editor/inline-section-creator";
 import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
@@ -127,7 +128,7 @@ export function CoachAthleteDetailView({
           <button
             type="button"
             onClick={() => navigate("/coach/athletes")}
-            className="mb-3 inline-flex items-center gap-1.5 text-xs text-white/40 transition-colors hover:text-white"
+            className="mb-3 inline-flex items-center gap-1.5 text-xs text-content-muted transition-colors hover:text-white"
           >
             <ArrowLeft className="size-3.5" />
             Todos los atletas
@@ -168,7 +169,11 @@ export function CoachAthleteDetailView({
         </div>
       </div>
 
-      <div className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1 sm:w-fit">
+      <div
+        role="group"
+        aria-label="Sección del atleta"
+        className="mb-6 flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1 sm:w-fit"
+      >
         {[
           ["routines", "Rutinas", Dumbbell],
           ["agenda", "Agenda", CalendarDays],
@@ -178,6 +183,8 @@ export function CoachAthleteDetailView({
           return (
             <button
               key={value as string}
+              type="button"
+              aria-pressed={seccionDetalle === value}
               onClick={() =>
                 navegar(() =>
                   setSeccionDetalle(
@@ -189,7 +196,7 @@ export function CoachAthleteDetailView({
                 "flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-xs transition-colors",
                 seccionDetalle === value
                   ? "bg-white/[0.09] text-white"
-                  : "text-white/35 hover:text-white/65",
+                  : "text-content-muted hover:text-white/65",
               )}
             >
               <TabIcon className="size-3.5" />
@@ -206,7 +213,7 @@ export function CoachAthleteDetailView({
             <h2 className="mt-4 text-xl font-medium">
               Todavía no hay rutinas visibles
             </h2>
-            <p className="mt-2 text-xs leading-relaxed text-white/40">
+            <p className="mt-2 text-xs leading-relaxed text-content-muted">
               Creá el primer plan para {atleta.name}. Sus rutinas personales
               seguirán siendo privadas hasta que decida compartirlas.
             </p>
@@ -221,7 +228,7 @@ export function CoachAthleteDetailView({
               <span className="text-xs font-medium text-white/60">
                 Rutinas asignadas
               </span>
-              <span className="text-[10px] text-white/25">
+              <span className="text-[10px] text-content-muted">
                 {countLabel(routines.length, "plan", "planes")}
               </span>
             </div>
@@ -268,7 +275,10 @@ export function CoachAthleteDetailView({
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   {canEditRoutine && !hayCambios && (
-                    <div className="flex items-center gap-1 text-[10px] text-cyan-200/55">
+                    <div
+                      role="status"
+                      className="flex items-center gap-1 text-[10px] text-success"
+                    >
                       <Check className="size-3" />
                       {guardadoVisible ? "Cambios guardados" : "Guardado"}
                     </div>
@@ -307,7 +317,7 @@ export function CoachAthleteDetailView({
                             size="icon"
                             aria-label="Eliminar rutina"
                             title="Eliminar rutina"
-                            className="rounded-full text-white/25 hover:bg-red-400/10 hover:text-red-200"
+                            className="rounded-full text-content-muted hover:bg-red-400/10 hover:text-red-200"
                           />
                         }
                       >
@@ -318,7 +328,7 @@ export function CoachAthleteDetailView({
                           <DialogTitle>
                             ¿Eliminar “{rutina.title}”?
                           </DialogTitle>
-                          <DialogDescription className="text-white/40">
+                          <DialogDescription className="text-content-muted">
                             La rutina dejará de estar disponible para{" "}
                             {atleta.name}. También se quitarán sus entrenamientos
                             programados. Esta acción no se puede deshacer.
@@ -386,6 +396,7 @@ export function CoachAthleteDetailView({
             <CardContent className="p-0">
               {canEditRoutine ? (
                 <DndContext
+                  accessibility={routineDndAccessibility}
                   sensors={sensors}
                   collisionDetection={closestCenter}
                   onDragEnd={moverEjercicio}

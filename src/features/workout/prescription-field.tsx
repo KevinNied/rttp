@@ -64,7 +64,7 @@ export function CampoPrescripcion({
 
   return (
     <div className="rounded-2xl border border-white/[0.09] bg-black/30 p-3.5 text-center">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-indigo-50/75">
+      <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-content-secondary">
         {label}
       </div>
       <div className="mt-2.5 flex items-center justify-center gap-1.5">
@@ -96,7 +96,7 @@ export function CampoPrescripcion({
             if (event.key === "Enter") event.currentTarget.blur();
           }}
           onPointerDown={(event) => event.stopPropagation()}
-          className="h-11 w-16 border-0 bg-transparent p-0 text-center text-2xl font-normal tabular-nums text-white shadow-none focus-visible:ring-0"
+          className="h-11 w-16 rounded-md border-0 bg-transparent p-0 text-center text-2xl font-normal tabular-nums text-white shadow-none focus-visible:ring-2 focus-visible:ring-ring/70"
         />
         <Button
           type="button"
@@ -110,7 +110,7 @@ export function CampoPrescripcion({
           <Plus />
         </Button>
       </div>
-      <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white/65">
+      <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-content-secondary">
         {hint}
       </div>
     </div>

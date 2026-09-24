@@ -3198,6 +3198,70 @@ lógica.
 superficies críticas, light/dark sin regresiones y tests visuales en `390`,
 `958` y `1440px`.
 
+#### Resultado de implementación de la Ola 1
+
+La Ola 1 se implementó sobre la base visual y accesible sin modificar lógica de
+negocio, navegación conceptual ni contratos de datos.
+
+Cambios sistémicos aplicados:
+
+- se incorporaron roles de color para contenido primario, secundario, atenuado,
+  éxito, advertencia e información en ambos temas;
+- el CTA principal del workout ahora usa el par validado
+  `primary`/`primary-foreground`;
+- los textos de 8–11 px se normalizan a un mínimo efectivo de 12 px y se eliminó
+  el escalado implícito del tamaño raíz por breakpoint;
+- se reemplazaron textos activos con opacidades de 20–45% por
+  `content-muted`;
+- botones, inputs, selects y campos compuestos comparten foco visible;
+- los targets interactivos alcanzan 44×44 px cuando el dispositivo informa un
+  puntero táctil;
+- se agregaron tokens de duración y easing, se eliminaron los
+  `transition-all` y se incorporó una política global de movimiento reducido;
+- `Card`, `Badge` y `Select` disponen de variantes o contratos canónicos para
+  las nuevas migraciones.
+
+| Hallazgo | Resultado | Evidencia y alcance |
+|---|---|---|
+| UX-001 / A11Y-001 | Resuelto | “Completar serie” usa tokens de acción y supera AA en light y dark. |
+| UX-002 / A11Y-002 | Resuelto en superficies auditadas | Home, navegación, editor, Agenda y workout usan roles semánticos; el barrido computado no encontró texto activo bajo AA en las vistas verificadas. |
+| UX-003 | Resuelto | El mínimo computado es 12 px en `390`, `958` y `1440px`. |
+| UX-004 | Resuelto | El root permanece en 16 px; la escala ya no altera todos los componentes por breakpoint. |
+| UX-005 | Parcial | La jerarquía de contenido y estados ya es semántica. Se conservan colores físicos en gradientes, decoración y tratamientos de marca para no aplanar la identidad visual. |
+| UX-006 | Resuelto | Controles nativos y compuestos reciben un mínimo de 44 px en punteros táctiles. |
+| UX-007 / A11Y-003 | Resuelto | Los campos críticos de workout y editor muestran un ring visible y consistente. |
+| UX-008 | Parcial | El primitive `Button` concentra foco, movimiento y estados; permanecen botones HTML de composición que no requieren una variante visual nueva. |
+| UX-009 / A11Y-005 | Resuelto | Filtros y selectores exponen grupo y `aria-pressed`; los cambios de panel del coach comunican selección. |
+| UX-010 | Parcial | Se creó y adoptó `Select`; la extracción de un wrapper `Field` único queda como refactor sin beneficio observable inmediato. |
+| UX-011 | Resuelto en la base | `Card` ofrece `default`, `flat`, `raised` y `hero`; `Badge` ofrece estados `brand`, `success`, `warning` e `info`. La migración completa de superficies puede hacerse incrementalmente. |
+| UX-012 | Diferido | La reducción total de radios y sombras requiere una pasada visual más amplia; no bloquea contraste, foco ni consistencia funcional de esta ola. |
+| UX-013 / A11Y-015 | Resuelto | Todos los componentes respetan `prefers-reduced-motion`; la verificación computada devolvió `0.01ms`. |
+| A11Y-004 | Resuelto | La barra expone “Progreso de la rutina”, valor actual y porcentaje. |
+| A11Y-006 | Resuelto | Navegación desktop y mobile exponen `aria-current="page"`. |
+| A11Y-007 | Resuelto | El contador dejó de ser live region; solo el final del descanso se anuncia como estado. |
+| A11Y-008 | Resuelto para el feedback existente | “Guardado” y “Cambios guardados” se anuncian con `role="status"`. El contrato completo de sincronización continúa en Ola 3. |
+| A11Y-009 | Resuelto | Los errores de email se asocian mediante `aria-describedby` y devuelven el foco al campo. |
+| A11Y-010 | Resuelto | DnD anuncia en español el ejercicio y su posición humana, sin exponer IDs. |
+| A11Y-011 | Resuelto | El shell incluye skip link y un destino enfocable en `main`. |
+| A11Y-012 | Resuelto | El esfuerzo es un grupo de radios con selección textual y navegación por flechas. Se conserva el valor inicial existente para no cambiar producto. |
+| A11Y-013 | Resuelto | El comentario final tiene label visible y persistente. |
+| A11Y-014 | Resuelto | Los bloques exponen `aria-expanded`, `aria-controls` e ID estable del panel. |
+
+Validación realizada:
+
+- atleta: Home, Rutinas, ejecución y cierre de workout;
+- coach: Resumen, Atletas, editor y Agenda;
+- temas dark y light;
+- anchos `390`, `958` y `1440px`, sin overflow horizontal;
+- contraste computado de texto activo en las superficies críticas;
+- foco visible en campos de prescripción y editor;
+- semántica de filtros, tabs, selectores, progreso, estados y DnD;
+- `prefers-reduced-motion: reduce`;
+- lint, build de producción y `git diff --check`.
+
+La validación automatizada no sustituye la prueba manual con VoiceOver y
+NVDA. Esa verificación asistiva continúa siendo el gate final de la Ola 4.
+
 ### Ola 2 — Jerarquía de Home y navegación
 
 **Objetivo:** hacer evidente dónde está el usuario y cuál es su siguiente

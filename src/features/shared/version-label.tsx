@@ -6,7 +6,7 @@ export function VersionLabel({ className }: { className?: string }) {
     <span
       aria-label={`Versión ${appVersion}`}
       className={cn(
-        "text-[9px] font-medium tabular-nums tracking-[0.08em] text-white/25",
+        "text-[9px] font-medium tabular-nums tracking-[0.08em] text-content-muted",
         className,
       )}
     >

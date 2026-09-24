@@ -172,7 +172,11 @@ export function HomeAtleta({
         )}
       </div>
 
-      <div className="mb-4 flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1 sm:w-fit">
+      <div
+        role="group"
+        aria-label="Filtrar rutinas"
+        className="mb-4 flex gap-1 overflow-x-auto rounded-2xl border border-white/[0.06] bg-white/[0.025] p-1 sm:w-fit"
+      >
         {(
           [
             ["all", "Todas"],
@@ -188,12 +192,13 @@ export function HomeAtleta({
           <button
             key={value}
             type="button"
+            aria-pressed={filter === value}
             onClick={() => selectFilter(value)}
             className={cn(
               "shrink-0 rounded-xl px-4 py-2 text-xs transition-colors",
               filter === value
                 ? "bg-white/[0.09] text-white"
-                : "text-white/35 hover:text-white/65",
+                : "text-content-muted hover:text-white/65",
             )}
           >
             {label}
@@ -207,7 +212,7 @@ export function HomeAtleta({
             <span className="text-xs font-medium text-white/60">
               {filter === "archived" ? "Rutinas archivadas" : "Tus rutinas"}
             </span>
-            <span className="text-[10px] text-white/25">
+            <span className="text-[10px] text-content-muted">
               {countLabel(filteredRoutines.length, "plan", "planes")}
             </span>
           </div>
@@ -220,7 +225,7 @@ export function HomeAtleta({
               desktopVertical
             />
           ) : (
-            <div className="rounded-2xl border border-dashed border-white/[0.09] bg-white/[0.02] px-4 py-8 text-center text-xs leading-relaxed text-white/40">
+            <div className="rounded-2xl border border-dashed border-white/[0.09] bg-white/[0.02] px-4 py-8 text-center text-xs leading-relaxed text-content-muted">
               {filter === "archived"
                 ? "No tenés rutinas archivadas."
                 : filter === "coach"
@@ -260,7 +265,7 @@ export function HomeAtleta({
                 <h2 className="text-3xl font-light tracking-[-0.04em] md:text-4xl">
                   {visibleRoutine.title}
                 </h2>
-                <p className="mt-2 text-xs text-indigo-100/40">
+                <p className="mt-2 text-xs text-content-muted">
                   <TextWithLinks>{visibleRoutine.objective}</TextWithLinks>
                 </p>
                 <div className="mt-5 flex flex-wrap gap-2">
@@ -356,7 +361,7 @@ export function HomeAtleta({
                       <Button
                         variant="ghost"
                         onClick={() => archiveRoutine(visibleRoutine)}
-                        className="h-11 rounded-full text-white/40 hover:bg-white/[0.06] hover:text-white"
+                        className="h-11 rounded-full text-content-muted hover:bg-white/[0.06] hover:text-white"
                       >
                         <Archive />
                         Archivar
@@ -385,7 +390,7 @@ export function HomeAtleta({
                       <Dialog>
                         <DialogTrigger
                           render={
-                            <button className="mt-3 text-[10px] text-white/30 transition-colors hover:text-white/70" />
+                            <button className="mt-3 text-[10px] text-content-muted transition-colors hover:text-white/70" />
                           }
                         >
                           Reiniciar progreso
@@ -393,7 +398,7 @@ export function HomeAtleta({
                         <DialogContent className="border-white/10 bg-app-panel text-white">
                           <DialogHeader>
                             <DialogTitle>¿Reiniciar esta rutina?</DialogTitle>
-                            <DialogDescription className="text-white/45">
+                            <DialogDescription className="text-content-muted">
                               Se eliminarán todas las series registradas de esta
                               rutina. Esta acción no se puede deshacer.
                             </DialogDescription>
@@ -438,7 +443,7 @@ export function HomeAtleta({
                   ? "No hay rutinas archivadas"
                   : "Creá tu primera rutina"}
               </h2>
-              <p className="mt-2 text-xs leading-relaxed text-white/40">
+              <p className="mt-2 text-xs leading-relaxed text-content-muted">
                 {filter === "archived"
                   ? "Las rutinas que archives aparecerán acá para que puedas restaurarlas."
                   : "No necesitás un coach para empezar. Armá un plan propio desde una rutina en blanco."}

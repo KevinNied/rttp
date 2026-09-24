@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,11 +25,14 @@ export function LandingAcceso({
 }) {
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const emailRef = useRef<HTMLInputElement>(null);
+  const errorId = "access-email-error";
 
   function ingresar(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (onAccess(email)) return;
     setError("No encontramos un usuario con ese email.");
+    requestAnimationFrame(() => emailRef.current?.focus());
   }
 
   return (
@@ -86,7 +89,7 @@ export function LandingAcceso({
           <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Ingresá a RTTP</DialogTitle>
-              <DialogDescription className="text-white/40">
+              <DialogDescription className="text-content-muted">
                 Usá el email asociado a tu perfil.
               </DialogDescription>
             </DialogHeader>
@@ -94,6 +97,7 @@ export function LandingAcceso({
               <label className="block space-y-2">
                 <span className="text-xs text-white/55">Email</span>
                 <Input
+                  ref={emailRef}
                   autoFocus
                   type="email"
                   autoComplete="email"
@@ -104,11 +108,12 @@ export function LandingAcceso({
                   }}
                   placeholder="vos@email.com"
                   aria-invalid={Boolean(error)}
+                  aria-describedby={error ? errorId : undefined}
                   className="h-11 border-white/10 bg-black/35"
                 />
               </label>
               {error && (
-                <p role="alert" className="text-xs text-red-300">
+                <p id={errorId} role="alert" className="text-xs text-red-300">
                   {error}
                 </p>
               )}

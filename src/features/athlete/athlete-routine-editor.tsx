@@ -10,6 +10,7 @@ import { countLabel } from "@/lib/format";
 import { Routine, User } from "@/lib/rttp-data";
 
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
+import { routineDndAccessibility } from "@/features/routine-editor/dnd-accessibility";
 import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
 import { InlineSectionCreator } from "@/features/routine-editor/inline-section-creator";
 import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
@@ -81,7 +82,7 @@ export function AthleteRoutineEditor({
       <button
         type="button"
         onClick={close}
-        className="mb-4 inline-flex items-center gap-1.5 text-xs text-white/45 transition-colors hover:text-white"
+        className="mb-4 inline-flex items-center gap-1.5 text-xs text-content-muted transition-colors hover:text-white"
       >
         <ArrowLeft className="size-3.5" />
         Volver a rutinas
@@ -99,7 +100,10 @@ export function AthleteRoutineEditor({
                   {countLabel(cantidadEjercicios(rutina), "ejercicio")}
                 </span>
                 {!hasChanges && (
-                  <div className="flex items-center gap-1 text-xs text-cyan-200/70">
+                  <div
+                    role="status"
+                    className="flex items-center gap-1 text-xs text-success"
+                  >
                     <Check className="size-3.5" />
                     {savedVisible ? "Cambios guardados" : "Guardado"}
                   </div>
@@ -176,6 +180,7 @@ export function AthleteRoutineEditor({
 
         <CardContent className="p-0">
           <DndContext
+            accessibility={routineDndAccessibility}
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={moverEjercicio}

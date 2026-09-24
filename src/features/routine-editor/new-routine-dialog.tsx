@@ -85,7 +85,7 @@ export function DialogoNuevaRutina({
       <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Crear rutina para {atleta.name}</DialogTitle>
-          <DialogDescription className="text-white/40">
+          <DialogDescription className="text-content-muted">
             Empezá con un bloque secuencial vacío y personalizalo cuando
             quieras.
           </DialogDescription>
@@ -132,7 +132,7 @@ export function DialogoNuevaRutina({
                 <div className="text-xs text-white/75">
                   Constructor flexible
                 </div>
-                <div className="mt-1 text-[10px] leading-relaxed text-white/35">
+                <div className="mt-1 text-[10px] leading-relaxed text-content-muted">
                   Mové ejercicios dentro de un bloque o arrastralos hacia
                   otro.
                 </div>
@@ -141,7 +141,7 @@ export function DialogoNuevaRutina({
           </div>
           <DialogFooter>
             <DialogClose
-              render={<Button variant="ghost" className="text-white/45" />}
+              render={<Button variant="ghost" className="text-content-muted" />}
             >
               Cancelar
             </DialogClose>

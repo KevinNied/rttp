@@ -225,7 +225,7 @@ export function HomeEntrenador({
         <DialogContent className="border-white/10 bg-app-panel text-white">
           <DialogHeader>
             <DialogTitle>Tenés cambios sin guardar</DialogTitle>
-            <DialogDescription className="text-white/40">
+            <DialogDescription className="text-content-muted">
               Guardalos antes de continuar o descartá esta edición.
             </DialogDescription>
           </DialogHeader>

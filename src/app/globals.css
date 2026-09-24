@@ -44,6 +44,13 @@
   --color-app-surface: var(--app-surface);
   --color-app-elevated: var(--app-elevated);
   --color-app-sidebar: var(--app-sidebar);
+  --color-content-primary: var(--content-primary);
+  --color-content-secondary: var(--content-secondary);
+  --color-content-muted: var(--content-muted);
+  --color-content-subtle: var(--content-subtle);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -51,27 +58,39 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  --motion-fast: 120ms;
+  --motion-normal: 180ms;
+  --motion-slow: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --background: #f3f5fb;
+  --foreground: #171a29;
+  --card: #ffffff;
+  --card-foreground: #171a29;
+  --popover: #ffffff;
+  --popover-foreground: #171a29;
+  --primary: #67e8f9;
+  --primary-foreground: #082f49;
+  --secondary: #e9edf6;
+  --secondary-foreground: #171a29;
+  --muted: #e9edf6;
+  --muted-foreground: #5f6677;
+  --accent: #e9edf6;
+  --accent-foreground: #171a29;
+  --destructive: #be123c;
+  --border: #dce1ec;
+  --input: #8792a8;
+  --ring: #0e7490;
+  --content-primary: #171a29;
+  --content-secondary: #3d4354;
+  --content-muted: #5f6677;
+  --content-subtle: #5f6677;
+  --success: #15803d;
+  --warning: #92400e;
+  --info: #0369a1;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -86,32 +105,39 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --app: oklch(0.97 0.012 275);
-  --app-panel: oklch(0.995 0.004 275);
-  --app-surface: oklch(0.975 0.008 275);
-  --app-elevated: oklch(0.94 0.014 275);
-  --app-sidebar: oklch(0.985 0.006 275 / 94%);
+  --app: #f3f5fb;
+  --app-panel: #ffffff;
+  --app-surface: #f8fafc;
+  --app-elevated: #e9edf6;
+  --app-sidebar: rgb(248 250 252 / 94%);
 }
 
 .dark {
-  --background: oklch(0.09 0.008 275);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.15 0.012 275);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.15 0.012 275);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.89 0.11 196);
-  --primary-foreground: oklch(0.12 0.01 265);
-  --secondary: oklch(0.2 0.035 275);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.19 0.025 275);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.22 0.05 275);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  --background: #07080b;
+  --foreground: #f7f8fc;
+  --card: #0d0e13;
+  --card-foreground: #f7f8fc;
+  --popover: #111217;
+  --popover-foreground: #f7f8fc;
+  --primary: #67e8f9;
+  --primary-foreground: #082f49;
+  --secondary: #181c27;
+  --secondary-foreground: #f7f8fc;
+  --muted: #181c27;
+  --muted-foreground: #9aa2b1;
+  --accent: #202638;
+  --accent-foreground: #f7f8fc;
+  --destructive: #fb7185;
   --border: oklch(1 0 0 / 10%);
-  --input: oklch(0.78 0.08 275 / 18%);
-  --ring: oklch(0.89 0.11 196);
+  --input: #536079;
+  --ring: #67e8f9;
+  --content-primary: #f7f8fc;
+  --content-secondary: #c4c9d4;
+  --content-muted: #9aa2b1;
+  --content-subtle: #858d9e;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --info: #38bdf8;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -169,18 +195,6 @@
     background-color: var(--app);
   }
 
-  @media (min-width: 64rem) {
-    html {
-      font-size: 17px;
-    }
-  }
-
-  @media (min-width: 96rem) {
-    html {
-      font-size: 18px;
-    }
-  }
-
   @layer components {
     .glass-card {
       @apply border-white/[0.08] bg-white/[0.035] text-white shadow-none backdrop-blur-xl;
@@ -225,18 +239,16 @@
       color: color-mix(in oklab, var(--color-white) 58%, transparent) !important;
     }
 
-    @media (min-width: 64rem) {
-      .text-\[8px\],
-      .text-\[9px\],
-      .text-\[10px\] {
-        font-size: 0.75rem !important;
-        line-height: 1rem !important;
-      }
+    .text-\[8px\],
+    .text-\[9px\],
+    .text-\[10px\] {
+      font-size: 0.75rem !important;
+      line-height: 1rem !important;
+    }
 
-      .text-\[11px\] {
-        font-size: 0.8125rem !important;
-        line-height: 1.125rem !important;
-      }
+    .text-\[11px\] {
+      font-size: 0.8125rem !important;
+      line-height: 1.125rem !important;
     }
 
     .dark .text-white\/20 {
@@ -267,6 +279,52 @@
 
   button:disabled {
     cursor: not-allowed;
+  }
+
+  .skip-link {
+    position: fixed;
+    z-index: 100;
+    top: max(0.75rem, env(safe-area-inset-top));
+    left: max(0.75rem, env(safe-area-inset-left));
+    transform: translateY(-200%);
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: transform 150ms ease-out;
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+    outline: 3px solid var(--ring);
+    outline-offset: 3px;
+  }
+
+  @media (any-pointer: coarse) {
+    button,
+    [role="button"],
+    input:not([type="checkbox"]):not([type="radio"]),
+    select {
+      min-height: 2.75rem;
+    }
+
+    button,
+    [role="button"] {
+      min-width: 2.75rem;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 
   ::-webkit-scrollbar {

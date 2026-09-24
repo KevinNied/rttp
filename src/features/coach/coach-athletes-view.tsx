@@ -66,7 +66,7 @@ export function CoachAthletesView({
                     <div className="truncate text-sm font-medium">
                       {item.name}
                     </div>
-                    <div className="truncate text-[10px] text-foreground/45 dark:text-white/30">
+                    <div className="truncate text-[10px] text-content-muted dark:text-content-muted">
                       {item.email}
                     </div>
                   </div>
@@ -85,13 +85,13 @@ export function CoachAthletesView({
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <div className="rounded-xl bg-app-elevated px-3 py-2 dark:bg-white/[0.035]">
                   <div className="text-sm">{planes.length}</div>
-                  <div className="text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/30">
+                  <div className="text-[9px] uppercase tracking-wider text-content-muted dark:text-content-muted">
                     Planes
                   </div>
                 </div>
                 <div className="rounded-xl bg-app-elevated px-3 py-2 dark:bg-white/[0.035]">
                   <div className="text-sm">{exercises}</div>
-                  <div className="text-[9px] uppercase tracking-wider text-foreground/45 dark:text-white/30">
+                  <div className="text-[9px] uppercase tracking-wider text-content-muted dark:text-content-muted">
                     Ejercicios
                   </div>
                 </div>

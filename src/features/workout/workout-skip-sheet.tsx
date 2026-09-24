@@ -38,7 +38,7 @@ export function WorkoutSkipSheet({
         <Button
           variant="ghost"
           size="icon"
-          className="rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:bg-white/[0.08] hover:text-white"
+          className="rounded-full border border-white/10 bg-white/[0.035] text-content-muted hover:bg-white/[0.08] hover:text-white"
           aria-label="Opciones para saltar"
         />
       }

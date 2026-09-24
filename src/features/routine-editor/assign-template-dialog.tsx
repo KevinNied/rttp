@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Select } from "@/components/ui/select";
 import { User } from "@/lib/rttp-data";
 
 import { RoutineTemplate } from "@/domain/routine/routine-factory";
@@ -58,28 +59,28 @@ export function DialogoAsignarPlantilla({
       <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Asignar “{plantilla.title}”</DialogTitle>
-          <DialogDescription className="text-white/40">
+          <DialogDescription className="text-content-muted">
             Se creará una copia independiente para el atleta, lista para
             personalizar pesos y detalles.
           </DialogDescription>
         </DialogHeader>
         <label className="block space-y-2">
           <span className="text-xs text-white/55">Atleta</span>
-          <select
+          <Select
             value={athleteId}
             onChange={(event) => setAtletaId(event.target.value)}
-            className="h-10 w-full rounded-lg border border-white/10 bg-black/35 px-3 text-sm text-white outline-none focus:border-cyan-300/40"
+            className="border-white/10 bg-black/35 text-white"
           >
             {atletas.map((atleta) => (
               <option key={atleta.id} value={atleta.id}>
                 {atleta.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <DialogFooter>
           <DialogClose
-            render={<Button variant="ghost" className="text-white/45" />}
+            render={<Button variant="ghost" className="text-content-muted" />}
           >
             Cancelar
           </DialogClose>

@@ -103,7 +103,7 @@ export function WorkoutAnnotationSheet({
           <Button
             variant="ghost"
             size="icon"
-            className="relative rounded-full border border-white/10 bg-white/[0.035] text-white/45 hover:bg-white/[0.08] hover:text-white"
+            className="relative rounded-full border border-white/10 bg-white/[0.035] text-content-muted hover:bg-white/[0.08] hover:text-white"
             aria-label="Agregar aclaración"
           />
         }
@@ -129,7 +129,7 @@ export function WorkoutAnnotationSheet({
         <div className="space-y-4 px-4">
           {applicableAnnotations.length > 0 && (
             <div className="space-y-2">
-              <div className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
+              <div className="px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-content-muted">
                 Aclaraciones actuales
               </div>
               {applicableAnnotations.map((annotation) => (
@@ -153,7 +153,7 @@ export function WorkoutAnnotationSheet({
                         setText(annotation.text);
                       }}
                       aria-label="Editar aclaración"
-                      className="grid size-8 place-items-center rounded-full text-white/35 transition-colors hover:bg-white/[0.07] hover:text-white"
+                      className="grid size-8 place-items-center rounded-full text-content-muted transition-colors hover:bg-white/[0.07] hover:text-white"
                     >
                       <Pencil className="size-3.5" />
                     </button>
@@ -167,7 +167,7 @@ export function WorkoutAnnotationSheet({
                         }
                       }}
                       aria-label="Eliminar aclaración"
-                      className="grid size-8 place-items-center rounded-full text-white/35 transition-colors hover:bg-red-300/10 hover:text-red-200"
+                      className="grid size-8 place-items-center rounded-full text-content-muted transition-colors hover:bg-red-300/10 hover:text-red-200"
                     >
                       <Trash2 className="size-3.5" />
                     </button>

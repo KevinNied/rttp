@@ -148,7 +148,7 @@ export function ScheduleDatePicker({
             <CalendarDays className="size-4 shrink-0 text-cyan-200/70" />
             <span className="truncate">{longDate(value)}</span>
           </span>
-          <ChevronDown className="size-4 shrink-0 text-white/40" />
+          <ChevronDown className="size-4 shrink-0 text-content-muted" />
         </PopoverTrigger>
         <PopoverContent
           align="start"
@@ -233,7 +233,7 @@ export function ScheduleTimePicker({
             <Clock3 className="size-4 text-cyan-200/70" />
             {value ? `${value} hs` : "Sin hora"}
           </span>
-          <ChevronDown className="size-4 text-white/40" />
+          <ChevronDown className="size-4 text-content-muted" />
         </PopoverTrigger>
         <PopoverContent
           align="start"
@@ -249,6 +249,7 @@ export function ScheduleTimePicker({
             type="button"
             variant="ghost"
             size="sm"
+            aria-pressed={!value}
             onClick={() => {
               onChange("");
               setOpen(false);
@@ -265,6 +266,7 @@ export function ScheduleTimePicker({
                 type="button"
                 variant="ghost"
                 size="sm"
+                aria-pressed={value === time}
                 onClick={() => {
                   onChange(time);
                   setOpen(false);
@@ -349,7 +351,7 @@ export function ScheduleRecurrencePicker({
               <Repeat2 className="size-4 text-violet-200/75" />
               {summary}
             </span>
-            <ChevronDown className="size-4 text-white/40" />
+            <ChevronDown className="size-4 text-content-muted" />
           </PopoverTrigger>
           <PopoverContent
             align="start"
@@ -359,6 +361,7 @@ export function ScheduleRecurrencePicker({
               <button
                 key={mode}
                 type="button"
+                aria-pressed={value.mode === mode}
                 onClick={() => selectMode(mode)}
                 className={cn(
                   "flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm transition-colors",
@@ -447,7 +450,11 @@ export function ScheduleRecurrencePicker({
           <div className="mb-3 text-xs font-medium text-violet-100/75">
             Finaliza
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div
+            role="group"
+            aria-label="Finalización de la recurrencia"
+            className="grid grid-cols-2 gap-2"
+          >
             {[
               ["count", "Después de"],
               ["date", "En una fecha"],
@@ -455,6 +462,7 @@ export function ScheduleRecurrencePicker({
               <button
                 key={type}
                 type="button"
+                aria-pressed={value.endType === type}
                 onClick={() =>
                   onChange({
                     ...value,

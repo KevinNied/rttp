@@ -75,7 +75,7 @@ export function WorkoutRoundSummary({
                       ? "border-cyan-200/20 bg-cyan-300 text-indigo-950"
                       : pospuesto
                         ? "border-orange-200/20 bg-orange-300/10 text-orange-200"
-                        : "border-white/10 bg-white/[0.035] text-white/40",
+                        : "border-white/10 bg-white/[0.035] text-content-muted",
                   )}
                 >
                   {completado ? (
