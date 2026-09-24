@@ -3277,6 +3277,47 @@ acción.
 **Gate de salida:** primer uso y retorno resuelven su acción principal sin
 desvíos; ubicación y navegación son comprensibles visualmente y con lector.
 
+#### Resultado de implementación de la Ola 2
+
+La Ola 2 se implementó sin modificar permisos, contratos de datos ni reglas de
+negocio. La navegación conserva las rutas anteriores como alias y suma URLs
+canónicas para cada contexto del atleta.
+
+| Hallazgo | Estado | Evidencia |
+|---|---|---|
+| IA-001 | Resuelto | Home compacta el estado sin sesión y prioriza la próxima acción o entrenamiento futuro. |
+| IA-002 | Resuelto | Sin rutinas, la acción primaria crea la primera; con rutinas, permite elegir una antes de ofrecer Agenda. |
+| IA-003 | Resuelto | Una única sesión ocupa el hero; las demás se agrupan en “Más tarde hoy”. |
+| IA-004 | Resuelto | Home conserva una semana compacta y elimina racha, comparación y leyenda permanente. |
+| IA-005 | Resuelto | Navegación y título de la vista usan “Historial”. |
+| IA-006 | Resuelto | Home del coach prioriza atención y continuidad; los conteos dejaron de encabezar la pantalla. |
+| IA-007 | Resuelto | Un coach sin atletas permanece en el workspace y recibe el CTA “Agregar primer atleta”. |
+| IA-008 | Resuelto | La biblioteca global se llama “Plantillas” y usa `/coach/templates`. |
+| IA-009 | Resuelto | Rutinas, Agenda e Historial usan rutas propias y sobreviven reload, back y forward. |
+| IA-010 | Resuelto | El directorio usa “Rutinas” para la entidad existente; “planificación” queda como nombre del trabajo del coach. |
+| IA-011 | Resuelto | “Guardar como plantilla” vive en la rutina del atleta; la biblioteca ya no recibe una rutina fuente implícita. |
+| IA-012 | Resuelto | La acción se llama “Previsualizar inicio” y la preview mantiene todas las acciones mutables inertes. |
+| IA-013 | Resuelto | Historial se presenta como consulta y deriva explícitamente los cambios hacia Agenda. |
+| IA-014 | Resuelto | El retorno a Atletas se combina con URL contextual y tabs que exponen su estado activo. |
+
+Además, un workout en curso muestra `N de M series` y permite continuar
+directamente desde Home, sin pasar por Rutinas.
+
+Validación realizada:
+
+- atleta: Home con workout en curso, continuidad directa e Historial;
+- coach: Inicio, Plantillas, Rutinas, Agenda, Historial y preview de solo lectura;
+- reload y navegación back/forward sobre las rutas contextuales;
+- rutas canónicas `/coach/templates` y
+  `/coach/athletes/:id/{routines,schedule,history}`;
+- temas dark y light;
+- anchos `390`, `958` y `1440px`, sin overflow horizontal;
+- lint, build de producción y `git diff --check`.
+
+Los estados determinísticos adicionales de Home —sin rutinas, actividad externa,
+próximo entrenamiento y día completado— quedaron cubiertos por la misma regla
+de prioridad documentada. No se agregó un motor de recomendaciones.
+
 ### Ola 3 — Flujos, estados faltantes y copy
 
 **Objetivo:** eliminar pérdidas de trabajo, callejones sin salida y feedback

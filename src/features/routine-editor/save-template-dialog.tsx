@@ -23,9 +23,11 @@ import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
 export function DialogoGuardarPlantilla({
   rutina,
   onSave,
+  disabledReason,
 }: {
   rutina: Routine;
   onSave: (title: string) => void;
+  disabledReason?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(rutina.title);
@@ -43,40 +45,43 @@ export function DialogoGuardarPlantilla({
         render={
           <Button
             variant="outline"
-            disabled={exercises === 0}
+            disabled={exercises === 0 || Boolean(disabledReason)}
             title={
-              exercises === 0
+              disabledReason ??
+              (exercises === 0
                 ? "Agregá al menos un ejercicio antes de guardarla como plantilla"
-                : `Guardar ${rutina.title} como plantilla`
+                : `Guardar ${rutina.title} como plantilla`)
             }
-            className="self-start shrink-0 rounded-full border-indigo-200/10 bg-indigo-300/[0.05] text-white hover:bg-indigo-300/10 hover:text-white xl:self-auto"
+            className="self-start shrink-0 rounded-full xl:self-auto"
           />
         }
       >
         <Plus />
         Guardar como plantilla
       </DialogTrigger>
-      <DialogContent className="border-white/10 bg-app-panel text-white">
+      <DialogContent className="border-border bg-app-panel text-foreground">
         <DialogHeader>
           <DialogTitle>Guardar plantilla</DialogTitle>
-          <DialogDescription className="text-white/50">
+          <DialogDescription className="text-content-muted">
             Vas a crear una copia reutilizable de “{rutina.title}” con{" "}
             {countLabel(exercises, "ejercicio")}.
           </DialogDescription>
         </DialogHeader>
         <label className="block space-y-2">
-          <span className="text-xs text-white/65">Nombre de la plantilla</span>
+          <span className="text-xs text-content-secondary">
+            Nombre de la plantilla
+          </span>
           <Input
             autoFocus
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Ej. Fuerza base"
-            className="h-11 border-white/10 bg-black/25"
+            className="h-11"
           />
         </label>
         <DialogFooter>
           <DialogClose
-            render={<Button variant="ghost" className="text-white/55" />}
+            render={<Button variant="ghost" />}
           >
             Cancelar
           </DialogClose>

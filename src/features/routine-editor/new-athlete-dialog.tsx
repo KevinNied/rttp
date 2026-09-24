@@ -20,9 +20,11 @@ import { User } from "@/lib/rttp-data";
 export function DialogoNuevoAtleta({
   users,
   onCreate,
+  triggerLabel = "Agregar alumno",
 }: {
   users: User[];
   onCreate: (name: string, email: string) => Promise<string | null>;
+  triggerLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [name, setNombre] = useState("");
@@ -69,7 +71,7 @@ export function DialogoNuevoAtleta({
         }
       >
         <Plus className="size-4" />
-        Agregar alumno
+        {triggerLabel}
       </DialogTrigger>
       <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-sm">
         <DialogHeader>

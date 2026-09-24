@@ -46,6 +46,7 @@ import { useAppData } from "@/application/data/use-app-data";
 import {
   athleteIdForPath,
   athleteViewForPath,
+  coachAthleteSectionForPath,
   coachViewForPath,
   isAthleteDetailPath,
 } from "@/application/navigation/routes";
@@ -65,6 +66,8 @@ import { AppShell } from "@/features/shell/app-shell";
 export default function Home() {
   const { pathname, navigate, replaceNavigate } = useAppNavigation();
   const atletaRutaId = athleteIdForPath(pathname);
+  const detalleAtleta = isAthleteDetailPath(pathname);
+  const seccionDetalleAtleta = coachAthleteSectionForPath(pathname);
   const {
     hydrated,
     syncError,
@@ -113,8 +116,11 @@ export default function Home() {
   const atleta =
     usuario?.role === "athlete"
       ? usuario
-      : (atletasDelCoach.find((item) => item.id === atletaSeleccionadoId) ??
-        atletasDelCoach[0]);
+      : detalleAtleta
+        ? atletasDelCoach.find((item) => item.id === atletaRutaId)
+        : (atletasDelCoach.find(
+            (item) => item.id === atletaSeleccionadoId,
+          ) ?? atletasDelCoach[0]);
   const entrenadorDelAtleta = atleta
     ? users.find(
         (item) => item.role === "coach" && item.athleteIds?.includes(atleta.id),
@@ -149,11 +155,21 @@ export default function Home() {
           (item) => item.id === entrenamientoActivo.routineId,
         ) ?? rutina)
       : rutina;
-  const detalleAtleta = isAthleteDetailPath(pathname);
   const vistaEntrenador = coachViewForPath(pathname);
   const vistaAtleta = athleteViewForPath(pathname);
 
   useRoleRedirect({ hydrated, pathname, user: usuario, replaceNavigate });
+
+  useEffect(() => {
+    if (
+      hydrated &&
+      usuario?.role === "coach" &&
+      detalleAtleta &&
+      !atleta
+    ) {
+      replaceNavigate("/coach/athletes");
+    }
+  }, [atleta, detalleAtleta, hydrated, replaceNavigate, usuario]);
 
   function guardarRutina(rutinaGuardada: Routine) {
     if (!usuario) return;
@@ -497,6 +513,7 @@ export default function Home() {
     ]);
     setRoutines((actuales) => [...actuales, rutinaInicial]);
     setAtletaSeleccionadoId(id);
+    persistSelectedAthlete(id);
     setRutinaId(rutinaInicial.id);
     setRegistros({});
     setSyncError(null);
@@ -646,11 +663,12 @@ export default function Home() {
     return <LandingAcceso onAccess={acceder} />;
   }
 
-  if (!atleta) {
+  if (usuario.role === "athlete" && !atleta) {
     return <LandingAcceso onAccess={acceder} />;
   }
 
-  const mostrandoAtleta = usuario.role === "athlete" || vistaPrevia;
+  const mostrandoAtleta =
+    atleta !== undefined && (usuario.role === "athlete" || vistaPrevia);
 
   return (
     <>
@@ -675,96 +693,110 @@ export default function Home() {
           />
         ) : !mostrandoAtleta ? (
           <HomeEntrenador
-          key={`${atleta.id}-${rutina?.id ?? "sin-rutina"}`}
-          entrenador={usuario}
-          users={users}
-          atletas={atletasDelCoach}
-          atleta={atleta}
-          routines={rutinasDelAtleta}
-          rutinasPorAtleta={visibleRoutinesForCoach(routines, usuario)}
-          workouts={workouts.filter((item) => item.athleteId === atleta.id)}
-          activities={activities.filter((item) => item.athleteId === atleta.id)}
-          templates={templates.filter(
-            (plantilla) => plantilla.coachId === usuario.id,
-          )}
-          vista={vistaEntrenador}
-          detalleAtleta={detalleAtleta}
-          rutina={rutina}
-          onSelectAtleta={seleccionarAtleta}
-          onSelect={setRutinaId}
-          onSaveRutina={guardarRutina}
-          onCreateRutina={crearRutina}
-          onSaveAsTemplate={guardarComoPlantilla}
-          onAssignTemplate={asignarPlantilla}
-          onDeleteTemplate={eliminarPlantilla}
-          onCreateAtleta={crearAtleta}
-          onDeleteRutina={eliminarRutina}
-          onCreateEntrenamiento={crearEntrenamientos}
-          onUpdateEntrenamiento={actualizarEntrenamiento}
-          onDeleteEntrenamiento={eliminarEntrenamiento}
-          onDirtyChange={setEditorDirty}
-          verComoAtleta={() => setVistaPrevia(true)}
-          navigate={navigate}
-        />
-      ) : vistaAtleta === "agenda" && !entrenamientoActivo ? (
-        <SportsSchedule
-          atleta={atleta}
-          usuarioActual={usuario}
-          routines={rutinasDelAtleta}
-          workouts={workouts.filter((item) => item.athleteId === atleta.id)}
-          modoCoach={usuario.role === "coach"}
-          onCreate={crearEntrenamientos}
-          onUpdate={actualizarEntrenamiento}
-          onDelete={eliminarEntrenamiento}
-          onStart={comenzarEntrenamiento}
-        />
-      ) : vistaAtleta === "activities" && !entrenamientoActivo ? (
-        <ActivityHistory
-          activities={activities.filter((item) => item.athleteId === atleta.id)}
-          onDeleteActivity={eliminarActividad}
-          canDeleteActivities={usuario.role !== "coach"}
-        />
-      ) : vistaAtleta === "inicio" && !entrenamientoActivo ? (
-        <HomeHoy
-          atleta={atleta}
-          viewer={usuario}
-          users={users}
-          routines={rutinasDelAtleta}
-          workouts={workouts.filter((item) => item.athleteId === atleta.id)}
-          activities={activities.filter((item) => item.athleteId === atleta.id)}
-          onStart={comenzarEntrenamiento}
-          onUpdate={actualizarEntrenamiento}
-          navigate={navigate}
-        />
-      ) : (
-        <ExperienciaAtleta
-          key={`${atleta.id}-${entrenamientoActivo?.id ?? rutinaDeEntrenamiento?.id ?? "routines"}`}
-          atleta={atleta}
-          viewer={usuario}
-          users={users}
-          coach={entrenadorDelAtleta}
-          routines={rutinasDelAtleta}
-          rutina={rutinaDeEntrenamiento}
-          entrenamientoInicial={entrenamientoActivo}
-          entrenamientoPausado={entrenamientoPausado}
-          onSelect={setRutinaId}
-          onCreateEntrenamiento={crearEntrenamiento}
-          onUpdateEntrenamiento={actualizarEntrenamiento}
-          onCompleteRoutine={registrarActividadRutina}
-          onSaveRoutine={guardarRutina}
-          onCreateRoutine={crearRutina}
-          onDuplicateRoutine={duplicarRutinaPersonal}
-          onArchiveRoutine={archivarRutina}
-          onRestoreRoutine={restaurarRutina}
-          onDeleteRoutine={eliminarRutina}
-          onCancelWorkout={eliminarEntrenamiento}
-          onCloseScheduled={() => setEntrenamientoActivoId(null)}
-          onWorkoutModeChange={setWorkoutImmersive}
-          onDirtyChange={setEditorDirty}
-          registros={registros}
-          setRegistros={setRegistros}
+            key={`${atleta?.id ?? "sin-atleta"}-${rutina?.id ?? "sin-rutina"}`}
+            entrenador={usuario}
+            users={users}
+            atletas={atletasDelCoach}
+            atleta={atleta}
+            routines={rutinasDelAtleta}
+            rutinasPorAtleta={visibleRoutinesForCoach(routines, usuario)}
+            workouts={
+              atleta
+                ? workouts.filter((item) => item.athleteId === atleta.id)
+                : []
+            }
+            activities={
+              atleta
+                ? activities.filter((item) => item.athleteId === atleta.id)
+                : []
+            }
+            templates={templates.filter(
+              (plantilla) => plantilla.coachId === usuario.id,
+            )}
+            vista={vistaEntrenador}
+            detalleAtleta={detalleAtleta && atleta !== undefined}
+            seccionDetalle={seccionDetalleAtleta}
+            rutina={rutina}
+            onSelectAtleta={seleccionarAtleta}
+            onSelect={setRutinaId}
+            onSaveRutina={guardarRutina}
+            onCreateRutina={crearRutina}
+            onSaveAsTemplate={guardarComoPlantilla}
+            onAssignTemplate={asignarPlantilla}
+            onDeleteTemplate={eliminarPlantilla}
+            onCreateAtleta={crearAtleta}
+            onDeleteRutina={eliminarRutina}
+            onCreateEntrenamiento={crearEntrenamientos}
+            onUpdateEntrenamiento={actualizarEntrenamiento}
+            onDeleteEntrenamiento={eliminarEntrenamiento}
+            onDirtyChange={setEditorDirty}
+            verComoAtleta={() => setVistaPrevia(true)}
+            navigate={navigate}
           />
-        )}
+        ) : atleta && vistaAtleta === "agenda" && !entrenamientoActivo ? (
+          <SportsSchedule
+            atleta={atleta}
+            usuarioActual={usuario}
+            routines={rutinasDelAtleta}
+            workouts={workouts.filter((item) => item.athleteId === atleta.id)}
+            modoCoach={usuario.role === "coach"}
+            onCreate={crearEntrenamientos}
+            onUpdate={actualizarEntrenamiento}
+            onDelete={eliminarEntrenamiento}
+            onStart={comenzarEntrenamiento}
+          />
+        ) : atleta && vistaAtleta === "activities" && !entrenamientoActivo ? (
+          <ActivityHistory
+            activities={activities.filter(
+              (item) => item.athleteId === atleta.id,
+            )}
+            onDeleteActivity={eliminarActividad}
+            canDeleteActivities={usuario.role !== "coach"}
+          />
+        ) : atleta && vistaAtleta === "inicio" && !entrenamientoActivo ? (
+          <HomeHoy
+            atleta={atleta}
+            viewer={usuario}
+            users={users}
+            routines={rutinasDelAtleta}
+            workouts={workouts.filter((item) => item.athleteId === atleta.id)}
+            activities={activities.filter(
+              (item) => item.athleteId === atleta.id,
+            )}
+            records={registros}
+            onStart={comenzarEntrenamiento}
+            onUpdate={actualizarEntrenamiento}
+            navigate={navigate}
+          />
+        ) : atleta ? (
+          <ExperienciaAtleta
+            key={`${atleta.id}-${entrenamientoActivo?.id ?? rutinaDeEntrenamiento?.id ?? "routines"}`}
+            atleta={atleta}
+            viewer={usuario}
+            users={users}
+            coach={entrenadorDelAtleta}
+            routines={rutinasDelAtleta}
+            rutina={rutinaDeEntrenamiento}
+            entrenamientoInicial={entrenamientoActivo}
+            entrenamientoPausado={entrenamientoPausado}
+            onSelect={setRutinaId}
+            onCreateEntrenamiento={crearEntrenamiento}
+            onUpdateEntrenamiento={actualizarEntrenamiento}
+            onCompleteRoutine={registrarActividadRutina}
+            onSaveRoutine={guardarRutina}
+            onCreateRoutine={crearRutina}
+            onDuplicateRoutine={duplicarRutinaPersonal}
+            onArchiveRoutine={archivarRutina}
+            onRestoreRoutine={restaurarRutina}
+            onDeleteRoutine={eliminarRutina}
+            onCancelWorkout={eliminarEntrenamiento}
+            onCloseScheduled={() => setEntrenamientoActivoId(null)}
+            onWorkoutModeChange={setWorkoutImmersive}
+            onDirtyChange={setEditorDirty}
+            registros={registros}
+            setRegistros={setRegistros}
+          />
+        ) : null}
       </AppShell>
       <ConfirmationDialog
         open={logoutConfirmationOpen}

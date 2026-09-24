@@ -500,7 +500,7 @@ export function ActivityHistory({
             Tu recorrido
           </div>
           <h1 className="text-3xl font-light tracking-[-0.035em] md:text-4xl">
-            Actividades realizadas
+            Historial
           </h1>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-foreground/50 dark:text-content-muted md:text-sm">
             Abrí solo la actividad que quieras revisar para mantener el

@@ -1,4 +1,5 @@
 export type CoachView = "resumen" | "atletas" | "routines" | "profile";
+export type CoachAthleteSection = "routines" | "schedule" | "history";
 export type AthleteView =
   | "inicio"
   | "agenda"
@@ -7,20 +8,33 @@ export type AthleteView =
   | "profile";
 
 export function athleteIdForPath(pathname: string) {
-  return Number(pathname.split("/").at(-1));
+  const match = pathname.match(/^\/coach\/athletes\/(\d+)(?:\/|$)/);
+  return match ? Number(match[1]) : Number.NaN;
 }
 
 export function isAthleteDetailPath(pathname: string) {
-  return (
-    pathname.startsWith("/coach/athletes/") &&
-    Number.isInteger(athleteIdForPath(pathname))
-  );
+  return Number.isInteger(athleteIdForPath(pathname));
+}
+
+export function coachAthleteSectionForPath(
+  pathname: string,
+): CoachAthleteSection {
+  if (pathname.endsWith("/schedule")) return "schedule";
+  if (pathname.endsWith("/history")) return "history";
+  return "routines";
+}
+
+export function coachAthletePath(
+  athleteId: number,
+  section: CoachAthleteSection = "routines",
+) {
+  return `/coach/athletes/${athleteId}/${section}`;
 }
 
 export function coachViewForPath(pathname: string): CoachView {
   return pathname.startsWith("/coach/athletes")
     ? "atletas"
-    : pathname === "/coach/routines"
+    : pathname === "/coach/routines" || pathname === "/coach/templates"
       ? "routines"
       : pathname === "/coach/profile"
         ? "profile"

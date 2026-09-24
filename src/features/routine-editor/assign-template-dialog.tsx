@@ -49,6 +49,12 @@ export function DialogoAsignarPlantilla({
         render={
           <Button
             size="sm"
+            disabled={atletas.length === 0}
+            title={
+              atletas.length === 0
+                ? "Sumá un atleta antes de asignar esta plantilla"
+                : undefined
+            }
             className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
           />
         }

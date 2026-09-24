@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Routine, User } from "@/lib/rttp-data";
 
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
+import { coachAthletePath } from "@/application/navigation/routes";
 import { DialogoNuevoAtleta } from "@/features/routine-editor/new-athlete-dialog";
 import {
   pageDescriptionClassName,
@@ -43,15 +44,15 @@ export function CoachAthletesView({
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {atletas.map((item) => {
-          const planes = rutinasPorAtleta.filter(
+          const rutinas = rutinasPorAtleta.filter(
             (rutinaActual) => rutinaActual.athleteId === item.id,
           );
-          const exercises = planes.reduce(
+          const exercises = rutinas.reduce(
             (total, rutinaActual) =>
               total + cantidadEjercicios(rutinaActual),
             0,
           );
-          const rutinasIncompletas = planes.filter(
+          const rutinasIncompletas = rutinas.filter(
             (rutinaActual) => cantidadEjercicios(rutinaActual) === 0,
           ).length;
 
@@ -84,9 +85,9 @@ export function CoachAthletesView({
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <div className="rounded-xl bg-app-elevated px-3 py-2 dark:bg-white/[0.035]">
-                  <div className="text-sm">{planes.length}</div>
+                  <div className="text-sm">{rutinas.length}</div>
                   <div className="text-[9px] uppercase tracking-wider text-content-muted dark:text-content-muted">
-                    Planes
+                    Rutinas
                   </div>
                 </div>
                 <div className="rounded-xl bg-app-elevated px-3 py-2 dark:bg-white/[0.035]">
@@ -100,7 +101,7 @@ export function CoachAthletesView({
                 type="button"
                 onClick={() => {
                   onSelectAtleta(item.id);
-                  navigate(`/coach/athletes/${item.id}`);
+                  navigate(coachAthletePath(item.id));
                 }}
                 className="mt-4 flex h-9 items-center justify-center gap-2 rounded-full bg-cyan-300 text-xs font-medium text-indigo-950 transition-colors hover:bg-cyan-200"
               >
@@ -111,6 +112,17 @@ export function CoachAthletesView({
           );
         })}
       </div>
+      {atletas.length === 0 && (
+        <div className="grid min-h-72 place-items-center rounded-3xl border border-dashed border-border bg-app-surface px-6 text-center">
+          <div className="max-w-sm">
+            <h2 className="text-xl font-medium">Todavía no tenés atletas</h2>
+            <p className="mt-2 text-sm leading-relaxed text-content-muted">
+              Sumá el primer perfil para empezar a crear rutinas y organizar
+              entrenamientos.
+            </p>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

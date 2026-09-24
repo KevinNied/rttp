@@ -17,15 +17,17 @@ import { NewScheduledWorkout, ScheduledWorkout } from "@/lib/rttp-agenda";
 import { Routine, User } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
-import { RoutineTemplate } from "@/domain/routine/routine-factory";
-import { nuevaRutinaBase } from "@/domain/routine/routine-factory";
-import { canCoachEditRoutine } from "@/domain/routine/routine-access";
-import { CoachView } from "@/application/navigation/routes";
-import { useRoutineEditor } from "@/features/routine-editor/use-routine-editor";
 import {
-  CoachAthleteDetailView,
-  type CoachDetailSection,
-} from "@/features/coach/coach-athlete-detail-view";
+  nuevaRutinaBase,
+  RoutineTemplate,
+} from "@/domain/routine/routine-factory";
+import {
+  coachAthletePath,
+  type CoachAthleteSection,
+  CoachView,
+} from "@/application/navigation/routes";
+import { useRoutineEditor } from "@/features/routine-editor/use-routine-editor";
+import { CoachAthleteDetailView } from "@/features/coach/coach-athlete-detail-view";
 import { CoachAthletesView } from "@/features/coach/coach-athletes-view";
 import { CoachOverviewView } from "@/features/coach/coach-overview-view";
 import { CoachTemplatesView } from "@/features/coach/coach-templates-view";
@@ -43,6 +45,7 @@ export function HomeEntrenador({
   templates,
   vista,
   detalleAtleta,
+  seccionDetalle,
   rutina: rutinaGuardada,
   onSelectAtleta,
   onSelect,
@@ -63,7 +66,7 @@ export function HomeEntrenador({
   entrenador: User;
   users: User[];
   atletas: User[];
-  atleta: User;
+  atleta?: User;
   routines: Routine[];
   rutinasPorAtleta: Routine[];
   workouts: ScheduledWorkout[];
@@ -71,6 +74,7 @@ export function HomeEntrenador({
   templates: RoutineTemplate[];
   vista: CoachView;
   detalleAtleta: boolean;
+  seccionDetalle: CoachAthleteSection;
   rutina?: Routine;
   onSelectAtleta: (id: number) => void;
   onSelect: (id: string) => void;
@@ -90,12 +94,10 @@ export function HomeEntrenador({
 }) {
   const [rutinaVacia] = useState<Routine>(() => ({
     ...nuevaRutinaBase(entrenador.id),
-    athleteId: atleta.id,
+    athleteId: atleta?.id ?? 0,
   }));
   const editor = useRoutineEditor(rutinaGuardada ?? rutinaVacia);
   const { rutina, setRutina, setOpenSectionId } = editor;
-  const [seccionDetalle, setSeccionDetalle] =
-    useState<CoachDetailSection>("routines");
   const [accionPendiente, setAccionPendiente] = useState<(() => void) | null>(
     null,
   );
@@ -105,8 +107,6 @@ export function HomeEntrenador({
   const hayCambios =
     rutinaGuardada !== undefined &&
     JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
-  const rutinaEditable =
-    rutinaGuardada && canCoachEditRoutine(rutinaGuardada, entrenador);
   const hayEjerciciosSinNombre = rutina.structure.sections.some((section) =>
     section.exercises.some((exercise) => !exercise.name.trim()),
   );
@@ -154,9 +154,13 @@ export function HomeEntrenador({
     >
       {vista === "resumen" && (
         <CoachOverviewView
+          users={users}
           atletas={atletas}
+          atletaSeleccionado={atleta}
           templates={templates}
           rutinasPorAtleta={rutinasPorAtleta}
+          onCreateAtleta={onCreateAtleta}
+          onSelectAtleta={onSelectAtleta}
           navigate={navigate}
         />
       )}
@@ -174,22 +178,18 @@ export function HomeEntrenador({
 
       {vista === "routines" && (
         <CoachTemplatesView
-          rutina={rutinaEditable ? rutina : undefined}
           templates={templates}
           atletas={atletas}
-          plantillaGuardadaVisible={plantillaGuardadaVisible}
-          onSaveTemplate={(title) => {
-            onSaveAsTemplate(rutina, title);
-            setPlantillaGuardadaVisible(true);
-            window.setTimeout(() => setPlantillaGuardadaVisible(false), 2400);
+          onAssignTemplate={(templateId, athleteId) => {
+            onAssignTemplate(templateId, athleteId);
+            navigate(coachAthletePath(athleteId));
           }}
-          onAssignTemplate={onAssignTemplate}
           onDeleteTemplate={onDeleteTemplate}
           navegar={navegar}
         />
       )}
 
-      {detalleAtleta && (
+      {detalleAtleta && atleta && (
         <CoachAthleteDetailView
           editor={editor}
           hasRoutine={rutinaGuardada !== undefined}
@@ -199,11 +199,16 @@ export function HomeEntrenador({
           workouts={workouts}
           activities={activities}
           seccionDetalle={seccionDetalle}
-          setSeccionDetalle={setSeccionDetalle}
           hayCambios={hayCambios}
           hayEjerciciosSinNombre={hayEjerciciosSinNombre}
           guardadoVisible={guardadoVisible}
           guardar={guardar}
+          plantillaGuardadaVisible={plantillaGuardadaVisible}
+          onSaveAsTemplate={(title) => {
+            onSaveAsTemplate(rutina, title);
+            setPlantillaGuardadaVisible(true);
+            window.setTimeout(() => setPlantillaGuardadaVisible(false), 2400);
+          }}
           navegar={navegar}
           navigate={navigate}
           verComoAtleta={verComoAtleta}
@@ -222,7 +227,7 @@ export function HomeEntrenador({
           if (!open) setAccionPendiente(null);
         }}
       >
-        <DialogContent className="border-white/10 bg-app-panel text-white">
+        <DialogContent className="border-border bg-app-panel text-foreground">
           <DialogHeader>
             <DialogTitle>Tenés cambios sin guardar</DialogTitle>
             <DialogDescription className="text-content-muted">
@@ -231,7 +236,7 @@ export function HomeEntrenador({
           </DialogHeader>
           <DialogFooter className="sm:justify-between">
             <DialogClose
-              render={<Button variant="ghost" className="text-white/50" />}
+              render={<Button variant="ghost" />}
             >
               Seguir editando
             </DialogClose>
@@ -239,7 +244,6 @@ export function HomeEntrenador({
               <Button
                 variant="outline"
                 onClick={descartarYContinuar}
-                className="border-white/10 bg-transparent text-white/65 hover:bg-white/[0.06] hover:text-white"
               >
                 Descartar
               </Button>

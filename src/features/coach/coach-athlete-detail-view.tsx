@@ -32,6 +32,10 @@ import { NewScheduledWorkout, ScheduledWorkout } from "@/lib/rttp-agenda";
 import { Routine, User } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
+import {
+  coachAthletePath,
+  type CoachAthleteSection,
+} from "@/application/navigation/routes";
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
 import {
   canCoachEditRoutine,
@@ -39,6 +43,7 @@ import {
 } from "@/domain/routine/routine-access";
 import { OverviewRutina } from "@/features/athlete/routine-overview";
 import { DialogoNuevaRutina } from "@/features/routine-editor/new-routine-dialog";
+import { DialogoGuardarPlantilla } from "@/features/routine-editor/save-template-dialog";
 import { routineDndAccessibility } from "@/features/routine-editor/dnd-accessibility";
 import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
 import { InlineSectionCreator } from "@/features/routine-editor/inline-section-creator";
@@ -53,8 +58,6 @@ import {
 } from "@/features/shared/page-shell";
 import { TextWithLinks } from "@/features/shared/text-with-links";
 
-export type CoachDetailSection = "routines" | "agenda" | "activities";
-
 export function CoachAthleteDetailView({
   editor,
   hasRoutine,
@@ -64,11 +67,12 @@ export function CoachAthleteDetailView({
   workouts,
   activities,
   seccionDetalle,
-  setSeccionDetalle,
   hayCambios,
   hayEjerciciosSinNombre,
   guardadoVisible,
   guardar,
+  plantillaGuardadaVisible,
+  onSaveAsTemplate,
   navegar,
   navigate,
   verComoAtleta,
@@ -86,12 +90,13 @@ export function CoachAthleteDetailView({
   routines: Routine[];
   workouts: ScheduledWorkout[];
   activities: CompletedActivity[];
-  seccionDetalle: CoachDetailSection;
-  setSeccionDetalle: (section: CoachDetailSection) => void;
+  seccionDetalle: CoachAthleteSection;
   hayCambios: boolean;
   hayEjerciciosSinNombre: boolean;
   guardadoVisible: boolean;
   guardar: () => void;
+  plantillaGuardadaVisible: boolean;
+  onSaveAsTemplate: (title: string) => void;
   navegar: (action: () => void) => void;
   navigate: (path: string) => void;
   verComoAtleta: () => void;
@@ -127,7 +132,7 @@ export function CoachAthleteDetailView({
         <div>
           <button
             type="button"
-            onClick={() => navigate("/coach/athletes")}
+            onClick={() => navegar(() => navigate("/coach/athletes"))}
             className="mb-3 inline-flex items-center gap-1.5 text-xs text-content-muted transition-colors hover:text-white"
           >
             <ArrowLeft className="size-3.5" />
@@ -138,32 +143,50 @@ export function CoachAthleteDetailView({
           </div>
           <h1 className={pageTitleClassName}>
             {seccionDetalle === "routines"
-              ? "Plan de entrenamiento"
-              : seccionDetalle === "agenda"
+              ? "Rutinas del atleta"
+              : seccionDetalle === "schedule"
                 ? "Agenda deportiva"
-                : "Actividades realizadas"}
+                : "Historial del atleta"}
           </h1>
           <p className={pageDescriptionClassName}>
             {seccionDetalle === "routines"
               ? "Armá bloques, completá ejercicios y ajustá la estructura antes de asignar nuevas cargas."
-              : seccionDetalle === "agenda"
-                ? "Programá sesiones internas y externas para darle contexto semanal al plan del atleta."
-                : "Revisá lo que ya completó y corregí registros externos incluso después de realizarlos."}
+              : seccionDetalle === "schedule"
+                ? "Programá sesiones internas y externas para darle contexto semanal a sus rutinas."
+                : "Consultá las rutinas y actividades que ya completó. Los cambios de agenda se gestionan desde Agenda."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {seccionDetalle === "routines" && (
-            <DialogoNuevaRutina
-              atleta={atleta}
-              createdById={entrenador.id}
-              onCreate={crearYEditar}
-            />
+            <>
+              <DialogoNuevaRutina
+                atleta={atleta}
+                createdById={entrenador.id}
+                onCreate={crearYEditar}
+              />
+              {hasRoutine && canEditRoutine && (
+                <DialogoGuardarPlantilla
+                  rutina={rutina}
+                  onSave={onSaveAsTemplate}
+                  disabledReason={
+                    hayCambios
+                      ? "Guardá los cambios de la rutina antes de crear la plantilla"
+                      : undefined
+                  }
+                />
+              )}
+              {plantillaGuardadaVisible && (
+                <span role="status" className="text-xs text-success">
+                  Plantilla creada
+                </span>
+              )}
+            </>
           )}
           <Button
             onClick={() => navegar(verComoAtleta)}
             className="rounded-full bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
           >
-            Vista atleta
+            Previsualizar inicio
             <ArrowRight />
           </Button>
         </div>
@@ -176,8 +199,8 @@ export function CoachAthleteDetailView({
       >
         {[
           ["routines", "Rutinas", Dumbbell],
-          ["agenda", "Agenda", CalendarDays],
-          ["activities", "Actividades", Activity],
+          ["schedule", "Agenda", CalendarDays],
+          ["history", "Historial", Activity],
         ].map(([value, label, Icon]) => {
           const TabIcon = Icon as typeof Dumbbell;
           return (
@@ -187,16 +210,19 @@ export function CoachAthleteDetailView({
               aria-pressed={seccionDetalle === value}
               onClick={() =>
                 navegar(() =>
-                  setSeccionDetalle(
-                    value as "routines" | "agenda" | "activities",
+                  navigate(
+                    coachAthletePath(
+                      atleta.id,
+                      value as CoachAthleteSection,
+                    ),
                   ),
                 )
               }
               className={cn(
                 "flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-xs transition-colors",
                 seccionDetalle === value
-                  ? "bg-white/[0.09] text-white"
-                  : "text-content-muted hover:text-white/65",
+                  ? "bg-app-elevated text-content-primary"
+                  : "text-content-muted hover:text-content-primary",
               )}
             >
               <TabIcon className="size-3.5" />
@@ -214,7 +240,7 @@ export function CoachAthleteDetailView({
               Todavía no hay rutinas visibles
             </h2>
             <p className="mt-2 text-xs leading-relaxed text-content-muted">
-              Creá el primer plan para {atleta.name}. Sus rutinas personales
+              Creá la primera rutina para {atleta.name}. Sus rutinas personales
               seguirán siendo privadas hasta que decida compartirlas.
             </p>
           </div>
@@ -229,7 +255,7 @@ export function CoachAthleteDetailView({
                 Rutinas asignadas
               </span>
               <span className="text-[10px] text-content-muted">
-                {countLabel(routines.length, "plan", "planes")}
+                {countLabel(routines.length, "rutina")}
               </span>
             </div>
             <SelectorRutina
@@ -323,7 +349,7 @@ export function CoachAthleteDetailView({
                       >
                         <Trash2 />
                       </DialogTrigger>
-                      <DialogContent className="border-white/10 bg-app-panel text-white">
+                      <DialogContent className="border-border bg-app-panel text-foreground">
                         <DialogHeader>
                           <DialogTitle>
                             ¿Eliminar “{rutina.title}”?
@@ -336,12 +362,7 @@ export function CoachAthleteDetailView({
                         </DialogHeader>
                         <DialogFooter>
                           <DialogClose
-                            render={
-                              <Button
-                                variant="ghost"
-                                className="text-white/50"
-                              />
-                            }
+                            render={<Button variant="ghost" />}
                           >
                             Cancelar
                           </DialogClose>
@@ -463,7 +484,7 @@ export function CoachAthleteDetailView({
           </Card>
         </div>
       )}
-      {seccionDetalle === "agenda" && (
+      {seccionDetalle === "schedule" && (
         <SportsSchedule
           embedded
           modoCoach
@@ -477,7 +498,7 @@ export function CoachAthleteDetailView({
           onStart={() => undefined}
         />
       )}
-      {seccionDetalle === "activities" && (
+      {seccionDetalle === "history" && (
         <ActivityHistory embedded activities={activities} />
       )}
     </section>

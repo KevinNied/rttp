@@ -23,8 +23,8 @@ export type NavigationItem = {
 export const coachNavigation: NavigationItem[] = [
   {
     icon: LayoutGrid,
-    label: "Resumen",
-    description: "Vista general",
+    label: "Inicio",
+    description: "Continuidad y pendientes",
     href: "/coach",
     view: "resumen",
   },
@@ -37,9 +37,9 @@ export const coachNavigation: NavigationItem[] = [
   },
   {
     icon: ListChecks,
-    label: "Rutinas",
-    description: "Plantillas y planes",
-    href: "/coach/routines",
+    label: "Plantillas",
+    description: "Rutinas reutilizables",
+    href: "/coach/templates",
     view: "routines",
   },
   {
@@ -62,7 +62,7 @@ export const athleteNavigation: NavigationItem[] = [
   {
     icon: Dumbbell,
     label: "Rutinas",
-    description: "Todos tus planes",
+    description: "Todas tus rutinas",
     href: "/routines",
     view: "routines",
   },
@@ -75,8 +75,8 @@ export const athleteNavigation: NavigationItem[] = [
   },
   {
     icon: Activity,
-    label: "Progreso",
-    description: "Tu historial deportivo",
+    label: "Historial",
+    description: "Tus actividades",
     href: "/activities",
     view: "activities",
   },
