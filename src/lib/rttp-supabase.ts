@@ -476,26 +476,20 @@ export async function saveUsers(users: User[]) {
   assertQuery("No se pudieron guardar los perfiles", error);
 }
 
-export async function createAthleteWithRoutine({
+export async function createAthlete({
   coachId,
   name,
   email,
-  routine,
 }: {
   coachId: number;
   name: string;
   email: string;
-  routine: Omit<Routine, "athleteId">;
 }) {
-  const { data, error } = await getSupabaseClient().rpc(
-    "create_athlete_with_routine",
-    {
-      p_coach_id: coachId,
-      p_athlete_name: name,
-      p_athlete_email: email,
-      p_initial_routine: routine,
-    },
-  );
+  const { data, error } = await getSupabaseClient().rpc("create_athlete", {
+    p_coach_id: coachId,
+    p_athlete_name: name,
+    p_athlete_email: email,
+  });
   assertQuery("No se pudo crear el atleta", error);
   if (typeof data !== "number") {
     throw new Error("Supabase no devolvió el identificador del nuevo atleta.");

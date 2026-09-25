@@ -129,7 +129,7 @@ export function LandingAcceso({
           </DialogContent>
         </Dialog>
       </div>
-      <VersionLabel className="absolute bottom-5 left-1/2 -translate-x-1/2" />
+      <VersionLabel className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 sm:bottom-5" />
     </main>
   );
 }

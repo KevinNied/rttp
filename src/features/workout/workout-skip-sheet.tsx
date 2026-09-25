@@ -47,7 +47,7 @@ export function WorkoutSkipSheet({
     </SheetTrigger>
     <SheetContent
       side="bottom"
-      className="mx-auto max-w-lg rounded-t-[2rem] border-white/10 bg-app-panel pb-6 text-white"
+      className="mx-auto max-h-[calc(100dvh-1rem)] max-w-lg overflow-y-auto rounded-t-[2rem] border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white"
     >
       <SheetHeader className="px-5 pt-6">
         <SheetTitle className="text-white">

@@ -36,6 +36,7 @@ import {
   coachAthletePath,
   type CoachAthleteSection,
 } from "@/application/navigation/routes";
+import { SyncState } from "@/application/sync/sync-state";
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
 import {
   canCoachEditRoutine,
@@ -57,6 +58,7 @@ import {
   pageTitleClassName,
 } from "@/features/shared/page-shell";
 import { TextWithLinks } from "@/features/shared/text-with-links";
+import { SaveStatus } from "@/features/shared/save-status";
 
 export function CoachAthleteDetailView({
   editor,
@@ -68,8 +70,9 @@ export function CoachAthleteDetailView({
   activities,
   seccionDetalle,
   hayCambios,
+  isDraft,
+  syncState,
   hayEjerciciosSinNombre,
-  guardadoVisible,
   guardar,
   plantillaGuardadaVisible,
   onSaveAsTemplate,
@@ -92,8 +95,9 @@ export function CoachAthleteDetailView({
   activities: CompletedActivity[];
   seccionDetalle: CoachAthleteSection;
   hayCambios: boolean;
+  isDraft: boolean;
+  syncState: SyncState;
   hayEjerciciosSinNombre: boolean;
-  guardadoVisible: boolean;
   guardar: () => void;
   plantillaGuardadaVisible: boolean;
   onSaveAsTemplate: (title: string) => void;
@@ -124,6 +128,7 @@ export function CoachAthleteDetailView({
   const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
   const canEditRoutine = canCoachEditRoutine(rutina, entrenador);
   const invalidRoutineTitle = !rutina.title.trim();
+  const draftWithoutExercises = isDraft && ejerciciosRutinaActiva === 0;
   const authorLabel = routineCreatorLabel(rutina, [entrenador, atleta], entrenador);
 
   return (
@@ -300,14 +305,12 @@ export function CoachAthleteDetailView({
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  {canEditRoutine && !hayCambios && (
-                    <div
-                      role="status"
-                      className="flex items-center gap-1 text-[10px] text-success"
-                    >
-                      <Check className="size-3" />
-                      {guardadoVisible ? "Cambios guardados" : "Guardado"}
-                    </div>
+                  {canEditRoutine && (
+                    <SaveStatus
+                      dirty={hayCambios}
+                      syncState={syncState}
+                      className="text-[10px]"
+                    />
                   )}
                   <OverviewRutina
                     rutina={rutina}
@@ -316,21 +319,29 @@ export function CoachAthleteDetailView({
                   {canEditRoutine && hayCambios && (
                     <Button
                       onClick={guardar}
-                      disabled={hayEjerciciosSinNombre || invalidRoutineTitle}
+                      disabled={
+                        hayEjerciciosSinNombre ||
+                        invalidRoutineTitle ||
+                        draftWithoutExercises
+                      }
                       title={
                         hayEjerciciosSinNombre
                           ? "Completá el nombre del ejercicio nuevo"
                           : invalidRoutineTitle
                             ? "Completá el nombre de la rutina"
+                            : draftWithoutExercises
+                              ? "Sumá al menos un ejercicio"
                             : undefined
                       }
-                      className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110"
+                      className="hidden rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110 md:inline-flex"
                     >
                       <Check />
                       {hayEjerciciosSinNombre
                         ? "Completá el ejercicio"
                         : invalidRoutineTitle
                           ? "Completá el nombre"
+                          : draftWithoutExercises
+                            ? "Sumá un ejercicio"
                           : "Guardar cambios"}
                     </Button>
                   )}
@@ -341,8 +352,12 @@ export function CoachAthleteDetailView({
                           <Button
                             variant="ghost"
                             size="icon"
-                            aria-label="Eliminar rutina"
-                            title="Eliminar rutina"
+                            aria-label={
+                              isDraft ? "Descartar borrador" : "Eliminar rutina"
+                            }
+                            title={
+                              isDraft ? "Descartar borrador" : "Eliminar rutina"
+                            }
                             className="rounded-full text-content-muted hover:bg-red-400/10 hover:text-red-200"
                           />
                         }
@@ -352,12 +367,14 @@ export function CoachAthleteDetailView({
                       <DialogContent className="border-border bg-app-panel text-foreground">
                         <DialogHeader>
                           <DialogTitle>
-                            ¿Eliminar “{rutina.title}”?
+                            {isDraft
+                              ? `¿Descartar “${rutina.title}”?`
+                              : `¿Eliminar “${rutina.title}”?`}
                           </DialogTitle>
                           <DialogDescription className="text-content-muted">
-                            La rutina dejará de estar disponible para{" "}
-                            {atleta.name}. También se quitarán sus entrenamientos
-                            programados. Esta acción no se puede deshacer.
+                            {isDraft
+                              ? "Se perderán los cambios de este borrador local."
+                              : `La rutina dejará de estar disponible para ${atleta.name}. También se quitarán sus entrenamientos programados. Esta acción no se puede deshacer.`}
                           </DialogDescription>
                         </DialogHeader>
                         <DialogFooter>
@@ -375,7 +392,7 @@ export function CoachAthleteDetailView({
                               />
                             }
                           >
-                            Eliminar rutina
+                            {isDraft ? "Descartar borrador" : "Eliminar rutina"}
                           </DialogClose>
                         </DialogFooter>
                       </DialogContent>
@@ -406,11 +423,15 @@ export function CoachAthleteDetailView({
                 </div>
               )}
               {canEditRoutine &&
-                (hayEjerciciosSinNombre || invalidRoutineTitle) && (
+                (hayEjerciciosSinNombre ||
+                  invalidRoutineTitle ||
+                  draftWithoutExercises) && (
                 <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-sm leading-relaxed text-amber-100/80">
                   {hayEjerciciosSinNombre
                     ? "Completá el nombre del ejercicio nuevo para guardar la rutina."
-                    : "Completá el nombre de la rutina para guardar los cambios."}
+                    : invalidRoutineTitle
+                      ? "Completá el nombre de la rutina para guardar los cambios."
+                      : "Sumá al menos un ejercicio antes de guardar esta rutina nueva."}
                 </div>
                 )}
             </CardHeader>
@@ -481,6 +502,28 @@ export function CoachAthleteDetailView({
                 </div>
               )}
             </CardContent>
+            {canEditRoutine && hayCambios && (
+              <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-20 border-t border-white/[0.08] bg-app-panel/95 p-3 backdrop-blur md:hidden">
+                <Button
+                  onClick={guardar}
+                  disabled={
+                    hayEjerciciosSinNombre ||
+                    invalidRoutineTitle ||
+                    draftWithoutExercises
+                  }
+                  className="w-full rounded-full"
+                >
+                  <Check />
+                  {hayEjerciciosSinNombre
+                    ? "Completá el ejercicio"
+                    : invalidRoutineTitle
+                      ? "Completá el nombre"
+                      : draftWithoutExercises
+                        ? "Sumá un ejercicio"
+                      : "Guardar cambios"}
+                </Button>
+              </div>
+            )}
           </Card>
         </div>
       )}

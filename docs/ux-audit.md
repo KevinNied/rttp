@@ -1979,12 +1979,13 @@ El producto habla de “atletas”, pero el diálogo utiliza “Agregar alumno�
 
 [crearAtleta](../src/app/page.tsx#L462) crea también una rutina inicial vacía.
 
-Esto requiere una decisión previa a implementación:
+**Decisión adoptada para Ola 3:** crear solamente el atleta. La primera rutina
+se crea después como un borrador local explícito y no se persiste hasta que
+tenga contenido válido y el usuario la guarde.
 
-- **Recomendado:** crear solamente el atleta y ofrecer “Crear primera rutina”.
-- Alternativa: mantener una rutina draft explícitamente marcada como incompleta y no entrenable.
-
-No debería persistirse una rutina vacía presentándola como una rutina normal.
+La aplicación y la migración aditiva implementan este contrato. La función
+remota fue aplicada y verificada con un alta real, sin crear una rutina
+implícita y restaurando los conteos originales después del cleanup de QA.
 
 ---
 
@@ -3334,6 +3335,38 @@ ambiguo.
 
 **Gate de salida:** los flujos críticos se completan, recuperan y reanudan sin
 pérdida; cada resultado se comunica por más de un canal perceptivo.
+
+#### Estado de implementación
+
+La implementación local de Ola 3 está completa. La validación funcional cubrió
+los recorridos de atleta y coach, drafts descartables, revisión del workout,
+Agenda reversible y recuperación después de un fallo inicial de Supabase. El
+modo sin una carga remota confiable bloquea las superficies mutables, explica
+que la app está en solo lectura y permite reintentar.
+
+| Hallazgo | Estado | Evidencia |
+|---|---|---|
+| FLOW-001 | Resuelto en Ola 2 | El coach sin atletas entra al workspace y puede iniciar el alta. |
+| FLOW-002 | Resuelto | Las rutinas nuevas de atleta y coach son drafts locales; exigen título, nombres y al menos un ejercicio antes del primer guardado. |
+| FLOW-003 | Resuelto | “Duplicar y editar” conserva abierto el editor y descartar no persiste la copia. |
+| FLOW-004 | Resuelto | Sin carga remota previa la app queda en solo lectura; después de una carga válida conserva mutaciones pendientes en outbox y permite reintentar. |
+| FLOW-005 | Resuelto | Los editores distinguen cambios sin guardar, guardando, sincronizado, pendiente y error. |
+| FLOW-006 | Resuelto | El cierre permite revisar el entrenamiento y volver con el cronómetro pausado antes de guardar la actividad. |
+| FLOW-007 | Resuelto | El esfuerzo comienza vacío, es obligatorio y el comentario se adapta a atletas con o sin coach. |
+| FLOW-008 | Resuelto | Una actividad externa completada puede volver a pendiente y elimina su actividad asociada. |
+| FLOW-009 | Resuelto | La edición se presenta como tal y aclara que afecta solo esa sesión. |
+| FLOW-010 | Resuelto | Sin rutinas activas se explica el estado y se ofrece programar una actividad externa. |
+| FLOW-011 | Resuelto en Ola 2 | La asignación confirma el resultado y ofrece abrir la rutina. |
+| FLOW-012 | Resuelto en Ola 2 | Rutinas, Agenda e Historial del atleta tienen rutas canónicas recargables. |
+| FLOW-013 | Resuelto | El alta usa submit real, validación de email y mensajes asociados al campo. |
+| FLOW-014 | Resuelto | La hidratación usa skeleton y reserva el texto para cargas prolongadas. |
+| FLOW-015 | Resuelto | Los errores se normalizan y el banner ofrece una recuperación accionable. |
+| FLOW-016 | Resuelto | El bloqueo de avance permanece visible y anunciado hasta corregir la serie. |
+| FLOW-017 | Diferido | Búsqueda, paginación o virtualización se definirán cuando exista evidencia de escala real. |
+
+El cambio aditivo de base de datos fue aplicado y verificado: el alta creó un
+atleta con cero rutinas, actualizó la relación del coach y permitió eliminar
+por completo los datos de QA sin alterar los conteos originales.
 
 ### Ola 4 — Movimiento, pulido y accesibilidad fina
 

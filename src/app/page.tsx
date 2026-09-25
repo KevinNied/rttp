@@ -16,13 +16,12 @@ import {
   ScheduledWorkout,
 } from "@/lib/rttp-agenda";
 import { initialRoutines, Routine, User } from "@/lib/rttp-data";
-import { createAthleteWithRoutine } from "@/lib/rttp-supabase";
+import { createAthlete } from "@/lib/rttp-supabase";
 import { supabaseConfigured } from "@/lib/supabase";
 
 import {
   duplicateRoutineForAthlete,
   idPlantilla,
-  nuevaRutinaBase,
   rutinaDesdePlantilla,
   snapshotRoutine,
 } from "@/domain/routine/routine-factory";
@@ -61,6 +60,7 @@ import { PerfilUsuario } from "@/features/athlete/user-profile";
 import { HomeEntrenador } from "@/features/coach/coach-home";
 import { LandingAcceso } from "@/features/landing/access-landing";
 import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
+import { AppLoadingState } from "@/features/shared/app-loading-state";
 import { AppShell } from "@/features/shell/app-shell";
 
 export default function Home() {
@@ -70,9 +70,12 @@ export default function Home() {
   const seccionDetalleAtleta = coachAthleteSectionForPath(pathname);
   const {
     hydrated,
+    syncState,
     syncError,
     setSyncError,
+    retrySync,
     persist,
+    executeRemoteMutation,
     users,
     setUsers,
     routines,
@@ -291,6 +294,7 @@ export default function Home() {
   }
 
   function actualizarEntrenamiento(item: ScheduledWorkout) {
+    const anterior = workouts.find((actual) => actual.id === item.id);
     const actualizado = {
       ...item,
       updatedAt: new Date().toISOString(),
@@ -326,6 +330,21 @@ export default function Home() {
           : [...actuales, actividad],
       );
       persist({ type: "save-activity", data: actividad });
+    }
+    if (
+      anterior?.origin === "external" &&
+      anterior.status === "completed" &&
+      item.status !== "completed"
+    ) {
+      const actividad = activities.find(
+        (actual) => actual.scheduledWorkoutId === item.id,
+      );
+      if (actividad) {
+        setActivities((actuales) =>
+          actuales.filter((actual) => actual.id !== actividad.id),
+        );
+        persist({ type: "delete-activity", entityId: actividad.id });
+      }
     }
   }
 
@@ -482,24 +501,21 @@ export default function Home() {
     if (!supabaseConfigured) {
       return "La base de datos no está configurada.";
     }
-    const rutinaBase = nuevaRutinaBase(usuario.id);
-
     let id: number;
     try {
-      id = await createAthleteWithRoutine({
-        coachId: usuario.id,
-        name,
-        email,
-        routine: rutinaBase,
-      });
+      id = await executeRemoteMutation(() =>
+        createAthlete({
+          coachId: usuario.id,
+          name,
+          email,
+        }),
+      );
     } catch (error) {
       const mensaje = syncErrorMessage(error);
       setSyncError(mensaje);
       return mensaje;
     }
-
     const nuevoAtleta: User = { id, name, email, role: "athlete" };
-    const rutinaInicial: Routine = { ...rutinaBase, athleteId: id };
     setUsers((actuales) => [
       ...actuales.map((item) =>
         item.id === usuario.id
@@ -511,10 +527,9 @@ export default function Home() {
       ),
       nuevoAtleta,
     ]);
-    setRoutines((actuales) => [...actuales, rutinaInicial]);
     setAtletaSeleccionadoId(id);
     persistSelectedAthlete(id);
-    setRutinaId(rutinaInicial.id);
+    setRutinaId("");
     setRegistros({});
     setSyncError(null);
     return null;
@@ -578,9 +593,6 @@ export default function Home() {
       return null;
     }
     const copia = duplicateRoutineForAthlete(rutinaPersistida, usuario.id);
-    setRoutines((actuales) => [...actuales, copia]);
-    setRutinaId(copia.id);
-    persist({ type: "save-routines", data: [copia] });
     return copia;
   }
 
@@ -656,7 +668,7 @@ export default function Home() {
   }
 
   if (!hydrated) {
-    return <div className="min-h-dvh bg-app" />;
+    return <AppLoadingState />;
   }
 
   if (!usuario) {
@@ -679,6 +691,8 @@ export default function Home() {
         vistaEntrenador={vistaEntrenador}
         vistaAtleta={vistaAtleta}
         syncError={syncError}
+        syncState={syncState}
+        onRetrySync={retrySync}
         onClosePreview={() => setVistaPrevia(false)}
         onLogout={intentarSalir}
         navigate={navigate}
@@ -716,6 +730,7 @@ export default function Home() {
             vista={vistaEntrenador}
             detalleAtleta={detalleAtleta && atleta !== undefined}
             seccionDetalle={seccionDetalleAtleta}
+            syncState={syncState}
             rutina={rutina}
             onSelectAtleta={seleccionarAtleta}
             onSelect={setRutinaId}
@@ -770,7 +785,7 @@ export default function Home() {
           />
         ) : atleta ? (
           <ExperienciaAtleta
-            key={`${atleta.id}-${entrenamientoActivo?.id ?? rutinaDeEntrenamiento?.id ?? "routines"}`}
+            key={`${atleta.id}-${entrenamientoActivo?.id ?? "routines"}`}
             atleta={atleta}
             viewer={usuario}
             users={users}
@@ -793,6 +808,7 @@ export default function Home() {
             onCloseScheduled={() => setEntrenamientoActivoId(null)}
             onWorkoutModeChange={setWorkoutImmersive}
             onDirtyChange={setEditorDirty}
+            syncState={syncState}
             registros={registros}
             setRegistros={setRegistros}
           />

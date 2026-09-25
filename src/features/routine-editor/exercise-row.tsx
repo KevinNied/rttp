@@ -324,7 +324,7 @@ export function FilaEjercicio({
           variant="ghost"
           size="icon-sm"
           onClick={onDelete}
-          className="hidden text-content-muted hover:bg-red-400/10 hover:text-red-200 md:inline-flex"
+          className="text-content-muted hover:bg-red-400/10 hover:text-red-200"
           aria-label={`Eliminar ${exerciseLabel}`}
         >
           <X />

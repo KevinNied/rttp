@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { countLabel } from "@/lib/format";
 import { Routine, User } from "@/lib/rttp-data";
 
+import { SyncState } from "@/application/sync/sync-state";
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
 import { routineDndAccessibility } from "@/features/routine-editor/dnd-accessibility";
 import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
@@ -18,15 +19,20 @@ import { SeccionEditor } from "@/features/routine-editor/section-editor";
 import { useRoutineEditor } from "@/features/routine-editor/use-routine-editor";
 import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
 import { desktopPageShellClassName } from "@/features/shared/page-shell";
+import { SaveStatus } from "@/features/shared/save-status";
 
 export function AthleteRoutineEditor({
   routine: savedRoutine,
+  isDraft,
+  syncState,
   coach,
   onSave,
   onClose,
   onDirtyChange,
 }: {
   routine: Routine;
+  isDraft: boolean;
+  syncState: SyncState;
   coach?: User;
   onSave: (routine: Routine) => void;
   onClose: () => void;
@@ -47,13 +53,15 @@ export function AthleteRoutineEditor({
     addSection,
     moverEjercicio,
   } = editor;
-  const [savedVisible, setSavedVisible] = useState(false);
   const [closeConfirmationOpen, setCloseConfirmationOpen] = useState(false);
-  const hasChanges = JSON.stringify(rutina) !== JSON.stringify(savedRoutine);
+  const hasChanges =
+    isDraft || JSON.stringify(rutina) !== JSON.stringify(savedRoutine);
+  const exerciseCount = cantidadEjercicios(rutina);
   const hasUnnamedExercises = rutina.structure.sections.some((section) =>
     section.exercises.some((exercise) => !exercise.name.trim()),
   );
   const hasInvalidDetails = !rutina.title.trim();
+  const draftWithoutExercises = isDraft && exerciseCount === 0;
   const isShared = coach
     ? rutina.sharedWithCoachId === coach.id
     : false;
@@ -65,8 +73,6 @@ export function AthleteRoutineEditor({
 
   function save() {
     onSave(rutina);
-    setSavedVisible(true);
-    window.setTimeout(() => setSavedVisible(false), 1800);
   }
 
   function close() {
@@ -97,17 +103,9 @@ export function AthleteRoutineEditor({
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full border border-white/[0.08] bg-white/[0.035] px-3 py-1.5 text-xs text-white/65">
-                  {countLabel(cantidadEjercicios(rutina), "ejercicio")}
+                  {countLabel(exerciseCount, "ejercicio")}
                 </span>
-                {!hasChanges && (
-                  <div
-                    role="status"
-                    className="flex items-center gap-1 text-xs text-success"
-                  >
-                    <Check className="size-3.5" />
-                    {savedVisible ? "Cambios guardados" : "Guardado"}
-                  </div>
-                )}
+                <SaveStatus dirty={hasChanges} syncState={syncState} />
                 {coach && (
                   <Button
                     type="button"
@@ -137,21 +135,29 @@ export function AthleteRoutineEditor({
                 {hasChanges && (
                   <Button
                     onClick={save}
-                    disabled={hasUnnamedExercises || hasInvalidDetails}
+                    disabled={
+                      hasUnnamedExercises ||
+                      hasInvalidDetails ||
+                      draftWithoutExercises
+                    }
                     title={
                       hasUnnamedExercises
                         ? "Completá el nombre del ejercicio nuevo"
                         : hasInvalidDetails
                           ? "Completá el nombre de la rutina"
+                          : draftWithoutExercises
+                            ? "Sumá al menos un ejercicio"
                           : undefined
                     }
-                    className="rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110"
+                    className="hidden rounded-full bg-gradient-to-r from-blue-500 to-violet-500 text-white shadow-[0_10px_30px_rgba(79,70,229,.2)] hover:brightness-110 md:inline-flex"
                   >
                     <Check />
                     {hasUnnamedExercises
                       ? "Completá el ejercicio"
                       : hasInvalidDetails
                         ? "Completá el nombre"
+                        : draftWithoutExercises
+                          ? "Sumá un ejercicio"
                         : "Guardar cambios"}
                   </Button>
                 )}
@@ -169,11 +175,15 @@ export function AthleteRoutineEditor({
             </div>
           )}
 
-          {(hasUnnamedExercises || hasInvalidDetails) && (
+          {(hasUnnamedExercises ||
+            hasInvalidDetails ||
+            draftWithoutExercises) && (
             <div className="mt-4 rounded-2xl border border-amber-300/12 bg-amber-300/[0.06] px-4 py-3 text-sm leading-relaxed text-amber-100/80">
               {hasUnnamedExercises
                 ? "Completá el nombre del ejercicio nuevo para guardar la rutina."
-                : "Completá el nombre de la rutina para guardar los cambios."}
+                : hasInvalidDetails
+                  ? "Completá el nombre de la rutina para guardar los cambios."
+                  : "Sumá al menos un ejercicio antes de guardar esta rutina nueva."}
             </div>
           )}
         </CardHeader>
@@ -230,6 +240,28 @@ export function AthleteRoutineEditor({
             </div>
           </DndContext>
         </CardContent>
+        {hasChanges && (
+          <div className="sticky bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-20 border-t border-white/[0.08] bg-app-panel/95 p-3 backdrop-blur md:hidden">
+            <Button
+              onClick={save}
+              disabled={
+                hasUnnamedExercises ||
+                hasInvalidDetails ||
+                draftWithoutExercises
+              }
+              className="w-full rounded-full"
+            >
+              <Check />
+              {hasUnnamedExercises
+                ? "Completá el ejercicio"
+                : hasInvalidDetails
+                  ? "Completá el nombre"
+                  : draftWithoutExercises
+                    ? "Sumá un ejercicio"
+                  : "Guardar cambios"}
+            </Button>
+          </div>
+        )}
       </Card>
       <ConfirmationDialog
         open={closeConfirmationOpen}

@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Clock3, Flame, Trophy } from "lucide-react";
+import {
+  ArrowLeft,
+  CheckCircle2,
+  Clock3,
+  Flame,
+  Trophy,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,15 +21,19 @@ export function RutinaCompletada({
   elapsedSeconds,
   feedback,
   setFeedback,
+  hasCoach,
+  onReview,
   onDone,
 }: {
   atleta: User;
   elapsedSeconds: number;
   feedback: string;
   setFeedback: (value: string) => void;
+  hasCoach: boolean;
+  onReview: () => void;
   onDone: (effort: number) => void;
 }) {
-  const [effort, setEsfuerzo] = useState(4);
+  const [effort, setEsfuerzo] = useState<number | null>(null);
   return (
     <div className="mx-auto grid min-h-dvh max-w-5xl place-items-center px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] md:px-8 xl:px-10">
       <Card className="w-full border-violet-200/[0.12] bg-app-panel text-center text-white shadow-[0_30px_90px_rgba(0,0,0,.5)]">
@@ -89,7 +99,7 @@ export function RutinaCompletada({
                       aria-hidden="true"
                       className={cn(
                         "grid size-11 place-items-center rounded-full border transition-colors peer-focus-visible:ring-3 peer-focus-visible:ring-ring/70",
-                        value <= effort
+                        effort !== null && value <= effort
                           ? "border-orange-500/40 bg-orange-500/12 text-orange-700 dark:border-orange-200/30 dark:bg-orange-300/10 dark:text-orange-300"
                           : "border-border text-content-muted",
                       )}
@@ -97,7 +107,7 @@ export function RutinaCompletada({
                       <Flame
                         className={cn(
                           "size-4",
-                          value <= effort && "fill-current",
+                          effort !== null && value <= effort && "fill-current",
                         )}
                       />
                     </span>
@@ -105,29 +115,49 @@ export function RutinaCompletada({
                 ))}
               </div>
               <p className="mt-3 text-xs text-content-muted">
-                Seleccionaste {effort} de 5
+                {effort === null
+                  ? "Elegí una opción para guardar la actividad"
+                  : `Seleccionaste ${effort} de 5`}
               </p>
             </fieldset>
           </div>
           <div className="xl:text-left">
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-content-secondary">
-                Comentario para tu entrenador
+                {hasCoach
+                  ? "Comentario para tu entrenador"
+                  : "Nota sobre esta sesión"}
               </span>
               <Textarea
                 value={feedback}
                 onChange={(event) => setFeedback(event.target.value)}
-                placeholder="Contale cómo te sentiste o qué querés ajustar."
+                placeholder={
+                  hasCoach
+                    ? "Contale cómo te sentiste o qué querés ajustar."
+                    : "Guardá cómo te sentiste o qué querés ajustar."
+                }
                 className="min-h-24 border-input bg-app-surface text-foreground placeholder:text-content-muted dark:bg-black/30"
               />
             </label>
-            <Button
-              onClick={() => onDone(effort)}
-              className="mt-4 h-12 w-full rounded-full"
-            >
-              Enviar y cerrar
-              <CheckCircle2 />
-            </Button>
+            <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onReview}
+                className="h-12 flex-1 rounded-full"
+              >
+                <ArrowLeft />
+                Revisar entrenamiento
+              </Button>
+              <Button
+                onClick={() => effort !== null && onDone(effort)}
+                disabled={effort === null}
+                className="h-12 flex-1 rounded-full"
+              >
+                Guardar actividad
+                <CheckCircle2 />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

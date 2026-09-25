@@ -7,6 +7,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   LogOut,
+  RotateCcw,
   UserRound,
 } from "lucide-react";
 
@@ -17,6 +18,7 @@ import { User } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
 import { AthleteView, CoachView } from "@/application/navigation/routes";
+import { SyncState } from "@/application/sync/sync-state";
 import {
   readSidebarCompactPreference,
   writeSidebarCompactPreference,
@@ -36,6 +38,8 @@ export function AppShell({
   vistaEntrenador,
   vistaAtleta,
   syncError,
+  syncState,
+  onRetrySync,
   onClosePreview,
   onLogout,
   navigate,
@@ -47,6 +51,8 @@ export function AppShell({
   vistaEntrenador: CoachView;
   vistaAtleta: AthleteView;
   syncError: string | null;
+  syncState: SyncState;
+  onRetrySync: () => void;
   onClosePreview: () => void;
   onLogout: () => void;
   navigate: (path: string) => void;
@@ -58,6 +64,7 @@ export function AppShell({
   );
   const navegacion = esEntrenador ? coachNavigation : athleteNavigation;
   const navegacionMobile = navegacion.filter((item) => item.view !== "profile");
+  const mutationLocked = syncState === "unavailable";
 
   useEffect(() => {
     writeSidebarCompactPreference(sidebarCompact);
@@ -296,14 +303,34 @@ export function AppShell({
             "pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-0",
         )}
       >
-        {syncError && !workoutImmersive && (
+        {(syncError || syncState === "saving") && !workoutImmersive && (
           <div
-            role="alert"
+            role={syncError ? "alert" : "status"}
             className="relative z-20 mx-auto max-w-[1760px] px-4 pt-4 sm:px-6 lg:px-10"
           >
-            <p className="rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs text-amber-100">
-              No pudimos sincronizar con la base de datos. {syncError}
-            </p>
+            <div className="flex flex-col gap-3 rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-sm text-content-primary sm:flex-row sm:items-center sm:justify-between">
+              <p>
+                {syncState === "unavailable"
+                  ? "No pudimos cargar tus datos. Para evitar perder cambios, RTTP está en modo solo lectura."
+                  : syncState === "pending"
+                    ? "Tus cambios están guardados en este dispositivo y pendientes de sincronización."
+                    : syncState === "saving"
+                      ? "Sincronizando cambios…"
+                      : syncError}
+              </p>
+              {["pending", "error", "unavailable"].includes(syncState) && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={onRetrySync}
+                  className="shrink-0 rounded-full"
+                >
+                  <RotateCcw />
+                  Reintentar
+                </Button>
+              )}
+            </div>
           </div>
         )}
         {vistaPrevia && (
@@ -323,9 +350,10 @@ export function AppShell({
           </div>
         )}
         <div
-          inert={vistaPrevia ? true : undefined}
+          inert={vistaPrevia || mutationLocked ? true : undefined}
           className={cn(
             vistaPrevia && "pointer-events-none select-none opacity-85",
+            mutationLocked && "pointer-events-none select-none opacity-70",
           )}
         >
           {children}

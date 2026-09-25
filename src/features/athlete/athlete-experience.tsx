@@ -21,6 +21,7 @@ import {
   WorkoutTimerState,
 } from "@/domain/workout/workout-session";
 import { workoutPersistence } from "@/application/workout/workout-persistence";
+import { SyncState } from "@/application/sync/sync-state";
 import { AthleteRoutineEditor } from "@/features/athlete/athlete-routine-editor";
 import { HomeAtleta } from "@/features/athlete/athlete-home";
 import { RutinaCompletada } from "@/features/workout/completed-routine";
@@ -49,6 +50,7 @@ export function ExperienciaAtleta({
   onCloseScheduled,
   onWorkoutModeChange,
   onDirtyChange,
+  syncState,
   registros,
   setRegistros,
 }: {
@@ -82,6 +84,7 @@ export function ExperienciaAtleta({
   onCloseScheduled: () => void;
   onWorkoutModeChange: (active: boolean) => void;
   onDirtyChange: (dirty: boolean) => void;
+  syncState: SyncState;
   registros: TrainingSetRecords;
   setRegistros: React.Dispatch<React.SetStateAction<TrainingSetRecords>>;
 }) {
@@ -128,6 +131,7 @@ export function ExperienciaAtleta({
   );
   const [routineBeingEdited, setRoutineBeingEdited] =
     useState<Routine | null>(null);
+  const [editingDraft, setEditingDraft] = useState(false);
   const completedSessionRef = useRef(false);
   const sesionId = entrenamiento?.id;
   const progreso = sesionId
@@ -202,6 +206,7 @@ export function ExperienciaAtleta({
       title: null,
       category: null,
     });
+    setFeedback("");
     setAnnotations([]);
     setTimer(workoutPersistence.resumeTimer(creado.id));
     setEntrenamiento(creado);
@@ -265,9 +270,16 @@ export function ExperienciaAtleta({
       <AthleteRoutineEditor
         key={routineBeingEdited.id}
         routine={routineBeingEdited}
+        isDraft={editingDraft}
+        syncState={syncState}
         coach={coach}
         onSave={(routine) => {
-          onSaveRoutine(routine);
+          if (editingDraft) {
+            onCreateRoutine(routine);
+            setEditingDraft(false);
+          } else {
+            onSaveRoutine(routine);
+          }
           setRoutineBeingEdited(routine);
         }}
         onClose={() => setRoutineBeingEdited(null)}
@@ -308,6 +320,13 @@ export function ExperienciaAtleta({
         elapsedSeconds={finishedElapsedSeconds}
         feedback={feedback}
         setFeedback={setFeedback}
+        hasCoach={coach !== undefined}
+        onReview={() => {
+          if (sesionId) {
+            setTimer(workoutPersistence.readTimer(sesionId));
+          }
+          setPantalla("workout");
+        }}
         onDone={(effort) => {
           if (entrenamiento) {
             const completado = {
@@ -336,6 +355,7 @@ export function ExperienciaAtleta({
             setRegistros((actuales) =>
               recordsWithoutSession(actuales, entrenamiento.id),
             );
+            setFeedback("");
             setAnnotations([]);
           }
           setEntrenamiento(undefined);
@@ -363,17 +383,24 @@ export function ExperienciaAtleta({
         setIndiceActivo(0);
         setEntrenamiento(undefined);
         setRestTimer(null);
+        setFeedback("");
         setAnnotations([]);
       }}
       onStart={iniciar}
       onCreateAndEdit={(routine) => {
-        onCreateRoutine(routine);
+        setEditingDraft(true);
         setRoutineBeingEdited(routine);
       }}
-      onEdit={setRoutineBeingEdited}
+      onEdit={(routine) => {
+        setEditingDraft(false);
+        setRoutineBeingEdited(routine);
+      }}
       onDuplicate={(routine) => {
         const copy = onDuplicateRoutine(routine);
-        if (copy) setRoutineBeingEdited(copy);
+        if (copy) {
+          setEditingDraft(true);
+          setRoutineBeingEdited(copy);
+        }
       }}
       onArchive={onArchiveRoutine}
       onRestore={onRestoreRoutine}

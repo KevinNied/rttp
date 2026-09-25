@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   DragEndEvent,
   KeyboardSensor,
@@ -19,6 +19,18 @@ import { Exercise, Routine, SectionKind } from "@/lib/rttp-data";
 export function useRoutineEditor(rutinaGuardada: Routine) {
   const [rutina, setRutina] = useState(rutinaGuardada);
   const [openSectionId, setOpenSectionId] = useState<string | null>(null);
+  const previousSavedRoutine = useRef(rutinaGuardada);
+
+  useEffect(() => {
+    const previous = previousSavedRoutine.current;
+    previousSavedRoutine.current = rutinaGuardada;
+    setRutina((current) =>
+      JSON.stringify(current) === JSON.stringify(previous)
+        ? rutinaGuardada
+        : current,
+    );
+  }, [rutinaGuardada]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 6 },

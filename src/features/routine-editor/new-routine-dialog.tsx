@@ -82,7 +82,7 @@ export function DialogoNuevaRutina({
         <Plus />
         Nueva rutina
       </DialogTrigger>
-      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-md">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Crear rutina para {atleta.name}</DialogTitle>
           <DialogDescription className="text-content-muted">
@@ -94,7 +94,6 @@ export function DialogoNuevaRutina({
           <label className="block space-y-2">
             <span className="text-xs text-white/55">Nombre</span>
             <Input
-              autoFocus
               value={title}
               onChange={(event) => setTitulo(event.target.value)}
               placeholder="Ej. Potencia"

@@ -308,6 +308,7 @@ export function WorkoutMode({
 
   function avanzar() {
     setDragX(0);
+    setMensaje("");
     setRestTimer(null);
     setRegistros((actuales) => {
       const siguientes = trasladarPesoALaSiguienteSerie(actuales);
@@ -417,6 +418,7 @@ export function WorkoutMode({
 
   function volver() {
     setDragX(0);
+    setMensaje("");
     setRestTimer(null);
     setIndiceActivo((indice) => Math.max(0, indice - 1));
   }
@@ -517,7 +519,6 @@ export function WorkoutMode({
         avanzar();
       } else {
         setMensaje("Primero completá la serie");
-        window.setTimeout(() => setMensaje(""), 1600);
         setDragX(0);
       }
       return;
@@ -904,40 +905,46 @@ export function WorkoutMode({
                       />
                     </div>
 
-                    <Button
-                      type="button"
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        const completing = !registro.completed;
-                        actualizar({
-                          completed: completing,
-                          skipped: false,
-                        });
-                        if (completing) iniciarDescanso();
-                        else setRestTimer(null);
-                      }}
-                      className={cn(
-                        "mt-5 h-13 w-full rounded-full text-[15px] font-semibold",
-                        registro.completed
-                          ? "border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15"
-                          : "bg-primary text-primary-foreground hover:bg-primary/90",
-                      )}
-                    >
-                      {registro.completed ? (
-                        <>
-                          <RotateCcw />
-                          Serie completada
-                        </>
-                      ) : (
-                        <>
-                          <Check />
-                          {registro.skipped
-                            ? "Registrar esta serie"
-                            : "Completar serie"}
-                        </>
-                      )}
-                    </Button>
+                    <div className="sticky bottom-0 z-10 -mx-2 bg-gradient-to-t from-app via-app/95 to-transparent px-2 pb-1 pt-5">
+                      <Button
+                        type="button"
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          const completing = !registro.completed;
+                          actualizar({
+                            completed: completing,
+                            skipped: false,
+                          });
+                          if (completing) {
+                            setMensaje("");
+                            iniciarDescanso();
+                          } else {
+                            setRestTimer(null);
+                          }
+                        }}
+                        className={cn(
+                          "h-13 w-full rounded-full text-[15px] font-semibold",
+                          registro.completed
+                            ? "border border-cyan-200/20 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/15"
+                            : "bg-primary text-primary-foreground hover:bg-primary/90",
+                        )}
+                      >
+                        {registro.completed ? (
+                          <>
+                            <RotateCcw />
+                            Serie completada
+                          </>
+                        ) : (
+                          <>
+                            <Check />
+                            {registro.skipped
+                              ? "Registrar esta serie"
+                              : "Completar serie"}
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -946,6 +953,8 @@ export function WorkoutMode({
             <div className="mt-auto pt-4">
               <div className="text-center">
                 <div
+                  role="status"
+                  aria-live="polite"
                   className={cn(
                     "h-5 text-[11px] font-medium text-orange-100 transition-opacity",
                     mensaje ? "opacity-100" : "opacity-0",

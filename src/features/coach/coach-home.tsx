@@ -26,6 +26,7 @@ import {
   type CoachAthleteSection,
   CoachView,
 } from "@/application/navigation/routes";
+import { SyncState } from "@/application/sync/sync-state";
 import { useRoutineEditor } from "@/features/routine-editor/use-routine-editor";
 import { CoachAthleteDetailView } from "@/features/coach/coach-athlete-detail-view";
 import { CoachAthletesView } from "@/features/coach/coach-athletes-view";
@@ -46,6 +47,7 @@ export function HomeEntrenador({
   vista,
   detalleAtleta,
   seccionDetalle,
+  syncState,
   rutina: rutinaGuardada,
   onSelectAtleta,
   onSelect,
@@ -75,6 +77,7 @@ export function HomeEntrenador({
   vista: CoachView;
   detalleAtleta: boolean;
   seccionDetalle: CoachAthleteSection;
+  syncState: SyncState;
   rutina?: Routine;
   onSelectAtleta: (id: number) => void;
   onSelect: (id: string) => void;
@@ -98,15 +101,16 @@ export function HomeEntrenador({
   }));
   const editor = useRoutineEditor(rutinaGuardada ?? rutinaVacia);
   const { rutina, setRutina, setOpenSectionId } = editor;
+  const [draftRoutine, setDraftRoutine] = useState<Routine | null>(null);
   const [accionPendiente, setAccionPendiente] = useState<(() => void) | null>(
     null,
   );
-  const [guardadoVisible, setGuardadoVisible] = useState(false);
   const [plantillaGuardadaVisible, setPlantillaGuardadaVisible] =
     useState(false);
   const hayCambios =
-    rutinaGuardada !== undefined &&
-    JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada);
+    draftRoutine !== null ||
+    (rutinaGuardada !== undefined &&
+      JSON.stringify(rutina) !== JSON.stringify(rutinaGuardada));
   const hayEjerciciosSinNombre = rutina.structure.sections.some((section) =>
     section.exercises.some((exercise) => !exercise.name.trim()),
   );
@@ -117,9 +121,12 @@ export function HomeEntrenador({
   }, [hayCambios, onDirtyChange]);
 
   function guardar() {
-    onSaveRutina(rutina);
-    setGuardadoVisible(true);
-    window.setTimeout(() => setGuardadoVisible(false), 1800);
+    if (draftRoutine) {
+      onCreateRutina(rutina);
+      setDraftRoutine(null);
+    } else {
+      onSaveRutina(rutina);
+    }
   }
 
   function navegar(action: () => void) {
@@ -131,20 +138,37 @@ export function HomeEntrenador({
   }
 
   function continuarDespuesDeGuardar() {
-    onSaveRutina(rutina);
+    if (draftRoutine) {
+      onCreateRutina(rutina);
+      setDraftRoutine(null);
+    } else {
+      onSaveRutina(rutina);
+    }
     accionPendiente?.();
     setAccionPendiente(null);
   }
 
   function descartarYContinuar() {
-    if (rutinaGuardada) setRutina(rutinaGuardada);
+    setDraftRoutine(null);
+    setRutina(rutinaGuardada ?? rutinaVacia);
     accionPendiente?.();
     setAccionPendiente(null);
   }
 
   function crearYEditar(rutinaNueva: Routine) {
-    onCreateRutina(rutinaNueva);
+    setDraftRoutine(rutinaNueva);
+    setRutina(rutinaNueva);
     setOpenSectionId(rutinaNueva.structure.sections[0]?.id ?? null);
+  }
+
+  function eliminarRutina(id: string) {
+    if (draftRoutine?.id === id) {
+      setDraftRoutine(null);
+      setRutina(rutinaGuardada ?? rutinaVacia);
+      setOpenSectionId(rutinaGuardada?.structure.sections[0]?.id ?? null);
+      return;
+    }
+    onDeleteRutina(id);
   }
 
   return (
@@ -192,7 +216,7 @@ export function HomeEntrenador({
       {detalleAtleta && atleta && (
         <CoachAthleteDetailView
           editor={editor}
-          hasRoutine={rutinaGuardada !== undefined}
+          hasRoutine={rutinaGuardada !== undefined || draftRoutine !== null}
           entrenador={entrenador}
           atleta={atleta}
           routines={routines}
@@ -200,8 +224,9 @@ export function HomeEntrenador({
           activities={activities}
           seccionDetalle={seccionDetalle}
           hayCambios={hayCambios}
+          isDraft={draftRoutine !== null}
+          syncState={syncState}
           hayEjerciciosSinNombre={hayEjerciciosSinNombre}
-          guardadoVisible={guardadoVisible}
           guardar={guardar}
           plantillaGuardadaVisible={plantillaGuardadaVisible}
           onSaveAsTemplate={(title) => {
@@ -214,7 +239,7 @@ export function HomeEntrenador({
           verComoAtleta={verComoAtleta}
           crearYEditar={crearYEditar}
           onSelect={onSelect}
-          onDeleteRutina={onDeleteRutina}
+          onDeleteRutina={eliminarRutina}
           onCreateEntrenamiento={onCreateEntrenamiento}
           onUpdateEntrenamiento={onUpdateEntrenamiento}
           onDeleteEntrenamiento={onDeleteEntrenamiento}

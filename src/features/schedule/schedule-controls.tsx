@@ -152,7 +152,7 @@ export function ScheduleDatePicker({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-auto rounded-2xl border border-white/10 bg-app-panel p-3 text-white shadow-2xl"
+          className="max-h-[calc(100dvh-2rem)] w-auto overflow-y-auto rounded-2xl border border-white/10 bg-app-panel p-3 text-white shadow-2xl"
         >
           <div className="mb-2 flex gap-2">
             {[
@@ -237,7 +237,7 @@ export function ScheduleTimePicker({
         </PopoverTrigger>
         <PopoverContent
           align="start"
-          className="w-72 rounded-2xl border border-white/10 bg-app-panel p-3 text-white shadow-2xl"
+          className="max-h-[calc(100dvh-2rem)] w-72 overflow-y-auto rounded-2xl border border-white/10 bg-app-panel p-3 text-white shadow-2xl"
         >
           <div className="mb-3">
             <div className="text-sm font-medium">Elegí una hora</div>
@@ -355,7 +355,7 @@ export function ScheduleRecurrencePicker({
           </PopoverTrigger>
           <PopoverContent
             align="start"
-            className="w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-white/10 bg-app-panel p-2 text-white shadow-2xl"
+            className="max-h-[calc(100dvh-2rem)] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-white/10 bg-app-panel p-2 text-white shadow-2xl"
           >
             {options.map((mode) => (
               <button

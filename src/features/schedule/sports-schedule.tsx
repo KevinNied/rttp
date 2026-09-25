@@ -233,25 +233,45 @@ function FormularioEntrenamiento({
           </div>
 
           {origin === "routine" ? (
-            <label className="block space-y-2">
-              <span className="text-xs text-white/55">Rutina</span>
-              <Select
-                value={routineId}
-                onChange={(event) => {
-                  const id = event.target.value;
-                  setRutinaId(id);
-                  const rutina = routines.find((actual) => actual.id === id);
-                  if (rutina) setDuracion(String(rutina.durationMinutes ?? ""));
-                }}
-                className="border-white/10 bg-black/35 text-white"
-              >
-                {activeRoutines.map((rutina) => (
+            activeRoutines.length > 0 ? (
+              <label className="block space-y-2">
+                <span className="text-xs text-white/55">Rutina</span>
+                <Select
+                  value={routineId}
+                  onChange={(event) => {
+                    const id = event.target.value;
+                    setRutinaId(id);
+                    const rutina = routines.find((actual) => actual.id === id);
+                    if (rutina) {
+                      setDuracion(String(rutina.durationMinutes ?? ""));
+                    }
+                  }}
+                  className="border-white/10 bg-black/35 text-white"
+                >
+                  {activeRoutines.map((rutina) => (
                     <option key={rutina.id} value={rutina.id}>
                       {rutina.title}
                     </option>
                   ))}
-              </Select>
-            </label>
+                </Select>
+              </label>
+            ) : (
+              <div className="rounded-2xl border border-warning/20 bg-warning/10 p-4 text-sm text-content-secondary">
+                <p>
+                  No tenés rutinas disponibles. Creá una rutina o programá una
+                  actividad externa.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOrigen("external")}
+                  className="mt-3 rounded-full"
+                >
+                  Programar actividad externa
+                </Button>
+              </div>
+            )
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="space-y-2">
@@ -507,7 +527,7 @@ function TarjetaEntrenamiento({
       )}
       {rutinaSinEjercicios && (
         <p className="mt-2 text-[9px] leading-relaxed text-amber-100/65">
-          Esta rutina todavia no tiene ejercicios cargados.
+          Esta rutina todavía no tiene ejercicios cargados.
         </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-1">
@@ -582,6 +602,17 @@ function TarjetaEntrenamiento({
           >
             <RotateCcw />
             <EtiquetaAccion>Restaurar</EtiquetaAccion>
+          </Button>
+        )}
+        {completado && item.origin === "external" && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onUpdate({ ...item, status: "scheduled" })}
+            className="h-8 rounded-full px-3 text-[10px] text-content-muted hover:bg-cyan-300/10 hover:text-cyan-200"
+          >
+            <RotateCcw />
+            Volver a pendiente
           </Button>
         )}
         <Dialog>
@@ -772,8 +803,7 @@ export function SportsSchedule({
               Editar entrenamiento
             </h2>
             <p className="mt-1 text-sm leading-relaxed text-white/55">
-              Ajustá la planificación directamente en la agenda, sin abrir una
-              ventana aparte.
+              Los cambios se aplicarán solo a esta sesión.
             </p>
           </div>
           <FormularioEntrenamiento

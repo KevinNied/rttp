@@ -26,12 +26,16 @@ import {
 import { pruneWorkoutTimers } from "@/infrastructure/workout/workout-timer-repository";
 import { loadAppData } from "@/application/data/load-app-data";
 import { syncErrorMessage } from "@/application/sync/sync-error";
+import { SyncState } from "@/application/sync/sync-state";
 
 export type AppDataStore = {
   hydrated: boolean;
+  syncState: SyncState;
   syncError: string | null;
   setSyncError: (message: string | null) => void;
+  retrySync: () => void;
   persist: (mutation: NewSupabaseMutation) => void;
+  executeRemoteMutation: <T>(operation: () => Promise<T>) => Promise<T>;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   routines: Routine[];
@@ -60,27 +64,47 @@ export function useAppData(athleteRouteId: number): AppDataStore {
   const [userId, setUserId] = useState<number | null>(null);
   const [selectedAthleteId, setSelectedAthleteId] = useState(1);
   const [hydrated, setHydrated] = useState(false);
+  const [syncState, setSyncState] = useState<SyncState>("loading");
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [hydrateRequest, setHydrateRequest] = useState(0);
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingOperationsRef = useRef(0);
+  const mutationRevisionRef = useRef(0);
   const remoteDataAppliedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     const retryPending = () => {
-      void hydrate();
+      setHydrateRequest((current) => current + 1);
     };
     window.addEventListener("online", retryPending);
 
     async function hydrate() {
+      const mutationRevisionAtStart = mutationRevisionRef.current;
+      const hadPendingOperationsAtStart = pendingOperationsRef.current > 0;
+      setSyncState(remoteDataAppliedRef.current ? "saving" : "loading");
       const {
         data: finalData,
         remoteDataApplied,
         syncError: nextSyncError,
       } = await loadAppData();
-      if (!cancelled) setSyncError(nextSyncError);
-
       if (cancelled) return;
-      if (!remoteDataApplied && remoteDataAppliedRef.current) return;
+      if (!remoteDataApplied && remoteDataAppliedRef.current) {
+        setSyncError(nextSyncError);
+        setSyncState("pending");
+        setHydrated(true);
+        return;
+      }
+      if (
+        remoteDataApplied &&
+        remoteDataAppliedRef.current &&
+        (hadPendingOperationsAtStart ||
+          mutationRevisionRef.current !== mutationRevisionAtStart)
+      ) {
+        remoteDataAppliedRef.current = true;
+        setHydrated(true);
+        return;
+      }
       setUsers(finalData.users.map(normalizeUser));
       setRoutines(finalData.routines);
       setTemplates(finalData.templates);
@@ -92,6 +116,8 @@ export function useAppData(athleteRouteId: number): AppDataStore {
         setRecords(readWorkoutRecords(finalData.workouts));
       }
       remoteDataAppliedRef.current = remoteDataApplied;
+      setSyncError(nextSyncError);
+      setSyncState(remoteDataApplied ? "idle" : "unavailable");
 
       const storedUserId = Number(
         readPersistentSessionValue(sessionStorageKey),
@@ -123,10 +149,11 @@ export function useAppData(athleteRouteId: number): AppDataStore {
       cancelled = true;
       window.removeEventListener("online", retryPending);
     };
-  }, [athleteRouteId]);
+  }, [athleteRouteId, hydrateRequest]);
 
   const persist = useCallback((newMutation: NewSupabaseMutation) => {
     if (!remoteDataAppliedRef.current) {
+      setSyncState("unavailable");
       setSyncError((current) =>
         current ??
         "La persistencia remota no está disponible. Recargá antes de guardar cambios.",
@@ -138,22 +165,68 @@ export function useAppData(athleteRouteId: number): AppDataStore {
       ...newMutation,
       id: crypto.randomUUID(),
     };
-    const requiresRemapping = !remoteDataAppliedRef.current;
+    mutationRevisionRef.current += 1;
+    pendingOperationsRef.current += 1;
+    setSyncState("saving");
     const operation = persistenceQueueRef.current.then(async () => {
-      await enqueueMutation(mutation, requiresRemapping);
+      await enqueueMutation(mutation, false);
       await executePendingMutations();
     });
     persistenceQueueRef.current = operation.catch(() => undefined);
     void operation
-      .then(() => setSyncError(null))
-      .catch((error: unknown) => setSyncError(syncErrorMessage(error)));
+      .then(() => {
+        setSyncError(null);
+        if (pendingOperationsRef.current === 1) setSyncState("idle");
+      })
+      .catch((error: unknown) => {
+        setSyncState("pending");
+        setSyncError(syncErrorMessage(error));
+      })
+      .finally(() => {
+        pendingOperationsRef.current = Math.max(
+          0,
+          pendingOperationsRef.current - 1,
+        );
+      });
   }, []);
+
+  const executeRemoteMutation = useCallback(
+      async <T,>(operation: () => Promise<T>) => {
+        if (!remoteDataAppliedRef.current) {
+          throw new Error(
+            "La persistencia remota no está disponible. Reintentá antes de guardar cambios.",
+          );
+        }
+        mutationRevisionRef.current += 1;
+        pendingOperationsRef.current += 1;
+        setSyncState("saving");
+        try {
+          const result = await operation();
+          setSyncError(null);
+          if (pendingOperationsRef.current === 1) setSyncState("idle");
+          return result;
+        } catch (error) {
+          setSyncState("error");
+          setSyncError(syncErrorMessage(error));
+          throw error;
+        } finally {
+          pendingOperationsRef.current = Math.max(
+            0,
+            pendingOperationsRef.current - 1,
+          );
+        }
+      },
+      [],
+  );
 
   return {
     hydrated,
+    syncState,
     syncError,
     setSyncError,
+    retrySync: () => setHydrateRequest((current) => current + 1),
     persist,
+    executeRemoteMutation,
     users,
     setUsers,
     routines,

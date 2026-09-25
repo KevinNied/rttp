@@ -20,7 +20,7 @@ import { User } from "@/lib/rttp-data";
 export function DialogoNuevoAtleta({
   users,
   onCreate,
-  triggerLabel = "Agregar alumno",
+  triggerLabel = "Agregar atleta",
 }: {
   users: User[];
   onCreate: (name: string, email: string) => Promise<string | null>;
@@ -43,7 +43,8 @@ export function DialogoNuevoAtleta({
     setError("");
   }
 
-  async function crear() {
+  async function crear(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     const emailNormalizado = email.trim().toLowerCase();
     if (users.some((item) => item.email.toLowerCase() === emailNormalizado)) {
       setError("Ya existe un usuario con ese email.");
@@ -73,14 +74,18 @@ export function DialogoNuevoAtleta({
         <Plus className="size-4" />
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-sm">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Agregar alumno</DialogTitle>
+          <DialogTitle>Agregar atleta</DialogTitle>
           <DialogDescription className="text-content-muted">
             Podrá ingresar a RTTP usando este email.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4" aria-busy={creando}>
+        <form
+          className="space-y-4"
+          aria-busy={creando}
+          onSubmit={crear}
+        >
           <label className="block space-y-2">
             <span className="text-xs text-white/55">Nombre</span>
             <Input
@@ -120,16 +125,15 @@ export function DialogoNuevoAtleta({
               Cancelar
             </DialogClose>
             <Button
-              type="button"
-              onClick={crear}
+              type="submit"
               disabled={!name.trim() || !email.trim() || creando}
               className="bg-cyan-300 text-indigo-950 hover:bg-cyan-200"
             >
-              {creando ? "Guardando..." : "Agregar alumno"}
+              {creando ? "Guardando..." : "Agregar atleta"}
               <ArrowRight />
             </Button>
           </DialogFooter>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
