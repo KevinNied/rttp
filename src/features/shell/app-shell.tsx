@@ -379,7 +379,7 @@ export function AppShell({
                   aria-current={activo ? "page" : undefined}
                   onClick={() => navigate(item.href)}
                   className={cn(
-                    "flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[1rem] px-1 transition-[background-color,color] duration-300 ease-out",
+                    "flex h-14 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-[1rem] px-1 transition-[background-color,color] duration-[var(--motion-normal)] ease-[var(--ease-standard)]",
                     activo
                       ? "bg-cyan-500/10 text-cyan-800 shadow-[0_8px_24px_rgba(34,211,238,.1)] dark:bg-cyan-300/14 dark:text-cyan-100"
                       : "text-foreground/55 hover:bg-foreground/[0.05] hover:text-foreground dark:text-content-muted dark:hover:bg-white/[0.06] dark:hover:text-white/80",

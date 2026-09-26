@@ -280,6 +280,8 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
           {sections.map((section, sectionIndex) => {
             const exerciseGroups = groupExerciseSets(section.sets);
             const isOpen = openSectionId === section.id;
+            const triggerId = `activity-${actividad.id}-section-${section.id}-trigger`;
+            const panelId = `activity-${actividad.id}-section-${section.id}-panel`;
             const blockAnnotations = annotations.filter(
               (annotation) =>
                 annotation.scope === "block" &&
@@ -292,8 +294,10 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                 className="overflow-hidden rounded-2xl border border-border bg-app-panel dark:border-white/[0.07] dark:bg-white/[0.02]"
               >
                 <button
+                  id={triggerId}
                   type="button"
                   aria-expanded={isOpen}
+                  aria-controls={panelId}
                   onClick={() =>
                     setOpenSectionId((current) =>
                       current === section.id ? "" : section.id,
@@ -327,99 +331,107 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                   />
                 </button>
 
-                {isOpen && (
-                  <div className="divide-y divide-border border-t border-border dark:divide-white/[0.05] dark:border-white/[0.06]">
-                    {blockAnnotations.length > 0 && (
-                      <div className="px-4 py-3.5">
-                        <AnnotationList annotations={blockAnnotations} />
-                      </div>
-                    )}
-                    {exerciseGroups.map((exercise) => {
-                      const completedSets = exercise.sets.filter(
-                        (set) => !set.skipped,
-                      );
-                      const exerciseAnnotations = annotations.filter(
-                        (annotation) =>
-                          annotation.scope === "exercise" &&
-                          annotation.sectionId === section.id &&
-                          annotation.exerciseId === exercise.id,
-                      );
-                      const setAnnotations = annotations.filter(
-                        (annotation) =>
-                          annotation.scope === "set" &&
-                          exercise.sets.some(
-                            (set) => set.stepId === annotation.stepId,
-                          ),
-                      );
-                      const uniqueResults = new Set(
-                        completedSets.map((set) => setResult(set)),
-                      );
-                      const hasUniformResult =
-                        completedSets.length === exercise.sets.length &&
-                        uniqueResults.size === 1 &&
-                        setAnnotations.length === 0;
-
-                      return (
-                        <div
-                          key={exercise.id}
-                          className="grid gap-2 px-4 py-3.5 md:grid-cols-[minmax(12rem,0.75fr)_minmax(0,1.25fr)] md:items-center md:gap-6"
-                        >
-                          <div className="min-w-0">
-                            <div className="text-sm text-foreground/80 dark:text-white/75">
-                              {exercise.name}
-                            </div>
-                            <div className="mt-1 text-xs text-content-muted dark:text-content-muted">
-                              {countLabel(
-                                exercise.sets.length,
-                                "serie",
-                                "series",
-                              )}
-                            </div>
-                            <AnnotationList
-                              annotations={exerciseAnnotations}
-                              className="mt-2"
-                            />
-                          </div>
-
-                          {hasUniformResult ? (
-                            <div className="text-sm font-medium text-cyan-700 dark:text-cyan-100/65 md:text-right">
-                              {exercise.sets.length > 1 &&
-                                `${exercise.sets.length} × `}
-                              {setResult(exercise.sets[0])}
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              {exercise.sets.map((set) => (
-                                <div key={set.stepId}>
-                                  <div className="flex md:justify-end">
-                                    <span
-                                      className={cn(
-                                        "rounded-full border px-2.5 py-1 text-xs",
-                                        set.skipped
-                                          ? "border-orange-200/10 bg-orange-200/[0.04] text-orange-700/70 dark:text-orange-100/55"
-                                          : "border-cyan-200/15 bg-cyan-300/[0.05] text-cyan-700/75 dark:text-cyan-100/60",
-                                      )}
-                                    >
-                                      S{set.iteration} · {setResult(set)}
-                                    </span>
-                                  </div>
-                                  <AnnotationList
-                                    annotations={setAnnotations.filter(
-                                      (annotation) =>
-                                        annotation.scope === "set" &&
-                                        annotation.stepId === set.stepId,
-                                    )}
-                                    className="mt-2"
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                <div
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={triggerId}
+                  hidden={!isOpen}
+                  className="divide-y divide-border border-t border-border dark:divide-white/[0.05] dark:border-white/[0.06]"
+                >
+                  {isOpen && (
+                    <>
+                      {blockAnnotations.length > 0 && (
+                        <div className="px-4 py-3.5">
+                          <AnnotationList annotations={blockAnnotations} />
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      )}
+                      {exerciseGroups.map((exercise) => {
+                        const completedSets = exercise.sets.filter(
+                          (set) => !set.skipped,
+                        );
+                        const exerciseAnnotations = annotations.filter(
+                          (annotation) =>
+                            annotation.scope === "exercise" &&
+                            annotation.sectionId === section.id &&
+                            annotation.exerciseId === exercise.id,
+                        );
+                        const setAnnotations = annotations.filter(
+                          (annotation) =>
+                            annotation.scope === "set" &&
+                            exercise.sets.some(
+                              (set) => set.stepId === annotation.stepId,
+                            ),
+                        );
+                        const uniqueResults = new Set(
+                          completedSets.map((set) => setResult(set)),
+                        );
+                        const hasUniformResult =
+                          completedSets.length === exercise.sets.length &&
+                          uniqueResults.size === 1 &&
+                          setAnnotations.length === 0;
+
+                        return (
+                          <div
+                            key={exercise.id}
+                            className="grid gap-2 px-4 py-3.5 md:grid-cols-[minmax(12rem,0.75fr)_minmax(0,1.25fr)] md:items-center md:gap-6"
+                          >
+                            <div className="min-w-0">
+                              <div className="text-sm text-foreground/80 dark:text-white/75">
+                                {exercise.name}
+                              </div>
+                              <div className="mt-1 text-xs text-content-muted dark:text-content-muted">
+                                {countLabel(
+                                  exercise.sets.length,
+                                  "serie",
+                                  "series",
+                                )}
+                              </div>
+                              <AnnotationList
+                                annotations={exerciseAnnotations}
+                                className="mt-2"
+                              />
+                            </div>
+
+                            {hasUniformResult ? (
+                              <div className="text-sm font-medium text-cyan-700 dark:text-cyan-100/65 md:text-right">
+                                {exercise.sets.length > 1 &&
+                                  `${exercise.sets.length} × `}
+                                {setResult(exercise.sets[0])}
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                {exercise.sets.map((set) => (
+                                  <div key={set.stepId}>
+                                    <div className="flex md:justify-end">
+                                      <span
+                                        className={cn(
+                                          "rounded-full border px-2.5 py-1 text-xs",
+                                          set.skipped
+                                            ? "border-orange-200/10 bg-orange-200/[0.04] text-orange-700/70 dark:text-orange-100/55"
+                                            : "border-cyan-200/15 bg-cyan-300/[0.05] text-cyan-700/75 dark:text-cyan-100/60",
+                                        )}
+                                      >
+                                        S{set.iteration} · {setResult(set)}
+                                      </span>
+                                    </div>
+                                    <AnnotationList
+                                      annotations={setAnnotations.filter(
+                                        (annotation) =>
+                                          annotation.scope === "set" &&
+                                          annotation.stepId === set.stepId,
+                                      )}
+                                      className="mt-2"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -598,6 +610,8 @@ export function ActivityHistory({
                   actividad.type === "external" &&
                   !actividad.notes &&
                   !actividad.feedback;
+                const triggerId = `activity-${actividad.id}-trigger`;
+                const panelId = `activity-${actividad.id}-panel`;
 
                 return (
                   <div
@@ -610,6 +624,7 @@ export function ActivityHistory({
                     )}
                   >
                     <button
+                      id={triggerId}
                       onClick={() =>
                         setExpandidaId((actual) =>
                           actual === actividad.id ? "" : actividad.id,
@@ -617,6 +632,7 @@ export function ActivityHistory({
                       }
                       className="w-full px-3.5 py-3.5 text-left md:px-4"
                       aria-expanded={expandida}
+                      aria-controls={panelId}
                     >
                       <div className="flex items-start gap-3">
                         <span
@@ -716,20 +732,25 @@ export function ActivityHistory({
                       </div>
                     </button>
 
-                    {expandida && (
-                      <div
-                        className={cn(
-                          "border-t border-white/[0.07] px-3.5 pb-3.5 pt-3.5 md:px-4 md:pb-4 md:pt-4",
-                          externalWithoutDetails &&
-                            "flex flex-wrap items-center justify-between gap-3",
-                        )}
-                      >
-                        {actividad.type === "routine" ? (
-                          <DetalleRutina actividad={actividad} />
-                        ) : (
-                          <DetalleExterno actividad={actividad} />
-                        )}
-                        {canDeleteActivities && onDeleteActivity && (
+                    <div
+                      id={panelId}
+                      role="region"
+                      aria-labelledby={triggerId}
+                      hidden={!expandida}
+                      className={cn(
+                        "border-t border-white/[0.07] px-3.5 pb-3.5 pt-3.5 md:px-4 md:pb-4 md:pt-4",
+                        externalWithoutDetails &&
+                          "flex flex-wrap items-center justify-between gap-3",
+                      )}
+                    >
+                      {expandida && (
+                        <>
+                          {actividad.type === "routine" ? (
+                            <DetalleRutina actividad={actividad} />
+                          ) : (
+                            <DetalleExterno actividad={actividad} />
+                          )}
+                          {canDeleteActivities && onDeleteActivity && (
                             <div
                               className={cn(
                                 "flex justify-end",
@@ -747,9 +768,10 @@ export function ActivityHistory({
                                 Eliminar actividad
                               </button>
                             </div>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })}

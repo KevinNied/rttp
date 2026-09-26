@@ -3385,6 +3385,39 @@ asistiva.
 **Gate de salida:** checklist WCAG 2.2 AA sin bloqueantes conocidos, recorridos
 por rol documentados y regresión responsive completa.
 
+#### Resultado de implementación de la Ola 4
+
+La implementación técnica de la Ola 4 está completa. Se mantuvo el alcance en
+movimiento, percepción de velocidad y semántica accesible, sin cambiar reglas de
+negocio ni agregar superficies de producto.
+
+| Área | Estado | Evidencia |
+|---|---|---|
+| Movimiento | Resuelto | Dialogs, sheets, dropdowns, popovers, navegación mobile, skip link y retorno del swipe usan los tokens globales de duración y easing. |
+| Reduced motion | Resuelto | La política global conserva una duración computada de `0.01ms` cuando el sistema solicita reducir movimiento. |
+| Carga inicial | Resuelto | El skeleton replica el sidebar desktop, header y dock mobile, gutters, ancho máximo y reserva de contenido del shell final. |
+| Historial | Resuelto | Actividades y bloques relacionan cada trigger y panel mediante IDs estables, `aria-expanded`, `aria-controls`, `role="region"` y `aria-labelledby`. |
+| Navegación accesible | Verificado | La superficie final conserva skip link, `aria-current="page"` y nombres accesibles para todos los botones inspeccionados. |
+
+Validación realizada:
+
+- skeleton inicial en `390×844` y `1440×900`, con transición al contenido y
+  sin cambios de geometría estructural;
+- actividad externa temporal creada, completada y expandida para comprobar el
+  accessibility tree de Historial; luego se volvió a pendiente y se eliminó
+  junto con su actividad asociada;
+- `390×400`, `390×844`, `958×844` y `1440×900`, en dark y light, sin overflow
+  horizontal;
+- teclado y relaciones de foco inspeccionadas mediante DOM y accessibility
+  tree;
+- ausencia de duraciones hardcodeadas en las superficies incluidas en esta ola;
+- lint, build de producción y `git diff --check`.
+
+La automatización no sustituye una sesión manual con VoiceOver/Safari,
+NVDA/Chrome ni pruebas con usuarios de baja visión o lectores de pantalla. Esas
+pruebas externas quedan documentadas como validación adicional pendiente; no se
+detectaron bloqueantes en teclado, semántica computada ni regresión responsive.
+
 ---
 
 ### Cierre
@@ -3394,6 +3427,7 @@ una dirección clara: **primero estabilizar el lenguaje visual y los contratos
 de estado; después simplificar jerarquía y navegación; luego corregir flujos;
 y recién al final pulir movimiento y accesibilidad fina**.
 
-No se implementó ningún cambio de producto durante esta fase. La sesión de
-prueba quedó en `athlete@test.com`, tema oscuro, sin workout activo ni datos
-temporales creados.
+La auditoría no introdujo nuevas reglas de producto. Sus cuatro olas de
+corrección quedaron implementadas de forma incremental. La sesión de prueba
+quedó en `athlete@test.com`, tema oscuro, sin workout activo ni datos temporales
+creados.

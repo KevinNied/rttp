@@ -720,7 +720,8 @@ export function WorkoutMode({
                     : registro.skipped
                       ? "border-orange-200/20"
                       : "border-violet-200/[0.12]",
-                  !dragging && "transition-transform duration-200",
+                  !dragging &&
+                    "transition-transform duration-[var(--motion-normal)] ease-[var(--ease-standard)]",
                 )}
                 style={{
                   touchAction: "pan-y",
