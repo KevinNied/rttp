@@ -306,13 +306,24 @@ export function WorkoutMode({
     };
   }
 
-  function avanzar() {
+  function avanzarConEstado(completarActual: boolean) {
     setDragX(0);
     setMensaje("");
     setRestTimer(null);
     setRegistros((actuales) => {
-      const siguientes = trasladarPesoALaSiguienteSerie(actuales);
-      if (!registro.deferred) return siguientes;
+      const actualizados = completarActual
+        ? {
+            ...actuales,
+            [paso.stepId]: {
+              ...(actuales[paso.stepId] ?? valorInicial),
+              completed: true,
+              skipped: false,
+              deferred: false,
+            },
+          }
+        : actuales;
+      const siguientes = trasladarPesoALaSiguienteSerie(actualizados);
+      if (!registro.deferred || completarActual) return siguientes;
 
       return {
         ...siguientes,
@@ -322,13 +333,24 @@ export function WorkoutMode({
         },
       };
     });
-    const siguiente = siguienteIndiceDeFlujo(indiceActivo + 1);
+    const siguiente = siguienteIndiceDeFlujo(
+      indiceActivo + 1,
+      new Set([paso.stepId]),
+    );
 
     if (siguiente < 0) {
       onFinish();
     } else {
       setIndiceActivo(siguiente);
     }
+  }
+
+  function avanzar() {
+    avanzarConEstado(false);
+  }
+
+  function completarYAvanzar() {
+    avanzarConEstado(true);
   }
 
   function omitir(alcance: "serie" | "ejercicio" | "seccion") {
@@ -515,12 +537,7 @@ export function WorkoutMode({
     setDragging(false);
 
     if (distancia < -80) {
-      if (registro.completed || registro.skipped) {
-        avanzar();
-      } else {
-        setMensaje("Primero completá la serie");
-        setDragX(0);
-      }
+      completarYAvanzar();
       return;
     }
 
@@ -626,68 +643,34 @@ export function WorkoutMode({
             </div>
           </div>
         )}
-        {!isSingleSequentialRoutine && (
-          <div className="mb-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] px-4 py-3">
-            <div className="text-[9px] font-semibold uppercase tracking-[0.14em] text-cyan-100/65">
-              Bloque {paso.sectionIndex + 1} de{" "}
-              {rutina.structure.sections.length}
-            </div>
-            <div className="mt-1 flex items-end justify-between gap-3">
-              {optionalBlockName(paso.sectionName) ? (
-                <div className="min-w-0 truncate text-sm font-medium text-white/90">
-                  {optionalBlockName(paso.sectionName)}
-                </div>
-              ) : (
-                <div />
-              )}
-              <div className="flex shrink-0 items-center gap-1.5 text-[10px] font-medium">
-                {mostrarVistaResumida && (
-                  <WorkoutAnnotationSheet
-                    step={paso}
-                    annotations={annotations}
-                    onAdd={agregarAclaracion}
-                    onUpdate={(id, text) =>
-                      setAnnotations((current) =>
-                        current.map((annotation) =>
-                          annotation.id === id
-                            ? { ...annotation, text }
-                            : annotation,
-                        ),
-                      )
-                    }
-                    onDelete={(id) =>
-                      setAnnotations((current) =>
-                        current.filter((annotation) => annotation.id !== id),
-                      )
-                    }
-                  />
-                )}
-                {paso.sectionKind === "rounds" ? (
-                  <>
-                    <span className="rounded-full bg-violet-300/10 px-2.5 py-1 text-violet-100/80">
-                      Ronda {paso.round} de {paso.rondas}
-                    </span>
-                    <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
-                      Ejercicio {paso.posicion + 1} de{" "}
-                      {paso.ejerciciosEnRonda}
-                    </span>
-                  </>
-                ) : (
-                  <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
-                    Serie {paso.round} de {paso.sets}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
         {mostrarVistaResumida ? (
           <WorkoutRoundSummary
             section={section}
             paso={paso}
             pasos={pasos}
             registros={registros}
+            blockPosition={`Bloque ${paso.sectionIndex + 1} de ${rutina.structure.sections.length}`}
+            annotationAction={
+              <WorkoutAnnotationSheet
+                step={paso}
+                annotations={annotations}
+                onAdd={agregarAclaracion}
+                onUpdate={(id, text) =>
+                  setAnnotations((current) =>
+                    current.map((annotation) =>
+                      annotation.id === id
+                        ? { ...annotation, text }
+                        : annotation,
+                    ),
+                  )
+                }
+                onDelete={(id) =>
+                  setAnnotations((current) =>
+                    current.filter((annotation) => annotation.id !== id),
+                  )
+                }
+              />
+            }
             completarRondaResumida={completarRondaResumida}
             omitir={omitir}
           />
@@ -735,14 +718,10 @@ export function WorkoutMode({
                       <div className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.09em] text-content-secondary sm:text-[11px] sm:tracking-[0.12em]">
                         {registro.deferred
                           ? "Retomado para completar"
-                          : "Ejercicio actual"}
+                          : optionalBlockName(paso.sectionName) ||
+                            "Ejercicio actual"}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
-                        {isSingleSequentialRoutine && (
-                          <span className="rounded-full bg-cyan-300/10 px-2 py-1 text-[10px] font-medium text-cyan-100/80 sm:px-2.5">
-                            Serie {paso.round} de {paso.sets}
-                          </span>
-                        )}
                         <WorkoutAnnotationSheet
                           step={paso}
                           annotations={annotations}
@@ -796,6 +775,29 @@ export function WorkoutMode({
                     <h1 className="mt-2 text-[2rem] font-normal leading-tight tracking-[-0.04em]">
                       {paso.name}
                     </h1>
+                    <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] font-medium">
+                      {!isSingleSequentialRoutine && (
+                        <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-content-secondary">
+                          Bloque {paso.sectionIndex + 1} de{" "}
+                          {rutina.structure.sections.length}
+                        </span>
+                      )}
+                      {paso.sectionKind === "rounds" ? (
+                        <>
+                          <span className="rounded-full bg-violet-300/10 px-2.5 py-1 text-violet-100/80">
+                            Ronda {paso.round} de {paso.rondas}
+                          </span>
+                          <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
+                            Ejercicio {paso.posicion + 1} de{" "}
+                            {paso.ejerciciosEnRonda}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
+                          Serie {paso.round} de {paso.sets}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {paso.instructions && (

@@ -284,7 +284,7 @@
   .skip-link {
     position: fixed;
     z-index: 100;
-    top: max(0.75rem, env(safe-area-inset-top));
+    top: 0;
     left: max(0.75rem, env(safe-area-inset-left));
     transform: translateY(-200%);
     border-radius: 999px;
@@ -297,6 +297,7 @@
   }
 
   .skip-link:focus-visible {
+    top: max(0.75rem, env(safe-area-inset-top));
     transform: translateY(0);
     outline: 3px solid var(--ring);
     outline-offset: 3px;

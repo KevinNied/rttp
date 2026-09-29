@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Check, Clock3, ListChecks } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,10 @@ import { countLabel } from "@/lib/format";
 import { RoutineSection } from "@/lib/rttp-data";
 import { cn } from "@/lib/utils";
 
-import { repeticionesObjetivo } from "@/domain/routine/routine-metrics";
+import {
+  optionalBlockName,
+  repeticionesObjetivo,
+} from "@/domain/routine/routine-metrics";
 import { RoutineStep } from "@/domain/routine/routine-steps";
 import { TrainingSetRecords } from "@/domain/workout/workout-session";
 import { TextWithLinks } from "@/features/shared/text-with-links";
@@ -19,6 +23,8 @@ export function WorkoutRoundSummary({
   paso,
   pasos,
   registros,
+  blockPosition,
+  annotationAction,
   completarRondaResumida,
   omitir,
 }: {
@@ -26,6 +32,8 @@ export function WorkoutRoundSummary({
   paso: RoutineStep;
   pasos: RoutineStep[];
   registros: TrainingSetRecords;
+  blockPosition: string;
+  annotationAction: ReactNode;
   completarRondaResumida: () => void;
   omitir: (alcance: SkipScope) => void;
 }) {
@@ -34,20 +42,30 @@ export function WorkoutRoundSummary({
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_88%_0%,rgba(34,211,238,.14),transparent_37%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.15),transparent_42%)]" />
       <div className="relative">
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-cyan-100/70">
-              Vista rápida
+              {optionalBlockName(section.name) || "Vista rápida"}
             </div>
             <h1 className="mt-2 text-2xl font-normal tracking-[-0.035em]">
               Toda la vuelta, de un vistazo
             </h1>
-            <p className="mt-1 text-[11px] font-medium text-white/60">
-              {countLabel(section.exercises.length, "ejercicio")} · vuelta{" "}
-              {paso.round} de {paso.rondas}
-            </p>
+            <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] font-medium">
+              <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-content-secondary">
+                {blockPosition}
+              </span>
+              <span className="rounded-full bg-violet-300/10 px-2.5 py-1 text-violet-100/80">
+                Ronda {paso.round} de {paso.rondas}
+              </span>
+              <span className="rounded-full bg-cyan-300/10 px-2.5 py-1 text-cyan-100/80">
+                {countLabel(section.exercises.length, "ejercicio")}
+              </span>
+            </div>
           </div>
-          <div className="grid size-10 shrink-0 place-items-center rounded-full border border-cyan-200/15 bg-cyan-300/10 text-cyan-200">
-            <ListChecks className="size-4" />
+          <div className="flex shrink-0 items-center gap-2">
+            {annotationAction}
+            <div className="grid size-10 place-items-center rounded-full border border-cyan-200/15 bg-cyan-300/10 text-cyan-200">
+              <ListChecks className="size-4" />
+            </div>
           </div>
         </div>
 
