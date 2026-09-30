@@ -908,7 +908,7 @@ export function WorkoutMode({
                       />
                     </div>
 
-                    <div className="sticky bottom-0 z-10 -mx-2 bg-gradient-to-t from-app via-app/95 to-transparent px-2 pb-1 pt-5">
+                    <div className="mt-5">
                       <Button
                         type="button"
                         onPointerDown={(event) => event.stopPropagation()}

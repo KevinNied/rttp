@@ -35,7 +35,7 @@ export function RutinaCompletada({
 }) {
   const [effort, setEsfuerzo] = useState<number | null>(null);
   return (
-    <div className="mx-auto grid min-h-dvh max-w-5xl place-items-center px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] md:px-8 xl:px-10">
+    <div className="mx-auto flex min-h-dvh max-w-5xl items-start justify-center px-4 pb-[max(2rem,env(safe-area-inset-bottom))] pt-[max(2rem,env(safe-area-inset-top))] md:items-center md:px-8 xl:px-10">
       <Card className="w-full border-violet-200/[0.12] bg-app-panel text-center text-white shadow-[0_30px_90px_rgba(0,0,0,.5)]">
         <CardContent className="p-6 md:p-9 xl:grid xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)] xl:items-center xl:gap-10 xl:p-12">
           <div>

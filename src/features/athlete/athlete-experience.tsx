@@ -139,7 +139,9 @@ export function ExperienciaAtleta({
     : 0;
 
   useEffect(() => {
-    onWorkoutModeChange(pantalla === "workout");
+    onWorkoutModeChange(
+      pantalla === "workout" || pantalla === "final",
+    );
     return () => onWorkoutModeChange(false);
   }, [onWorkoutModeChange, pantalla]);
 
