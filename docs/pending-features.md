@@ -13,12 +13,22 @@ No representa trabajo comprometido ni un orden definitivo de implementación.
 
 ## Progreso por ejercicio
 
-Las decisiones de la primera versión ya no están abiertas. El contrato aprobado,
-la arquitectura propuesta y el bloqueo de migración viven en
-[exercise-progress.md](./exercise-progress.md).
+El alcance de la primera versión y su arquitectura base están aprobados.
+La revisión del 30 de septiembre de 2026 identificó precisiones pendientes al
+contrastarlos con el codebase: significado de cargas, validez histórica,
+confirmación de resultados, creación compartida desde borradores, alias,
+métricas, consultas y sincronización.
 
-Antes de implementar se debe aprobar
-[exercise-catalog-classification.csv](./exercise-catalog-classification.csv).
+El contrato, la evidencia técnica, las decisiones pendientes, el plan de
+entregas para agentes y la matriz de validación viven en
+[exercise-progress.md](./exercise-progress.md). Ese documento es el punto de
+entrada para retomar; las recomendaciones nuevas no implican aprobación.
+
+Antes de implementar hay que cerrar esas precisiones y actualizar y aprobar
+[exercise-catalog-classification.csv](./exercise-catalog-classification.csv):
+sus 89 filas guardadas siguen pendientes y no representan un inventario nuevo
+de producción. No se implementó código ni se aplicó una migración de esta
+feature.
 
 ### Evoluciones posteriores
 
