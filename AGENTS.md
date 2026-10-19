@@ -8,6 +8,20 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Product fix workflow
+
+- For product bug fixes, UI corrections, UX improvements, and small changes to
+  product behavior, load and follow the
+  [`product-fix` skill](.github/skills/product-fix/SKILL.md) before investigating
+  or editing, even when the user does not mention the skill or `/product-fix`.
+  This includes requests described informally or through screenshots or videos.
+- Invoke `product-fix` through the available skill loader. If it is not available
+  in the current session, read the linked `SKILL.md` and follow its workflow.
+  Do not load it again if it is already active.
+- Keep the RTTP-specific rules below in force, especially product clarification,
+  permissions, persistence, validation, and delivery. The skill does not turn
+  an audit, review, or recommendation request into approval to implement.
+
 ## RTTP product principles
 
 - RTTP means **Return To The Prime**. Keep the product in Spanish and focused on
