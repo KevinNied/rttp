@@ -72,6 +72,14 @@ series no cambian. Enfocar un campo o confirmar el mismo valor no desmarca la
 serie. El nuevo estado y el progreso actualizado sobreviven a una recarga.
 Esta regla no modifica actividades ya guardadas en el historial.
 
+En la PWA instalada desde la pantalla de inicio, el encabezado del entrenamiento
+deja el margen habitual **además** del área segura superior del dispositivo.
+No basta con elegir el mayor de ambos: los controles no deben quedar pegados a
+la zona de la barra de estado y su efecto visual nativo. Los breakpoints más
+anchos también conservan los insets superior e inferior. Sin insets se mantienen
+los márgenes del navegador normal. El contenido sigue desplazándose dentro de
+la rutina, sin agregar otra capa de blur ni cambiar el modo de instalación.
+
 Durante la ejecución, la vista general resume el avance por bloque y ejercicio
 sin interrumpir el cronómetro. Un ejercicio temporalmente no disponible puede
 posponerse: sus series pendientes se conservan sin marcarlas como omitidas y
