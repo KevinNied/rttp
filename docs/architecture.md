@@ -98,6 +98,50 @@ Supabase.
   ejercicio. Conserva el mismo cronómetro de sesión y la recuperación al volver
   a la pestaña.
 
+## Rendimiento y recuperación
+
+### Superficies bajo demanda
+
+La raíz conserva la composición y carga las superficies de atleta, coach,
+agenda, historial y perfil con `next/dynamic` cuando se necesitan. La navegación
+y los guardas de cambios pendientes siguen en sus propietarios originales.
+La espera usa un estado accesible dentro del shell, sin duplicar la navegación.
+Los errores de carga llegan al límite de errores de la ruta: se registran y
+muestran una acción explícita para recargar, también útil tras un despliegue
+que cambie los chunks disponibles.
+
+### Carga remota y recuperación
+
+La primera hidratación puede reutilizar el snapshot leído para decidir la
+migración, únicamente si no había datos que migrar y no se ejecutó ninguna
+mutación del outbox. No se invoca la migración remota con un conjunto vacío.
+Si hubo escrituras, se vuelve a leer después de vaciar la cola bajo Web Locks.
+Un error conserva el estado pendiente y se comunica por el flujo de
+sincronización existente.
+
+Esta reutilización vive dentro de una sola llamada a `loadAppData`: no agrega
+TTL, caché persistida ni datos compartidos entre usuarios. Las recargas y los
+reintentos posteriores consultan nuevamente Supabase.
+
+El historial descarga sus series por lotes, no mediante una consulta por
+actividad. `infrastructure/activity/activity-set-mapping.ts` las transforma y
+agrupa una sola vez por actividad, preservando el orden y los valores guardados.
+El armado local pasa de recorrer todas las series por cada actividad a
+`O(actividades + series)`. Esto optimiza CPU del cliente, no el tiempo SQL.
+
+`npm test` ejecuta las pruebas nativas de Node, incluidas las regresiones de
+hidratación y recuperación del outbox. Se usa Node 25 para estas pruebas y sus
+mocks de módulos.
+
+### Recursos visuales
+
+Manrope es la única fuente web: se hospeda con `next/font` y se usa para texto
+y títulos. No se precargan familias sin consumidores. El script inicial del
+tema se conserva para evitar destellos antes de hidratar la interfaz.
+El logo usa la optimización y la caché estándar de `next/image`, con tamaños
+responsivos y sin descargar el PNG original completo para cada miniatura.
+Solo la imagen principal del acceso conserva su precarga explícita.
+
 ## Reglas al extender
 
 - Una regla nueva de rutina o de entrenamiento vive en `src/domain` y se prueba

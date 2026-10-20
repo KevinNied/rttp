@@ -98,7 +98,6 @@ export function AppShell({
                 alt="RTTP"
                 width={40}
                 height={40}
-                unoptimized
                 className="size-10 rounded-lg bg-indigo-950 p-1 object-contain drop-shadow-[0_0_12px_rgba(99,102,241,.18)] dark:bg-transparent dark:p-0"
               />
             )}
@@ -248,7 +247,6 @@ export function AppShell({
               width={32}
               height={32}
               loading="eager"
-              unoptimized
               className="size-8 rounded-lg bg-indigo-950 p-0.5 object-contain drop-shadow-[0_0_10px_rgba(99,102,241,.18)] dark:bg-transparent dark:p-0"
             />
           </div>

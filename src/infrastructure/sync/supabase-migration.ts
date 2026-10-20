@@ -1,9 +1,9 @@
 import {
   loadSupabaseData,
   migrateMissingData,
-  PersistedData,
+  type PersistedData,
   remapSupabaseMutation,
-  SupabaseMutation,
+  type SupabaseMutation,
 } from "@/lib/rttp-supabase";
 
 import {
@@ -57,12 +57,12 @@ export async function migrateLocalDataToSupabase({
 }: {
   persistedData: PersistedData;
   dataWithSeeds: PersistedData;
-}) {
-  await navigator.locks.request(supabaseMigrationLock, async () => {
+}): Promise<PersistedData | null> {
+  return navigator.locks.request(supabaseMigrationLock, async () => {
     const migrationStatus = readSessionValue(supabaseMigrationStorageKey);
     if (migrationStatus === "true") {
       removeSessionValue(supabaseMigrationSourceStorageKey);
-      return;
+      return null;
     }
 
     let origin = readMigrationSource();
@@ -99,9 +99,23 @@ export async function migrateLocalDataToSupabase({
       );
     }
 
-    const userMapping = await migrateMissingData(
-      origin.useSeeds ? origin.dataWithSeeds : origin.persistedData,
-    );
+    const migrationData = origin.useSeeds
+      ? origin.dataWithSeeds
+      : origin.persistedData;
+    const collections = [
+      migrationData.users,
+      migrationData.routines,
+      migrationData.templates,
+      migrationData.workouts,
+      migrationData.activities,
+    ];
+    if (!collections.every(Array.isArray)) {
+      throw new Error("No se pudo validar el respaldo temporal de la migración.");
+    }
+    const hasMigrationData = collections.some((items) => items.length > 0);
+    const userMapping = hasMigrationData
+      ? await migrateMissingData(migrationData)
+      : {};
     writeSessionValue(
       supabaseUserMappingStorageKey,
       JSON.stringify(userMapping),
@@ -135,5 +149,6 @@ export async function migrateLocalDataToSupabase({
     }
     writeSessionValue(supabaseMigrationStorageKey, "true");
     removeSessionValue(supabaseMigrationSourceStorageKey);
+    return hasMigrationData ? null : currentRemoteData;
   });
 }

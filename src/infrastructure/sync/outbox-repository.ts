@@ -1,8 +1,8 @@
 import {
   executeSupabaseMutation,
   remapSupabaseMutation,
-  SupabaseMutation,
-  UserIdMapping,
+  type SupabaseMutation,
+  type UserIdMapping,
 } from "@/lib/rttp-supabase";
 import { supabaseConfigured } from "@/lib/supabase";
 
@@ -67,8 +67,8 @@ export async function enqueueMutation(
 }
 
 export async function executePendingMutations() {
-  await navigator.locks.request(supabaseMigrationLock, async () => {
-    await navigator.locks.request(supabaseOutboxLock, async () => {
+  return navigator.locks.request(supabaseMigrationLock, async () => {
+    return navigator.locks.request(supabaseOutboxLock, async () => {
       if (!supabaseConfigured) {
         throw new Error(
           "Supabase no está configurado. Los cambios solo vivirán mientras esta pestaña siga abierta.",
@@ -79,10 +79,12 @@ export async function executePendingMutations() {
           "La migración inicial está pendiente. Los cambios se sincronizarán al recuperar la conexión.",
         );
       }
+      let executed = false;
       while (true) {
         const mutation = readPendingMutations()[0];
-        if (!mutation) return;
+        if (!mutation) return executed;
         await executeSupabaseMutation(mutation);
+        executed = true;
         savePendingMutations(
           readPendingMutations().filter(
             (pending) => pending.id !== mutation.id,

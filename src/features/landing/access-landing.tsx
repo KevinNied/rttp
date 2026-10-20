@@ -48,8 +48,7 @@ export function LandingAcceso({
             src="/rttp-mark-v2.png"
             alt="Logo de RTTP"
             fill
-            priority
-            unoptimized
+            preload
             sizes="128px"
             className="object-contain p-4 drop-shadow-[0_18px_35px_rgba(79,70,229,.28)] dark:p-0"
           />

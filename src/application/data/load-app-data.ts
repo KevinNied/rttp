@@ -1,10 +1,10 @@
-import { CompletedActivity } from "@/lib/rttp-activity";
-import { ScheduledWorkout } from "@/lib/rttp-agenda";
-import { initialRoutines, initialUsers, Routine, User } from "@/lib/rttp-data";
-import { loadSupabaseData, PersistedData } from "@/lib/rttp-supabase";
+import type { CompletedActivity } from "@/lib/rttp-activity";
+import type { ScheduledWorkout } from "@/lib/rttp-agenda";
+import { initialRoutines, initialUsers, type Routine, type User } from "@/lib/rttp-data";
+import { loadSupabaseData, type PersistedData } from "@/lib/rttp-supabase";
 import { supabaseConfigured } from "@/lib/supabase";
 
-import { RoutineTemplate } from "@/domain/routine/routine-factory";
+import type { RoutineTemplate } from "@/domain/routine/routine-factory";
 import { normalizeUser } from "@/domain/user/user-normalization";
 import { clearDeprecatedLocalStorage } from "@/infrastructure/storage/legacy-storage";
 import { executePendingMutations } from "@/infrastructure/sync/outbox-repository";
@@ -53,12 +53,15 @@ export async function loadAppData(): Promise<AppDataLoadResult> {
         "Supabase no está configurado. Los cambios solo vivirán mientras esta pestaña siga abierta.",
       );
     }
-    await migrateLocalDataToSupabase({
+    const migrationSnapshot = await migrateLocalDataToSupabase({
       persistedData: persistedLocalData,
       dataWithSeeds: localData,
     });
-    await executePendingMutations();
-    const remoteData = await loadSupabaseData();
+    const mutationsExecuted = await executePendingMutations();
+    const remoteData =
+      migrationSnapshot && !mutationsExecuted
+        ? migrationSnapshot
+        : await loadSupabaseData();
     finalData = {
       ...remoteData,
       users: remoteData.users.map(normalizeUser),

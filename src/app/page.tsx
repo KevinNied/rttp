@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 
-import { ActivityHistory } from "@/components/activity-history";
-import { SportsSchedule } from "@/features/schedule/sports-schedule";
 import {
   activityId,
   ActivitySet,
@@ -54,14 +53,36 @@ import {
   useRoleRedirect,
 } from "@/application/navigation/use-app-navigation";
 import { syncErrorMessage } from "@/application/sync/sync-error";
-import { ExperienciaAtleta } from "@/features/athlete/athlete-experience";
-import { HomeHoy } from "@/features/athlete/today-home";
-import { PerfilUsuario } from "@/features/athlete/user-profile";
-import { HomeEntrenador } from "@/features/coach/coach-home";
 import { LandingAcceso } from "@/features/landing/access-landing";
 import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
 import { AppLoadingState } from "@/features/shared/app-loading-state";
+import { FeatureLoadingState } from "@/features/shared/feature-loading-state";
 import { AppShell } from "@/features/shell/app-shell";
+
+const ActivityHistory = dynamic(
+  () => import("@/components/activity-history").then((module) => module.ActivityHistory),
+  { loading: FeatureLoadingState },
+);
+const SportsSchedule = dynamic(
+  () => import("@/features/schedule/sports-schedule").then((module) => module.SportsSchedule),
+  { loading: FeatureLoadingState },
+);
+const ExperienciaAtleta = dynamic(
+  () => import("@/features/athlete/athlete-experience").then((module) => module.ExperienciaAtleta),
+  { loading: FeatureLoadingState },
+);
+const HomeHoy = dynamic(
+  () => import("@/features/athlete/today-home").then((module) => module.HomeHoy),
+  { loading: FeatureLoadingState },
+);
+const PerfilUsuario = dynamic(
+  () => import("@/features/athlete/user-profile").then((module) => module.PerfilUsuario),
+  { loading: FeatureLoadingState },
+);
+const HomeEntrenador = dynamic(
+  () => import("@/features/coach/coach-home").then((module) => module.HomeEntrenador),
+  { loading: FeatureLoadingState },
+);
 
 export default function Home() {
   const { pathname, navigate, replaceNavigate } = useAppNavigation();

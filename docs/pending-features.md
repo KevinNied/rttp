@@ -40,3 +40,17 @@ feature.
 - Edición manual de marcas con auditoría.
 - Insights avanzados para coaches.
 - Comparación entre atletas.
+
+## Perfilado de PostgreSQL
+
+La optimización de carga inicial, recursos y armado del historial no reemplaza
+el análisis de consultas dentro de la base. El usuario aprobó publicar esas
+mejoras medidas y retomar el perfilado SQL por separado.
+
+- Hace falta acceso de solo lectura a planes y estadísticas: el acceso actual
+  por PostgREST rechaza `EXPLAIN` con `PGRST107`.
+- Medir consultas representativas y volumen de filas antes de proponer índices
+  o cambios de consulta. La latencia HTTP no equivale al tiempo de ejecución SQL.
+- La hidratación actual lee tablas por lotes; no hace una consulta por actividad
+  para obtener sus series. No se confirmó un N+1 SQL en ese flujo.
+- No se modificaron índices ni esquema como parte de la optimización.

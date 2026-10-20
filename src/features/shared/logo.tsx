@@ -8,7 +8,6 @@ export function Logo() {
         alt=""
         width={36}
         height={36}
-        unoptimized
         className="size-9 rounded-lg bg-indigo-950 p-1 object-contain drop-shadow-[0_0_14px_rgba(99,102,241,.2)] dark:bg-transparent dark:p-0"
       />
       <div>

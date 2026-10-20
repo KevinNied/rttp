@@ -1,6 +1,5 @@
 import {
   CompletedActivity,
-  ActivitySet,
   normalizeWorkoutAnnotations,
   RoutineActivitySnapshot,
 } from "@/lib/rttp-activity";
@@ -11,6 +10,10 @@ import {
 } from "@/lib/rttp-agenda";
 import { Routine, RoutineStructure, Role, User } from "@/lib/rttp-data";
 import { getSupabaseClient } from "@/lib/supabase";
+import {
+  groupActivitySetsByActivityId,
+  type ActivitySetRow,
+} from "@/infrastructure/activity/activity-set-mapping";
 
 export type PersistedTemplate = Omit<
   Routine,
@@ -109,19 +112,6 @@ type ActivityRow = {
   feedback: string;
   notes: string;
   registered_by_id: number;
-};
-
-type ActivitySetRow = {
-  activity_id: string;
-  step_id: string;
-  exercise_id: string;
-  exercise_name: string;
-  section_id: string;
-  section_name: string;
-  iteration_number: number;
-  weight: number;
-  repetitions: number;
-  skipped: boolean;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -324,7 +314,6 @@ export async function loadSupabaseData(): Promise<PersistedData> {
       ]),
     ]);
 
-  const sets = activitySets;
   routines.forEach((row) =>
     assertRoutineStructure(row.structure, `Rutina ${row.id} incompatible`),
   );
@@ -340,7 +329,7 @@ export async function loadSupabaseData(): Promise<PersistedData> {
     }
   });
   if (
-    sets.some(
+    activitySets.some(
       (set) =>
         typeof set.section_id !== "string" ||
         typeof set.section_name !== "string" ||
@@ -352,6 +341,8 @@ export async function loadSupabaseData(): Promise<PersistedData> {
       "El historial es incompatible: aplicá la migración de secciones de rutina en Supabase.",
     );
   }
+
+  const setsByActivityId = groupActivitySetsByActivityId(activitySets);
 
   return {
     users: profiles.map((row) => ({
@@ -443,19 +434,7 @@ export async function loadSupabaseData(): Promise<PersistedData> {
         row.routine_snapshot?.annotations,
       ),
       recordedById: row.registered_by_id,
-      sets: sets
-        .filter((set) => set.activity_id === row.id)
-        .map((set): ActivitySet => ({
-          stepId: set.step_id,
-          exerciseId: set.exercise_id,
-          exerciseName: set.exercise_name,
-          sectionId: set.section_id,
-          sectionName: set.section_name,
-          iteration: set.iteration_number,
-          weight: Number(set.weight),
-          reps: set.repetitions,
-          skipped: set.skipped,
-        })),
+      sets: setsByActivityId.get(row.id) ?? [],
     })),
   };
 }

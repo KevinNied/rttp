@@ -1,16 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Manrope } from "next/font/google";
+import { Manrope } from "next/font/google";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -62,7 +52,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="es-AR"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} ${manrope.variable} dark h-full antialiased`}
+      className={`${manrope.variable} dark h-full antialiased`}
     >
       <head>
         <meta name="theme-color" content="#07080b" suppressHydrationWarning />
