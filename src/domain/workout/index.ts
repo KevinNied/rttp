@@ -5,6 +5,7 @@ export {
   recordsWithoutSession,
   recordsWithoutSessions,
   remainingRestSeconds,
+  updateTrainingSetRecord,
   type RestTimerState,
   type TrainingSetRecord,
   type TrainingSetRecords,

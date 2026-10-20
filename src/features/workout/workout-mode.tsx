@@ -32,6 +32,7 @@ import {
   elapsedSecondsForTimer,
   RestTimerState,
   TrainingSetRecord,
+  updateTrainingSetRecord,
   WorkoutTimerState,
 } from "@/domain/workout/workout-session";
 import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
@@ -225,12 +226,20 @@ export function WorkoutMode({
   }, [paso.stepId, restTimer, setRestTimer]);
 
   function actualizar(patch: Partial<TrainingSetRecord>) {
+    const siguiente = updateTrainingSetRecord(registro, patch);
+    if (
+      registro.completed &&
+      !siguiente.completed &&
+      restTimer?.stepId === paso.stepId
+    ) {
+      setRestTimer(null);
+    }
     setRegistros((actuales) => ({
       ...actuales,
-      [paso.stepId]: {
-        ...(actuales[paso.stepId] ?? valorInicial),
-        ...patch,
-      },
+      [paso.stepId]: updateTrainingSetRecord(
+        actuales[paso.stepId] ?? valorInicial,
+        patch,
+      ),
     }));
   }
 

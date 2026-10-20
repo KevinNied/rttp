@@ -1,4 +1,4 @@
-import { WorkoutAnnotation } from "@/lib/rttp-activity";
+import type { WorkoutAnnotation } from "@/lib/rttp-activity";
 
 export type TrainingSetRecord = {
   weight: number;
@@ -10,6 +10,20 @@ export type TrainingSetRecord = {
 };
 
 export type TrainingSetRecords = Record<string, TrainingSetRecord>;
+
+export function updateTrainingSetRecord(
+  record: TrainingSetRecord,
+  patch: Partial<TrainingSetRecord>,
+): TrainingSetRecord {
+  const updated = { ...record, ...patch };
+  const resultChanged =
+    updated.weight !== record.weight || updated.reps !== record.reps;
+
+  return {
+    ...updated,
+    completed: resultChanged ? false : updated.completed,
+  };
+}
 
 export type WorkoutPhase = "home" | "workout" | "final";
 

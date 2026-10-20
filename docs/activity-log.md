@@ -65,6 +65,13 @@ Si un ejercicio define descanso, completar la serie inicia una cuenta regresiva
 que puede pausarse, reanudarse u omitirse. Los ejercicios sin descanso no
 muestran esa interfaz.
 
+Durante una sesión en curso, cambiar el peso o las repeticiones de una serie
+completada la devuelve a pendiente y cancela su descanso activo. Los valores
+editados se conservan, pero requieren volver a completar la serie; las demás
+series no cambian. Enfocar un campo o confirmar el mismo valor no desmarca la
+serie. El nuevo estado y el progreso actualizado sobreviven a una recarga.
+Esta regla no modifica actividades ya guardadas en el historial.
+
 Durante la ejecución, la vista general resume el avance por bloque y ejercicio
 sin interrumpir el cronómetro. Un ejercicio temporalmente no disponible puede
 posponerse: sus series pendientes se conservan sin marcarlas como omitidas y
