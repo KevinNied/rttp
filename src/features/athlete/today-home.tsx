@@ -113,6 +113,7 @@ export function HomeHoy({
       item.status === "completed" &&
       workoutIdsConActividad.has(item.id),
   );
+  const diaCompletado = completadosDeHoy.length > 0;
   const proximoEntrenamiento = workouts
     .filter(
       (item) =>
@@ -333,26 +334,43 @@ export function HomeHoy({
         ) : (
           <Card variant="hero">
             <CardContent className="p-6 md:p-8">
-              <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-info dark:text-primary">
-                {completadosDeHoy.length > 0 ? (
-                  <CheckCircle2 className="size-5" />
-                ) : (
-                  <Dumbbell className="size-5" />
-                )}
-              </div>
-              <div className="mt-5 max-w-xl">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-info dark:text-primary">
-                  {completadosDeHoy.length > 0 ? "Día completado" : "Hoy"}
+              {diaCompletado ? (
+                <div className="flex items-center gap-3 text-info dark:text-primary">
+                  <div
+                    aria-hidden="true"
+                    className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/10"
+                  >
+                    <CheckCircle2 className="size-5" />
+                  </div>
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em]">
+                    Día completado
+                  </div>
                 </div>
-                <h2 className="mt-2 text-2xl font-medium tracking-[-0.03em]">
-                  {completadosDeHoy.length > 0
+              ) : (
+                <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-info dark:text-primary">
+                  <Dumbbell className="size-5" />
+                </div>
+              )}
+              <div className={cn("max-w-xl", diaCompletado ? "mt-3" : "mt-5")}>
+                {!diaCompletado && (
+                  <div className="text-xs font-semibold uppercase tracking-[0.16em] text-info dark:text-primary">
+                    Hoy
+                  </div>
+                )}
+                <h2
+                  className={cn(
+                    "text-2xl font-medium tracking-[-0.03em]",
+                    !diaCompletado && "mt-2",
+                  )}
+                >
+                  {diaCompletado
                     ? "Tu entrenamiento ya está hecho"
                     : rutinasDisponibles.length === 0
                       ? "Tu primera rutina empieza acá"
                       : "Hoy no tenés nada programado"}
                 </h2>
                 <p className="mt-2 text-sm leading-relaxed text-content-muted">
-                  {completadosDeHoy.length > 0
+                  {diaCompletado
                     ? "Podés revisar lo que hiciste o elegir otra rutina si querés seguir."
                     : rutinasDisponibles.length === 0
                       ? "Armá una rutina simple y dejala lista para entrenar cuando quieras."

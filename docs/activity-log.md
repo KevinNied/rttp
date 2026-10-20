@@ -69,6 +69,10 @@ recupera después de una recarga y no se mezcla entre sesiones. Si no hay un
 cronómetro local disponible, se informa en lugar de mostrar un cero ficticio.
 La vista previa del coach no muestra el tiempo local del atleta.
 
+En el estado “Día completado” de la Home, el check acompaña a la etiqueta en
+una misma fila. El título conserva todo el ancho debajo, sin una fila exclusiva
+para el icono ni cambios en las acciones de rutinas e historial.
+
 Si un ejercicio define descanso, completar la serie inicia una cuenta regresiva
 que puede pausarse, reanudarse u omitirse. Los ejercicios sin descanso no
 muestran esa interfaz.
