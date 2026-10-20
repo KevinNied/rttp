@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   carryForwardSetResults,
   completedSetsForSession,
+  elapsedSecondsForTimer,
   recordsForSession,
   updateTrainingSetRecord,
 } from "../src/domain/workout/workout-session.ts";
@@ -15,6 +16,25 @@ const completed = Object.freeze({
   skipped: false,
   deferred: false,
   weightEdited: false,
+});
+
+test("a paused workout retains its elapsed time regardless of time outside it", (context) => {
+  context.mock.timers.enable({ apis: ["Date"], now: 100_000 });
+  const timer = Object.freeze({ elapsedSeconds: 125, runningSince: null });
+  assert.equal(elapsedSecondsForTimer(timer), 125);
+  context.mock.timers.tick(3_600_000);
+  assert.equal(elapsedSecondsForTimer(timer), 125);
+});
+
+test("a running workout adds only time since its current resume point", (context) => {
+  context.mock.timers.enable({ apis: ["Date"], now: 100_000 });
+  const timer = Object.freeze({
+    elapsedSeconds: 125,
+    runningSince: new Date(100_000).toISOString(),
+  });
+  context.mock.timers.tick(12_000);
+  assert.equal(elapsedSecondsForTimer(timer), 137);
+  assert.equal(timer.elapsedSeconds, 125);
 });
 
 test("changing reps reopens only the edited result and preserves its load", () => {

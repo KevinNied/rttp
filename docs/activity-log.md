@@ -61,6 +61,14 @@ las aclaraciones y el descanso activo también se conservan en el dispositivo.
 Una recarga recupera la pantalla exacta de la sesión, y completar o eliminar el
 entrenamiento limpia todo el estado temporal.
 
+La Home destaca la rutina en curso y muestra el tiempo acumulado de esa misma
+sesión. Mantiene el comportamiento del cronómetro: salir de la ejecución lo
+pausa y continuar la rutina lo reanuda, sin contar el tiempo pasado en la Home.
+Consultar la tarjeta no inicia, pausa ni reinicia el cronómetro. El valor se
+recupera después de una recarga y no se mezcla entre sesiones. Si no hay un
+cronómetro local disponible, se informa en lugar de mostrar un cero ficticio.
+La vista previa del coach no muestra el tiempo local del atleta.
+
 Si un ejercicio define descanso, completar la serie inicia una cuenta regresiva
 que puede pausarse, reanudarse u omitirse. Los ejercicios sin descanso no
 muestran esa interfaz.

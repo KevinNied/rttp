@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   Clock3,
   Dumbbell,
+  Timer,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -22,8 +23,10 @@ import {
   startOfWeek,
 } from "@/lib/rttp-agenda";
 import { Routine, User } from "@/lib/rttp-data";
+import { formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+import { useWorkoutElapsedSeconds } from "@/application/workout/use-workout-elapsed-seconds";
 import { pasosDeRutina } from "@/domain/routine/routine-steps";
 import { rutinaTieneEjercicios } from "@/domain/routine/routine-metrics";
 import { routineCreatorLabel } from "@/domain/routine/routine-access";
@@ -95,6 +98,9 @@ export function HomeHoy({
         item.routineId !== null,
     )
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  const elapsedSeconds = useWorkoutElapsedSeconds(
+    soloLectura ? null : (entrenamientoEnCurso?.id ?? null),
+  );
   const pendientesDeHoy = workouts
     .filter((item) => item.date === hoy && item.status === "scheduled")
     .sort((a, b) => {
@@ -154,17 +160,56 @@ export function HomeHoy({
         : null;
 
     return (
-      <Card variant="hero" className="relative min-h-72 overflow-hidden">
+      <Card
+        variant="hero"
+        className={cn(
+          "relative min-h-72 overflow-hidden",
+          isInProgress && "border-primary/50",
+        )}
+      >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_90%_0%,rgba(34,211,238,.17),transparent_38%),radial-gradient(circle_at_0%_100%,rgba(139,92,246,.14),transparent_45%)]" />
         <CardContent className="relative flex h-full flex-col p-5 md:p-7">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={isInProgress ? "brand" : "info"}>
-              {isInProgress
-                ? "En curso"
-                : isFuture
-                  ? "Próximo entrenamiento"
-                  : "Programado para hoy"}
-            </Badge>
+          <div
+            className={cn(
+              "flex flex-wrap items-center gap-2",
+              isInProgress && "gap-4",
+            )}
+          >
+            {isInProgress ? (
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+                <span
+                  aria-hidden="true"
+                  className="size-2 shrink-0 rounded-full bg-primary"
+                />
+                {item.origin === "routine" ? "Rutina en curso" : "En curso"}
+              </div>
+            ) : (
+              <Badge variant="info">
+                {isFuture ? "Próximo entrenamiento" : "Programado para hoy"}
+              </Badge>
+            )}
+            {isInProgress && item.origin === "routine" && !soloLectura && (
+              <div className="flex items-center gap-2">
+                <Timer aria-hidden="true" className="size-5 shrink-0 text-primary" />
+                <div className="min-w-0">
+                  <div className="text-xs text-content-secondary">
+                    Tiempo acumulado
+                  </div>
+                  {elapsedSeconds === null ? (
+                    <div className="text-xs text-content-muted">
+                      No disponible en este dispositivo
+                    </div>
+                  ) : (
+                    <div
+                      className="text-xl font-semibold tabular-nums tracking-tight"
+                      aria-label={`Tiempo acumulado: ${formatDuration(elapsedSeconds)}`}
+                    >
+                      {formatDuration(elapsedSeconds)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             {categoryLabel && (
               <Badge variant="default">{categoryLabel}</Badge>
             )}
