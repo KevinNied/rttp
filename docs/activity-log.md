@@ -72,6 +72,16 @@ series no cambian. Enfocar un campo o confirmar el mismo valor no desmarca la
 serie. El nuevo estado y el progreso actualizado sobreviven a una recarga.
 Esta regla no modifica actividades ya guardadas en el historial.
 
+Al avanzar desde una serie completada, el peso y las repeticiones se trasladan
+a la siguiente serie del mismo ejercicio dentro de esa sesión. Funciona con
+Siguiente, swipe y al completar una vuelta en la vista rápida. Cada valor editado
+explícitamente en la serie de destino se conserva de forma independiente; las
+series completadas u omitidas no se sobrescriben y las pospuestas siguen
+pendientes. La vista rápida muestra las repeticiones registradas o heredadas,
+y usa la prescripción cuando todavía no hay registro. Los valores trasladados
+y las ediciones sobreviven a una recarga, sin cambiar la rutina original ni
+otros ejercicios o sesiones.
+
 En la PWA instalada desde la pantalla de inicio, el encabezado del entrenamiento
 deja el margen habitual **además** del área segura superior del dispositivo.
 No basta con elegir el mayor de ambos: los controles no deben quedar pegados a

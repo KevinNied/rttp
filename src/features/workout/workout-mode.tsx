@@ -29,6 +29,7 @@ import {
 } from "@/domain/routine/routine-metrics";
 import { pasosDeRutina } from "@/domain/routine/routine-steps";
 import {
+  carryForwardSetResults,
   elapsedSecondsForTimer,
   RestTimerState,
   TrainingSetRecord,
@@ -168,6 +169,7 @@ export function WorkoutMode({
     completed: false,
     skipped: false,
     weightEdited: false,
+    repsEdited: false,
   };
   const registro = registros[paso.stepId] ?? valorInicial;
   const mostrarVistaResumida =
@@ -282,36 +284,38 @@ export function WorkoutMode({
     setAnnotations((current) => [...current, annotation]);
   }
 
-  function trasladarPesoALaSiguienteSerie(
+  function trasladarResultadosALaSiguienteSerie(
     actuales: Record<string, TrainingSetRecord>,
+    pasoActual = paso,
   ) {
+    const registroActual = actuales[pasoActual.stepId];
+    if (!registroActual?.completed || registroActual.skipped) return actuales;
+
+    const indiceActual = pasos.findIndex(
+      (item) => item.stepId === pasoActual.stepId,
+    );
     const siguientePasoDelEjercicio = pasos
-      .slice(indiceActivo + 1)
-      .find((item) => item.id === paso.id);
+      .slice(indiceActual + 1)
+      .find((item) => item.id === pasoActual.id);
     if (!siguientePasoDelEjercicio) return actuales;
 
-    const registroActual = actuales[paso.stepId] ?? valorInicial;
     const registroSiguiente = actuales[siguientePasoDelEjercicio.stepId];
-    if (
-      !registroActual.completed ||
-      registroSiguiente?.completed ||
-      registroSiguiente?.skipped ||
-      registroSiguiente?.weightEdited
-    ) {
-      return actuales;
-    }
-
     return {
       ...actuales,
-      [siguientePasoDelEjercicio.stepId]: {
+      [siguientePasoDelEjercicio.stepId]: carryForwardSetResults(registroActual, {
         ...(registroSiguiente ?? {
+          weight: siguientePasoDelEjercicio.weight,
           reps: siguientePasoDelEjercicio.minReps,
           completed: false,
           skipped: false,
+          weightEdited: false,
+          repsEdited: false,
         }),
-        weight: registroActual.weight,
-        weightEdited: false,
-      },
+        repsEdited:
+          registroSiguiente?.repsEdited ??
+          (registroSiguiente !== undefined &&
+            registroSiguiente.reps !== siguientePasoDelEjercicio.minReps),
+      }),
     };
   }
 
@@ -331,7 +335,7 @@ export function WorkoutMode({
             },
           }
         : actuales;
-      const siguientes = trasladarPesoALaSiguienteSerie(actualizados);
+      const siguientes = trasladarResultadosALaSiguienteSerie(actualizados);
       if (!registro.deferred || completarActual) return siguientes;
 
       return {
@@ -491,15 +495,22 @@ export function WorkoutMode({
     const ids = new Set(objetivos.map((item) => item.stepId));
 
     setRegistros((actuales) => {
-      const siguientes = { ...actuales };
+      let siguientes = { ...actuales };
       objetivos.forEach((item) => {
         siguientes[item.stepId] = {
-          weight: actuales[item.stepId]?.weight ?? item.weight,
-          reps: actuales[item.stepId]?.reps ?? item.minReps,
+          ...(actuales[item.stepId] ?? {
+            weight: item.weight,
+            reps: item.minReps,
+            weightEdited: false,
+            repsEdited: false,
+          }),
           completed: true,
           skipped: false,
           deferred: false,
         };
+      });
+      objetivos.forEach((item) => {
+        siguientes = trasladarResultadosALaSiguienteSerie(siguientes, item);
       });
       return siguientes;
     });
@@ -903,7 +914,9 @@ export function WorkoutMode({
                         label="Repeticiones"
                         hint={`Objetivo ${repeticionesObjetivo(paso)}`}
                         value={registro.reps}
-                        onChange={(reps) => actualizar({ reps })}
+                        onChange={(reps) =>
+                          actualizar({ reps, repsEdited: true })
+                        }
                       />
                       <CampoPrescripcion
                         label="Peso"

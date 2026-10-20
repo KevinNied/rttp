@@ -7,6 +7,7 @@ export type TrainingSetRecord = {
   skipped: boolean;
   deferred?: boolean;
   weightEdited?: boolean;
+  repsEdited?: boolean;
 };
 
 export type TrainingSetRecords = Record<string, TrainingSetRecord>;
@@ -22,6 +23,26 @@ export function updateTrainingSetRecord(
   return {
     ...updated,
     completed: resultChanged ? false : updated.completed,
+  };
+}
+
+export function carryForwardSetResults(
+  record: TrainingSetRecord,
+  nextRecord: TrainingSetRecord,
+): TrainingSetRecord {
+  if (
+    !record.completed ||
+    record.skipped ||
+    nextRecord.completed ||
+    nextRecord.skipped
+  ) {
+    return nextRecord;
+  }
+
+  return {
+    ...nextRecord,
+    weight: nextRecord.weightEdited ? nextRecord.weight : record.weight,
+    reps: nextRecord.repsEdited ? nextRecord.reps : record.reps,
   };
 }
 

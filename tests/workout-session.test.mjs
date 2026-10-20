@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  carryForwardSetResults,
   completedSetsForSession,
   recordsForSession,
   updateTrainingSetRecord,
@@ -38,10 +39,91 @@ test("unchanged values and metadata do not reopen a completed set", () => {
     { reps: 10 },
     { weight: 20 },
     { weight: 20, weightEdited: true },
+    { reps: 10, repsEdited: true },
     { reps: 10, weight: 20 },
   ]) {
     assert.equal(updateTrainingSetRecord(completed, patch).completed, true);
   }
+});
+
+const pending = Object.freeze({
+  weight: 0,
+  reps: 8,
+  completed: false,
+  skipped: false,
+  weightEdited: false,
+  repsEdited: false,
+});
+
+test("advancing carries both results without completing the next set", () => {
+  assert.deepEqual(carryForwardSetResults(completed, pending), {
+    ...pending,
+    weight: 20,
+    reps: 10,
+  });
+  assert.equal(pending.weight, 0);
+  assert.equal(pending.reps, 8);
+});
+
+test("manual weight and reps are protected independently", () => {
+  assert.deepEqual(
+    carryForwardSetResults(completed, { ...pending, weight: 30, weightEdited: true }),
+    { ...pending, weight: 30, weightEdited: true, reps: 10 },
+  );
+  assert.deepEqual(
+    carryForwardSetResults(completed, { ...pending, reps: 12, repsEdited: true }),
+    { ...pending, weight: 20, reps: 12, repsEdited: true },
+  );
+  const edited = { ...pending, weight: 30, reps: 12, weightEdited: true, repsEdited: true };
+  assert.deepEqual(carryForwardSetResults(completed, edited), edited);
+});
+
+test("zero results propagate and explicitly entered zeros are preserved", () => {
+  assert.deepEqual(
+    carryForwardSetResults({ ...completed, weight: 0, reps: 0 }, pending),
+    { ...pending, weight: 0, reps: 0 },
+  );
+  assert.equal(
+    carryForwardSetResults(completed, { ...pending, reps: 0, repsEdited: true }).reps,
+    0,
+  );
+});
+
+test("completed and skipped target sets are never overwritten", () => {
+  for (const target of [completed, { ...pending, skipped: true }]) {
+    assert.equal(carryForwardSetResults(completed, target), target);
+  }
+});
+
+test("pending or skipped source sets do not propagate values", () => {
+  for (const source of [pending, { ...completed, skipped: true }]) {
+    assert.equal(carryForwardSetResults(source, pending), pending);
+  }
+});
+
+test("deferred sets receive results without losing their deferred state", () => {
+  assert.deepEqual(
+    carryForwardSetResults(completed, { ...pending, deferred: true }),
+    { ...pending, weight: 20, reps: 10, deferred: true },
+  );
+});
+
+test("inherited values can be refreshed until the athlete edits them", () => {
+  const inherited = carryForwardSetResults(completed, pending);
+  const changed = { ...completed, weight: 25, reps: 15 };
+  assert.deepEqual(carryForwardSetResults(changed, inherited), {
+    ...pending,
+    weight: 25,
+    reps: 15,
+  });
+  const edited = updateTrainingSetRecord(inherited, { reps: 9, repsEdited: true });
+  const restored = JSON.parse(JSON.stringify(edited));
+  assert.deepEqual(carryForwardSetResults(changed, restored), {
+    ...pending,
+    weight: 25,
+    reps: 9,
+    repsEdited: true,
+  });
 });
 
 test("zero values are changes, but unchanged zero stays completed", () => {

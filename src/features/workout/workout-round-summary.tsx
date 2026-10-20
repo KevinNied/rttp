@@ -77,12 +77,11 @@ export function WorkoutRoundSummary({
                 candidato.round === paso.round &&
                 candidato.id === item.id,
             );
-            const completado = pasoDeRonda
-              ? registros[pasoDeRonda.stepId]?.completed
-              : false;
-            const pospuesto = pasoDeRonda
-              ? registros[pasoDeRonda.stepId]?.deferred
-              : false;
+            const registro = pasoDeRonda
+              ? registros[pasoDeRonda.stepId]
+              : undefined;
+            const completado = registro?.completed;
+            const pospuesto = registro?.deferred;
 
             return (
               <div key={item.id} className="flex items-center gap-3 py-3">
@@ -117,7 +116,7 @@ export function WorkoutRoundSummary({
                 <div className="shrink-0 text-[11px] font-medium tabular-nums text-white/60">
                   {pospuesto && !completado
                     ? "Para después"
-                    : `${repeticionesObjetivo(item)} reps`}
+                    : `${registro?.reps ?? repeticionesObjetivo(item)} reps`}
                 </div>
               </div>
             );

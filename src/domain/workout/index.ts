@@ -1,4 +1,5 @@
 export {
+  carryForwardSetResults,
   completedSetsForSession,
   elapsedSecondsForTimer,
   recordsForSession,
