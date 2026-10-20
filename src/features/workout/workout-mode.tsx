@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  Clock3,
   LayoutGrid,
   ListChecks,
   MoveHorizontal,
@@ -30,7 +29,6 @@ import {
 import { pasosDeRutina } from "@/domain/routine/routine-steps";
 import {
   carryForwardSetResults,
-  elapsedSecondsForTimer,
   RestTimerState,
   TrainingSetRecord,
   updateTrainingSetRecord,
@@ -39,6 +37,7 @@ import {
 import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
 import { CampoPrescripcion } from "@/features/workout/prescription-field";
 import { WorkoutOverviewSheet } from "@/features/workout/workout-overview-sheet";
+import { WorkoutElapsedTime } from "@/features/workout/workout-elapsed-time";
 import { WorkoutRoundSummary } from "@/features/workout/workout-round-summary";
 import { WorkoutSkipSheet } from "@/features/workout/workout-skip-sheet";
 import { TextWithLinks } from "@/features/shared/text-with-links";
@@ -87,9 +86,6 @@ export function WorkoutMode({
   const [dragging, setDragging] = useState(false);
   const [mensaje, setMensaje] = useState("");
   const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(() =>
-    elapsedSecondsForTimer(timer),
-  );
   const [restSeconds, setRestSeconds] = useState(() => {
     if (!restTimer || restTimer.stepId !== paso.stepId) return 0;
     const runningSeconds = restTimer.runningSince
@@ -174,35 +170,6 @@ export function WorkoutMode({
   const registro = registros[paso.stepId] ?? valorInicial;
   const mostrarVistaResumida =
     isCompactSection && vistaCalentamiento === "resumida" && !registro.deferred;
-
-  useEffect(() => {
-    let timeoutId: number;
-    const updateElapsedTime = () => {
-      const nextElapsedSeconds = elapsedSecondsForTimer(timer);
-      setElapsedSeconds((current) =>
-        current === nextElapsedSeconds ? current : nextElapsedSeconds,
-      );
-    };
-    const scheduleUpdate = () => {
-      updateElapsedTime();
-      timeoutId = window.setTimeout(scheduleUpdate, 250);
-    };
-    const syncWhenVisible = () => {
-      if (document.visibilityState === "visible") updateElapsedTime();
-    };
-
-    scheduleUpdate();
-    window.addEventListener("focus", updateElapsedTime);
-    window.addEventListener("pageshow", updateElapsedTime);
-    document.addEventListener("visibilitychange", syncWhenVisible);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      window.removeEventListener("focus", updateElapsedTime);
-      window.removeEventListener("pageshow", updateElapsedTime);
-      document.removeEventListener("visibilitychange", syncWhenVisible);
-    };
-  }, [timer]);
 
   useEffect(() => {
     if (!restTimer || restTimer.stepId !== paso.stepId) {
@@ -589,13 +556,7 @@ export function WorkoutMode({
             <div className="mt-1 flex min-w-0 items-center justify-center gap-2 text-xs font-medium text-content-secondary">
               <span className="min-w-0 truncate">{rutina.title}</span>
               <span className="text-content-subtle">·</span>
-              <span
-                className="inline-flex shrink-0 items-center gap-1 tabular-nums text-content-secondary"
-                aria-label={`Tiempo transcurrido: ${formatDuration(elapsedSeconds)}`}
-              >
-                <Clock3 className="size-3" />
-                {formatDuration(elapsedSeconds)}
-              </span>
+              <WorkoutElapsedTime timer={timer} />
             </div>
           </div>
           <div className="flex items-center justify-end gap-2">

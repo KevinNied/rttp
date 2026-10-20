@@ -93,6 +93,10 @@ Supabase.
   ejecución y cierre de la rutina.
 - `features/workout`: modo de ejecución, campos de prescripción, hoja de vista
   general, hoja de omisión, vista rápida por rondas y cierre de rutina.
+  `workout-elapsed-time.tsx` concentra el estado del reloj visible: sus ticks
+  actualizan solo el indicador, no los campos, el progreso ni las hojas del
+  ejercicio. Conserva el mismo cronómetro de sesión y la recuperación al volver
+  a la pestaña.
 
 ## Reglas al extender
 
