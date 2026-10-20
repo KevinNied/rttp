@@ -88,6 +88,22 @@ En la primera versión no se agregan `origin`, `managedById`, capacidades de
 cuenta ni relaciones nuevas si `createdById` y la asignación actual alcanzan para
 expresar el comportamiento aprobado.
 
+## Duplicación desde el coach
+
+- El coach puede **Duplicar y editar** una rutina que él creó para un atleta
+  actualmente asignado. La copia queda destinada a ese mismo atleta.
+- No se habilita esta acción para rutinas personales compartidas por el atleta,
+  rutinas de otros coaches ni desde la vista previa de solo lectura.
+- La original debe estar sin cambios pendientes. Primero hay que guardar o
+  descartar la edición, igual que para crear una plantilla.
+- La copia abre el editor como borrador, con el sufijo `(copia)`. Se persiste y
+  queda disponible para el atleta únicamente mediante el guardado explícito.
+- Conserva contenido, prescripciones y estrategias de sección, pero recibe
+  identificadores nuevos para rutina, secciones y ejercicios. El coach conserva
+  la autoría; la copia comienza activa y sin compartir.
+- Editar, descartar o eliminar la copia no modifica la original. No se copian
+  entrenamientos programados, progreso ni actividades históricas.
+
 ## Experiencia del atleta
 
 La navegación principal no cambia:

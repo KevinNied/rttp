@@ -20,6 +20,7 @@ import { supabaseConfigured } from "@/lib/supabase";
 
 import {
   duplicateRoutineForAthlete,
+  duplicateRoutineForCoach,
   idPlantilla,
   rutinaDesdePlantilla,
   snapshotRoutine,
@@ -617,6 +618,23 @@ export default function Home() {
     return copia;
   }
 
+  function duplicarRutinaDelCoach(rutinaOrigen: Routine) {
+    const rutinaPersistida = routines.find(
+      (item) => item.id === rutinaOrigen.id,
+    );
+    if (
+      !usuario ||
+      vistaPrevia ||
+      !rutinaPersistida ||
+      rutinaPersistida.athleteId !== atleta?.id ||
+      !canCoachEditRoutine(rutinaPersistida, usuario)
+    ) {
+      setSyncError("No tenés permiso para duplicar esta rutina.");
+      return null;
+    }
+    return duplicateRoutineForCoach(rutinaPersistida, usuario.id);
+  }
+
   function archivarRutina(rutinaAArchivar: Routine) {
     const rutinaPersistida = routines.find(
       (item) => item.id === rutinaAArchivar.id,
@@ -757,6 +775,7 @@ export default function Home() {
             onSelect={setRutinaId}
             onSaveRutina={guardarRutina}
             onCreateRutina={crearRutina}
+            onDuplicateRutina={duplicarRutinaDelCoach}
             onSaveAsTemplate={guardarComoPlantilla}
             onAssignTemplate={asignarPlantilla}
             onDeleteTemplate={eliminarPlantilla}

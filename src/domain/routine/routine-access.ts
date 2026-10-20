@@ -1,4 +1,4 @@
-import { Routine, User } from "@/lib/rttp-data";
+import type { Routine, User } from "@/lib/rttp-data";
 
 export function isAthleteOwnedRoutine(routine: Routine) {
   return routine.createdById === routine.athleteId;

@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CalendarDays,
   Check,
+  Copy,
   Dumbbell,
   Plus,
   Trash2,
@@ -80,6 +81,7 @@ export function CoachAthleteDetailView({
   navigate,
   verComoAtleta,
   crearYEditar,
+  duplicarYEditar,
   onSelect,
   onDeleteRutina,
   onCreateEntrenamiento,
@@ -105,6 +107,7 @@ export function CoachAthleteDetailView({
   navigate: (path: string) => void;
   verComoAtleta: () => void;
   crearYEditar: (rutinaNueva: Routine) => void;
+  duplicarYEditar: () => void;
   onSelect: (id: string) => void;
   onDeleteRutina: (id: string) => void;
   onCreateEntrenamiento: (items: NewScheduledWorkout[]) => void;
@@ -316,6 +319,22 @@ export function CoachAthleteDetailView({
                     rutina={rutina}
                     authorLabel={authorLabel}
                   />
+                  {canEditRoutine && !isDraft && (
+                    <Button
+                      variant="outline"
+                      onClick={duplicarYEditar}
+                      disabled={hayCambios}
+                      title={
+                        hayCambios
+                          ? "Guardá o descartá los cambios antes de duplicar"
+                          : `Duplicar ${rutina.title} para ${atleta.name}`
+                      }
+                      className="rounded-full"
+                    >
+                      <Copy />
+                      Duplicar y editar
+                    </Button>
+                  )}
                   {canEditRoutine && hayCambios && (
                     <Button
                       onClick={guardar}

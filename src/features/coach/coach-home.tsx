@@ -53,6 +53,7 @@ export function HomeEntrenador({
   onSelect,
   onSaveRutina,
   onCreateRutina,
+  onDuplicateRutina,
   onSaveAsTemplate,
   onAssignTemplate,
   onDeleteTemplate,
@@ -83,6 +84,7 @@ export function HomeEntrenador({
   onSelect: (id: string) => void;
   onSaveRutina: (rutina: Routine) => void;
   onCreateRutina: (rutina: Routine) => void;
+  onDuplicateRutina: (rutina: Routine) => Routine | null;
   onSaveAsTemplate: (rutina: Routine, title: string) => void;
   onAssignTemplate: (plantillaId: string, athleteId: number) => void;
   onDeleteTemplate: (plantillaId: string) => void;
@@ -159,6 +161,11 @@ export function HomeEntrenador({
     setDraftRoutine(rutinaNueva);
     setRutina(rutinaNueva);
     setOpenSectionId(rutinaNueva.structure.sections[0]?.id ?? null);
+  }
+
+  function duplicarYEditar() {
+    const copia = onDuplicateRutina(rutina);
+    if (copia) crearYEditar(copia);
   }
 
   function eliminarRutina(id: string) {
@@ -238,6 +245,7 @@ export function HomeEntrenador({
           navigate={navigate}
           verComoAtleta={verComoAtleta}
           crearYEditar={crearYEditar}
+          duplicarYEditar={duplicarYEditar}
           onSelect={onSelect}
           onDeleteRutina={eliminarRutina}
           onCreateEntrenamiento={onCreateEntrenamiento}

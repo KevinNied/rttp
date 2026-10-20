@@ -1,4 +1,4 @@
-import { Routine } from "@/lib/rttp-data";
+import type { Routine } from "@/lib/rttp-data";
 
 export type RoutineTemplate = Omit<
   Routine,
@@ -82,6 +82,21 @@ export function duplicateRoutineForAthlete(
   routine: Routine,
   athleteId: number,
 ): Routine {
+  return duplicateRoutine(routine, athleteId, athleteId);
+}
+
+export function duplicateRoutineForCoach(
+  routine: Routine,
+  coachId: number,
+): Routine {
+  return duplicateRoutine(routine, routine.athleteId, coachId);
+}
+
+function duplicateRoutine(
+  routine: Routine,
+  athleteId: number,
+  createdById: number,
+): Routine {
   const copy = snapshotRoutine(routine);
   const idBase = crypto.randomUUID();
 
@@ -89,7 +104,7 @@ export function duplicateRoutineForAthlete(
     ...copy,
     id: `rutina-${athleteId}-${idBase}`,
     athleteId,
-    createdById: athleteId,
+    createdById,
     sharedWithCoachId: null,
     archivedAt: null,
     title: `${routine.title} (copia)`,
