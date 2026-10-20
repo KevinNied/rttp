@@ -1,7 +1,8 @@
 # Funcionalidades pendientes
 
 Este documento funciona como backlog de ideas para futuras versiones de RTTP.
-No representa trabajo comprometido ni un orden definitivo de implementación.
+Salvo los hitos priorizados explícitamente, no representa trabajo comprometido
+ni un orden definitivo de implementación.
 
 ## Cómo mantener este backlog
 
@@ -10,6 +11,19 @@ No representa trabajo comprometido ni un orden definitivo de implementación.
 - Registrar las decisiones de producto que todavía estén abiertas.
 - Definir una primera versión acotada antes de comenzar el desarrollo.
 - Mover la funcionalidad a su documentación específica cuando se implemente.
+
+## Próximo gran hito: login y lanzamiento de v1.0.0
+
+**Estado:** pendiente de definición y desarrollo.
+
+Incorporar login real es el próximo gran hito de RTTP. La entrega de esta
+funcionalidad marcará el lanzamiento de **v1.0.0, la primera versión oficial
+de la web**.
+
+La selección local por email que existe hoy no constituye autenticación.
+Antes de desarrollar, hay que definir los flujos de acceso, la gestión de
+cuentas y permisos, y la transición de los perfiles existentes. El hito está
+priorizado, pero su alcance detallado todavía no está aprobado.
 
 ## Progreso por ejercicio
 
