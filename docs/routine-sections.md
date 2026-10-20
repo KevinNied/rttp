@@ -74,6 +74,17 @@ El motor compila ambas estrategias a una secuencia común. Cronómetro, descanso
 posposición, omisión, vista general y finalización operan sobre esa secuencia y
 no necesitan conocer detalles del editor.
 
+## Vista general
+
+La vista general previa al entrenamiento es compartida por atletas y coaches.
+El panel se centra dentro del área segura del viewport dinámico y reserva un
+margen adicional arriba y abajo, también en la PWA instalada. El encabezado y
+el cierre permanecen visibles; solo el listado de bloques se desplaza, usando
+el espacio restante según la altura real del título y la descripción.
+
+El recorrido termina en el último bloque, sin una etiqueta decorativa de
+“Fin de la rutina” ni un espacio reservado para ella.
+
 ## Persistencia
 
 - `routines.structure` y `routine_templates.structure` guardan el contrato
