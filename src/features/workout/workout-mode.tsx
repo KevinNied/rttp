@@ -870,7 +870,7 @@ export function WorkoutMode({
                   <div className="mt-4">
                     <Separator className="mb-4 bg-indigo-200/[0.08]" />
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 min-[375px]:grid-cols-2">
                       <CampoPrescripcion
                         label="Repeticiones"
                         hint={`Objetivo ${repeticionesObjetivo(paso)}`}

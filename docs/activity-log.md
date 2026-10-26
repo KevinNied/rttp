@@ -88,6 +88,11 @@ series no cambian. Enfocar un campo o confirmar el mismo valor no desmarca la
 serie. El nuevo estado y el progreso actualizado sobreviven a una recarga.
 Esta regla no modifica actividades ya guardadas en el historial.
 
+Los controles numéricos reservan más ancho al valor para mostrar pesos como
+`25.5` o `99.5` sin recortarlos. Los botones tienen círculos visuales de 32 px
+y áreas táctiles de 44 px. En pantallas menores a 375 px, peso y repeticiones
+se apilan para conservar ese espacio.
+
 Al avanzar desde una serie completada, el peso y las repeticiones se trasladan
 a la siguiente serie del mismo ejercicio dentro de esa sesión. Funciona con
 Siguiente, swipe y al completar una vuelta en la vista rápida. Cada valor editado

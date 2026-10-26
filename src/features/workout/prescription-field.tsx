@@ -63,11 +63,11 @@ export function CampoPrescripcion({
   }
 
   return (
-    <div className="rounded-2xl border border-white/[0.09] bg-black/30 p-3.5 text-center">
+    <div className="rounded-2xl border border-white/[0.09] bg-black/30 py-3.5 text-center">
       <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-content-secondary">
         {label}
       </div>
-      <div className="mt-2.5 flex items-center justify-center gap-1.5">
+      <div className="mt-2.5 grid grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center">
         <Button
           type="button"
           variant="ghost"
@@ -75,9 +75,11 @@ export function CampoPrescripcion({
           aria-label={`Reducir ${label.toLowerCase()}`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => updateValue(value - step)}
-          className="size-9 rounded-full bg-white/[0.06] text-white/60 hover:bg-white/[0.1] hover:text-white"
+          className="size-11 rounded-full p-0 text-white/60 hover:bg-transparent hover:text-white"
         >
-          <Minus />
+          <span className="grid size-8 place-items-center rounded-full bg-white/[0.06] transition-colors group-hover/button:bg-white/[0.1]">
+            <Minus />
+          </span>
         </Button>
         <Input
           ref={inputRef}
@@ -96,7 +98,7 @@ export function CampoPrescripcion({
             if (event.key === "Enter") event.currentTarget.blur();
           }}
           onPointerDown={(event) => event.stopPropagation()}
-          className="h-11 w-16 rounded-md border-0 bg-transparent p-0 text-center text-2xl font-normal tabular-nums text-white shadow-none focus-visible:ring-2 focus-visible:ring-ring/70"
+          className="h-11 w-full rounded-md border-0 bg-transparent p-0 text-center text-2xl font-normal tabular-nums text-white shadow-none focus-visible:ring-2 focus-visible:ring-ring/70"
         />
         <Button
           type="button"
@@ -105,9 +107,11 @@ export function CampoPrescripcion({
           aria-label={`Aumentar ${label.toLowerCase()}`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={() => updateValue(value + step)}
-          className="size-9 rounded-full bg-white/[0.06] text-white/60 hover:bg-white/[0.1] hover:text-white"
+          className="size-11 rounded-full p-0 text-white/60 hover:bg-transparent hover:text-white"
         >
-          <Plus />
+          <span className="grid size-8 place-items-center rounded-full bg-white/[0.06] transition-colors group-hover/button:bg-white/[0.1]">
+            <Plus />
+          </span>
         </Button>
       </div>
       <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-content-secondary">
