@@ -183,7 +183,7 @@ export function WorkoutAnnotationSheet({
             maxLength={500}
             placeholder="Ej. Bajé el peso para cuidar la técnica."
             aria-label="Texto de la aclaración"
-            className="min-h-24 resize-none border-white/10 bg-black/25 text-sm"
+            className="min-h-24 resize-none border-white/10 bg-black/25"
           />
 
           {editingAnnotation ? (

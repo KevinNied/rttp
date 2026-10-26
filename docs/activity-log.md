@@ -44,6 +44,10 @@ editar o eliminar con tres alcances:
 - ejercicio: aparece una vez dentro del ejercicio;
 - bloque: aparece una vez debajo del encabezado del bloque.
 
+El campo de aclaraciones conserva el tamaño móvil de 16 px del componente
+compartido para evitar el zoom automático de iOS al abrir el teclado, sin
+restringir el zoom manual de la página.
+
 Cada aclaración conserva un identificador estable, texto, fecha de creación y un
 snapshot legible de su objetivo. No se repite una aclaración de ejercicio o
 bloque en cada serie.
