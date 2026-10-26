@@ -50,7 +50,7 @@ export function WorkoutOverviewSheet({
       </SheetTrigger>
       <SheetContent
         side="bottom"
-        className="mx-auto max-h-[85dvh] max-w-2xl overflow-y-auto rounded-t-[2rem] border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white"
+        className="mx-auto max-h-[min(85dvh,calc(var(--app-available-height)-1rem))] max-w-2xl overflow-y-auto rounded-t-[2rem] border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white"
       >
         <SheetHeader className="px-5 pt-6 text-left">
           <SheetTitle className="text-white">Vista general</SheetTitle>

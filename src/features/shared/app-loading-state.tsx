@@ -33,7 +33,7 @@ export function AppLoadingState() {
       <div aria-hidden="true" className="animate-pulse">
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-10 hidden border-r border-white/[0.07] bg-app-sidebar py-7 lg:block",
+            "fixed inset-y-0 left-0 z-10 hidden border-r border-white/[0.07] bg-app-sidebar pb-7 pt-[calc(1.75rem+var(--app-top-inset))] lg:block",
             sidebarCompact ? "w-24 px-3" : "w-64 px-5",
           )}
         >
@@ -55,7 +55,7 @@ export function AppLoadingState() {
           <div className="absolute inset-x-5 bottom-7 h-36 rounded-2xl bg-app-elevated/70" />
         </aside>
 
-        <header className="fixed inset-x-0 top-0 z-10 flex h-[calc(3.75rem+env(safe-area-inset-top))] items-center justify-between bg-app/75 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-2xl lg:hidden">
+        <header className="fixed inset-x-0 top-0 z-10 flex h-[calc(3.75rem+var(--app-top-inset))] items-center justify-between bg-app/75 px-4 pt-[var(--app-top-inset)] backdrop-blur-2xl lg:hidden">
           <div className="size-8 rounded-lg bg-app-elevated" />
           <div className="flex gap-2">
             <div className="size-9 rounded-xl bg-app-elevated" />
@@ -65,7 +65,7 @@ export function AppLoadingState() {
 
         <div
           className={cn(
-            "min-h-dvh pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-[calc(3.75rem+env(safe-area-inset-top))] lg:pb-0 lg:pt-0",
+            "min-h-dvh pb-[calc(5.75rem+env(safe-area-inset-bottom))] pt-[calc(3.75rem+var(--app-top-inset))] lg:pb-0 lg:pt-[var(--app-top-inset)]",
             sidebarCompact ? "lg:pl-24" : "lg:pl-64",
           )}
         >

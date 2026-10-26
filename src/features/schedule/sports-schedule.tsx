@@ -414,7 +414,7 @@ function DialogoEntrenamiento({
   return (
     <Dialog open={open} onOpenChange={setDialogOpen}>
       <DialogTrigger render={trigger} />
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto border-white/10 bg-app-panel text-white sm:max-w-lg">
+      <DialogContent className="border-white/10 bg-app-panel text-white sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Programar entrenamiento</DialogTitle>
           <DialogDescription className="text-white/55">

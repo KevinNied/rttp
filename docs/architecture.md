@@ -142,6 +142,22 @@ El logo usa la optimización y la caché estándar de `next/image`, con tamaños
 responsivos y sin descargar el PNG original completo para cada miniatura.
 Solo la imagen principal del acceso conserva su precarga explícita.
 
+### Margen superior y áreas seguras
+
+En anchos menores a `64rem`, toda la app agrega 16 px de separación superior,
+tanto en el navegador como en la PWA. Desde `64rem` no se agrega ese margen:
+el escritorio conserva su distribución.
+
+`--app-top-inset` suma esa separación al área segura superior del dispositivo.
+El shell, los estados de carga y error, el acceso, la ejecución y los resultados
+usan el mismo token, sin sumar el inset dos veces. El padding propio de cada
+pantalla se agrega a ese valor; no se reemplaza con `max()`.
+
+`--app-available-height` descuenta los insets superior e inferior del viewport
+para limitar y ubicar los diálogos y las hojas sin tapar sus acciones.
+La ejecución sigue ocupando `100dvh`: el margen se incorpora dentro de esa
+altura para preservar el scroll y la navegación inferior.
+
 ## Reglas al extender
 
 - Una regla nueva de rutina o de entrenamiento vive en `src/domain` y se prueba

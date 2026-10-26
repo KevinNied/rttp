@@ -103,12 +103,12 @@ y usa la prescripción cuando todavía no hay registro. Los valores trasladados
 y las ediciones sobreviven a una recarga, sin cambiar la rutina original ni
 otros ejercicios o sesiones.
 
-En la PWA instalada desde la pantalla de inicio, el encabezado del entrenamiento
-deja el margen habitual **además** del área segura superior del dispositivo.
-No basta con elegir el mayor de ambos: los controles no deben quedar pegados a
-la zona de la barra de estado y su efecto visual nativo. Los breakpoints más
-anchos también conservan los insets superior e inferior. Sin insets se mantienen
-los márgenes del navegador normal. El contenido sigue desplazándose dentro de
+La ejecución y los resultados dejan el margen habitual **además** del área
+segura superior del dispositivo y de los 16 px extra compartidos por toda la
+app móvil, tanto en el navegador como en la PWA. No basta con elegir el mayor
+de ambos: la tarjeta de resultados y los controles no deben quedar pegados a
+la barra de estado y su efecto visual nativo. En escritorio se conserva la
+distribución sin ese margen extra. El contenido sigue desplazándose dentro de
 la rutina, sin agregar otra capa de blur ni cambiar el modo de instalación.
 
 Durante la ejecución, la vista general resume el avance por bloque y ejercicio

@@ -117,7 +117,7 @@ export function WorkoutAnnotationSheet({
       </SheetTrigger>
       <SheetContent
         side="bottom"
-        className="mx-auto max-h-[88dvh] max-w-lg overflow-y-auto rounded-t-[2rem] border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white"
+        className="mx-auto max-h-[min(88dvh,calc(var(--app-available-height)-1rem))] max-w-lg overflow-y-auto rounded-t-[2rem] border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white"
       >
         <SheetHeader className="px-5 pt-6">
           <SheetTitle className="text-white">Agregar aclaración</SheetTitle>

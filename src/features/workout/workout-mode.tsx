@@ -537,7 +537,7 @@ export function WorkoutMode({
   }
 
   return (
-    <div className="mx-auto flex h-dvh max-w-[1760px] flex-col overflow-hidden px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(0.75rem+env(safe-area-inset-top))] md:px-8 md:pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pt-[calc(1.25rem+env(safe-area-inset-top))] xl:px-10">
+    <div className="mx-auto flex h-dvh max-w-[1760px] flex-col overflow-hidden px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[calc(0.75rem+var(--app-top-inset))] md:px-8 md:pb-[max(1.25rem,env(safe-area-inset-bottom))] md:pt-[calc(1.25rem+var(--app-top-inset))] xl:px-10">
       <div className="mx-auto w-full max-w-lg xl:max-w-4xl">
         <div className="mb-3 grid grid-cols-[5rem_minmax(0,1fr)_5rem] items-center">
           <Button

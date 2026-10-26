@@ -74,7 +74,7 @@ export function DialogoNuevoAtleta({
         <Plus className="size-4" />
         {triggerLabel}
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white sm:max-w-sm">
+      <DialogContent className="border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white sm:max-w-sm">
         <DialogHeader>
           <DialogTitle>Agregar atleta</DialogTitle>
           <DialogDescription className="text-content-muted">

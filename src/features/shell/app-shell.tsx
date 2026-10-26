@@ -79,7 +79,7 @@ export function AppShell({
       {!vistaPrevia && !workoutImmersive && (
         <aside
           className={cn(
-            "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/[0.07] bg-app-sidebar py-7 backdrop-blur-xl lg:flex",
+            "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-white/[0.07] bg-app-sidebar pb-7 pt-[calc(1.75rem+var(--app-top-inset))] backdrop-blur-xl lg:flex",
             sidebarCompact ? "w-24 px-3" : "w-64 px-5",
           )}
         >
@@ -230,7 +230,7 @@ export function AppShell({
 
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-40 flex h-[calc(3.75rem+env(safe-area-inset-top))] items-center justify-between bg-app/75 pb-0 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-2xl after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-6 after:h-6 after:bg-gradient-to-b after:from-app/70 after:to-transparent lg:h-18 lg:px-8 lg:pt-0 lg:after:hidden",
+          "fixed inset-x-0 top-0 z-40 flex h-[calc(3.75rem+var(--app-top-inset))] items-center justify-between bg-app/75 pb-0 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-[var(--app-top-inset)] backdrop-blur-2xl after:pointer-events-none after:absolute after:inset-x-0 after:-bottom-6 after:h-6 after:bg-gradient-to-b after:from-app/70 after:to-transparent lg:h-[calc(4.5rem+var(--app-top-inset))] lg:px-8 lg:after:hidden",
           workoutImmersive && "hidden",
           !vistaPrevia &&
             (sidebarCompact ? "lg:left-24 lg:hidden" : "lg:left-64 lg:hidden"),
@@ -291,11 +291,13 @@ export function AppShell({
         id="main-content"
         tabIndex={-1}
         className={cn(
-          "relative min-h-dvh pt-[calc(3.75rem+env(safe-area-inset-top))] lg:pt-18",
+          "relative min-h-dvh pt-[calc(3.75rem+var(--app-top-inset))] lg:pt-[calc(4.5rem+var(--app-top-inset))]",
           workoutImmersive && "pt-0 lg:pt-0",
           !vistaPrevia &&
             !workoutImmersive &&
-            (sidebarCompact ? "lg:pl-24 lg:pt-0" : "lg:pl-64 lg:pt-0"),
+            (sidebarCompact
+              ? "lg:pl-24 lg:pt-[var(--app-top-inset)]"
+              : "lg:pl-64 lg:pt-[var(--app-top-inset)]"),
           !vistaPrevia &&
             !workoutImmersive &&
             "pb-[calc(5.75rem+env(safe-area-inset-bottom))] lg:pb-0",

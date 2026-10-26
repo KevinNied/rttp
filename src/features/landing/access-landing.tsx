@@ -36,11 +36,11 @@ export function LandingAcceso({
   }
 
   return (
-    <main className="relative grid min-h-dvh place-items-center overflow-hidden bg-app pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))] text-white">
+    <main className="relative grid min-h-dvh place-items-center overflow-hidden bg-app pl-[max(1.25rem,env(safe-area-inset-left))] pr-[max(1.25rem,env(safe-area-inset-right))] pt-[var(--app-top-inset)] text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(34,211,238,.15),transparent_32%),radial-gradient(circle_at_20%_80%,rgba(124,58,237,.2),transparent_38%)]" />
       <ThemeToggle
         compact
-        className="absolute right-[max(1.25rem,env(safe-area-inset-right))] top-[max(1.25rem,env(safe-area-inset-top))] z-10"
+        className="absolute right-[max(1.25rem,env(safe-area-inset-right))] top-[calc(1.25rem+var(--app-top-inset))] z-10"
       />
       <div className="relative flex w-full max-w-sm flex-col items-center text-center">
         <div className="relative size-32 rounded-[2rem] bg-indigo-950/90 shadow-[0_18px_50px_rgba(79,70,229,.18)] dark:bg-transparent dark:shadow-none">

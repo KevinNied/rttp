@@ -54,7 +54,7 @@ export function OverviewRutina({
       </DialogTrigger>
       <DialogContent
         className={cn(
-          "top-[calc((100dvh+env(safe-area-inset-top)-env(safe-area-inset-bottom))/2)] flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem))] flex-col",
+          "flex max-h-[min(88dvh,calc(var(--app-available-height)-2rem))] flex-col",
           "gap-0 overflow-hidden border-white/10 bg-app-surface p-0 text-white sm:max-w-3xl",
         )}
       >

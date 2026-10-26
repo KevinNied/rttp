@@ -82,7 +82,7 @@ export function DialogoNuevaRutina({
         <Plus />
         Nueva rutina
       </DialogTrigger>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white sm:max-w-md">
+      <DialogContent className="border-white/10 bg-app-panel pb-[max(1.5rem,env(safe-area-inset-bottom))] text-white sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Crear rutina para {atleta.name}</DialogTitle>
           <DialogDescription className="text-content-muted">
