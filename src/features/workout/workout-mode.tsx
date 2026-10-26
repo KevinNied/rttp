@@ -728,6 +728,7 @@ export function WorkoutMode({
                           rutina={rutina}
                           paso={paso}
                           registro={registro}
+                          allowSectionSkip={!isSingleSequentialRoutine}
                           posponerEjercicio={posponerEjercicio}
                           omitir={omitir}
                         />

@@ -22,12 +22,14 @@ export function WorkoutSkipSheet({
   rutina,
   paso,
   registro,
+  allowSectionSkip,
   posponerEjercicio,
   omitir,
 }: {
   rutina: Routine;
   paso: RoutineStep;
   registro: TrainingSetRecord;
+  allowSectionSkip: boolean;
   posponerEjercicio: () => void;
   omitir: (alcance: SkipScope) => void;
 }) {
@@ -108,7 +110,7 @@ export function WorkoutSkipSheet({
                 ? "Omitir lo restante y finalizar la rutina."
                 : `Pasar directamente al bloque ${paso.sectionIndex + 2}.`,
           },
-        ].map((opcion) => (
+        ].filter((opcion) => allowSectionSkip || opcion.alcance !== "seccion").map((opcion) => (
           <SheetClose
             key={opcion.alcance}
             render={

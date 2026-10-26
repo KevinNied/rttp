@@ -117,6 +117,13 @@ posponerse: sus series pendientes se conservan sin marcarlas como omitidas y
 vuelven a incorporarse al final de la rutina. Si el atleta decide omitirlas de
 forma definitiva, debe usar una de las acciones de salto explícitas.
 
+En rutinas secuenciales de un único bloque, el menú ofrece volver más tarde,
+saltar esta serie y saltar ejercicio. No ofrece saltar el bloque: en ese formato
+equivaldría a omitir todo lo que falta y terminar la rutina, aunque el bloque no
+se presenta como una entidad separada. Los circuitos y las rutinas con varios
+bloques conservan esa acción. Revisar un entrenamiento conserva sus registros,
+incluidas las omisiones; no deshace los saltos anteriores ni altera el historial.
+
 ## Actividades externas
 
 Al marcar una actividad externa como realizada se registra:
