@@ -32,6 +32,8 @@ Supabase.
 - `routine/routine-steps.ts`: compilador de pasos (`pasosDeRutina`) que traduce
   `structure.sections` a la secuencia ejecutable, respetando `sequential` y
   `rounds`.
+- `routine/routine-structure.ts`: presentación secuencial derivada, lista canónica
+  de ejercicios y reordenamiento plano sin fusionar secciones ni cambiar IDs.
 - `routine/routine-factory.ts`: plantillas, copias independientes desde una
   plantilla, snapshot histórico y rutina base para un atleta nuevo.
 - `routine/routine-access.ts`: autoría, permisos de edición y visibilidad de

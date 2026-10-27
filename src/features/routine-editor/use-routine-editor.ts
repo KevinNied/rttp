@@ -15,6 +15,11 @@ import {
 } from "@dnd-kit/sortable";
 
 import { Exercise, Routine, SectionKind } from "@/lib/rttp-data";
+import {
+  isSequentialRoutine,
+  moveSequentialExercise,
+  routineExerciseEntries,
+} from "@/domain/routine/routine-structure";
 
 export function useRoutineEditor(rutinaGuardada: Routine) {
   const [rutina, setRutina] = useState(rutinaGuardada);
@@ -204,6 +209,41 @@ export function useRoutineEditor(rutinaGuardada: Routine) {
     return id;
   }
 
+  function addSequentialExercise() {
+    const incomplete = routineExerciseEntries(rutina).find(
+      ({ exercise }) => !exercise.name.trim(),
+    );
+    const sectionId =
+      incomplete?.sectionId ??
+      rutina.structure.sections.at(-1)?.id ??
+      addSection("", "sequential");
+    agregarEjercicioVacio(sectionId);
+  }
+
+  function addCircuit(name: string) {
+    const first = rutina.structure.sections[0];
+    if (
+      rutina.structure.sections.length === 1 &&
+      first.kind === "sequential" &&
+      first.exercises.length === 0
+    ) {
+      setRutina((current) => ({
+        ...current,
+        structure: {
+          ...current.structure,
+          sections: current.structure.sections.map((section) =>
+            section.id === first.id
+              ? { ...section, kind: "rounds", name: name.trim() }
+              : section,
+          ),
+        },
+      }));
+      setOpenSectionId(first.id);
+      return first.id;
+    }
+    return addSection(name, "rounds");
+  }
+
   function moverEjercicio(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -219,6 +259,9 @@ export function useRoutineEditor(rutinaGuardada: Routine) {
     if (!originSectionId || !destinationSectionId) return;
 
     setRutina((actual) => {
+      if (isSequentialRoutine(actual)) {
+        return moveSequentialExercise(actual, String(active.id), String(over.id));
+      }
       const originSection = actual.structure.sections.find(
         (section) => section.id === originSectionId,
       );
@@ -305,6 +348,8 @@ export function useRoutineEditor(rutinaGuardada: Routine) {
     updateSectionName,
     agregarEjercicioVacio,
     addSection,
+    addSequentialExercise,
+    addCircuit,
     moverEjercicio,
   };
 }

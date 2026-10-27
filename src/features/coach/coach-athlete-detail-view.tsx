@@ -39,6 +39,7 @@ import {
 } from "@/application/navigation/routes";
 import { SyncState } from "@/application/sync/sync-state";
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
+import { isSequentialRoutine } from "@/domain/routine/routine-structure";
 import {
   canCoachEditRoutine,
   routineCreatorLabel,
@@ -51,6 +52,7 @@ import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
 import { InlineSectionCreator } from "@/features/routine-editor/inline-section-creator";
 import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
 import { SeccionEditor } from "@/features/routine-editor/section-editor";
+import { SequentialExerciseEditor } from "@/features/routine-editor/sequential-exercise-editor";
 import { SelectorRutina } from "@/features/routine-editor/routine-selector";
 import { RoutineEditor } from "@/features/routine-editor/use-routine-editor";
 import {
@@ -126,9 +128,12 @@ export function CoachAthleteDetailView({
     updateSectionName,
     agregarEjercicioVacio,
     addSection,
+    addSequentialExercise,
+    addCircuit,
     moverEjercicio,
   } = editor;
   const ejerciciosRutinaActiva = cantidadEjercicios(rutina);
+  const sequential = isSequentialRoutine(rutina);
   const canEditRoutine = canCoachEditRoutine(rutina, entrenador);
   const invalidRoutineTitle = !rutina.title.trim();
   const draftWithoutExercises = isDraft && ejerciciosRutinaActiva === 0;
@@ -158,7 +163,7 @@ export function CoachAthleteDetailView({
           </h1>
           <p className={pageDescriptionClassName}>
             {seccionDetalle === "routines"
-              ? "Armá bloques, completá ejercicios y ajustá la estructura antes de asignar nuevas cargas."
+              ? "Sumá ejercicios y ajustá la rutina antes de asignar nuevas cargas."
               : seccionDetalle === "schedule"
                 ? "Programá sesiones internas y externas para darle contexto semanal a sus rutinas."
                 : "Consultá las rutinas y actividades que ya completó. Los cambios de agenda se gestionan desde Agenda."}
@@ -454,7 +459,11 @@ export function CoachAthleteDetailView({
                 </div>
                 )}
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent
+              className={canEditRoutine && hayCambios
+                ? "p-0 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0"
+                : "p-0"}
+            >
               {canEditRoutine ? (
                 <DndContext
                   accessibility={routineDndAccessibility}
@@ -462,7 +471,14 @@ export function CoachAthleteDetailView({
                   collisionDetection={closestCenter}
                   onDragEnd={moverEjercicio}
                 >
-                  {rutina.structure.sections.map((section, index) => (
+                  {sequential ? (
+                    <SequentialExerciseEditor
+                      routine={rutina}
+                      onUpdateExercise={actualizarEjercicio}
+                      onDeleteExercise={eliminarEjercicio}
+                      onAddExercise={addSequentialExercise}
+                    />
+                  ) : rutina.structure.sections.map((section, index) => (
                     <SeccionEditor
                       key={section.id}
                       section={section}
@@ -510,13 +526,16 @@ export function CoachAthleteDetailView({
                   </SeccionEditor>
                 ))}
                 <div className="border-t border-white/[0.06] p-3">
-                  <InlineSectionCreator onCreate={addSection} />
+                  <InlineSectionCreator
+                    circuitOnly={sequential}
+                    onCreate={sequential ? addCircuit : addSection}
+                  />
                 </div>
                 </DndContext>
               ) : (
                 <div className="p-5 text-sm text-white/50 md:p-7">
                   Abrí <span className="text-white/75">Vista general</span> para
-                  revisar todos los bloques y ejercicios sin modificar el
+                  revisar {sequential ? "todos los ejercicios" : "todos los bloques y ejercicios"} sin modificar el
                   plan personal del atleta.
                 </div>
               )}

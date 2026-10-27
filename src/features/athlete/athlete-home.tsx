@@ -39,6 +39,7 @@ import {
   cantidadEjercicios,
   rutinaTieneEjercicios,
 } from "@/domain/routine/routine-metrics";
+import { isSequentialRoutine } from "@/domain/routine/routine-structure";
 import { OverviewRutina } from "@/features/athlete/routine-overview";
 import { DialogoNuevaRutina } from "@/features/routine-editor/new-routine-dialog";
 import { SelectorRutina } from "@/features/routine-editor/routine-selector";
@@ -274,14 +275,14 @@ export function HomeAtleta({
                       ? [[Clock3, `${visibleRoutine.durationMinutes} min`]]
                       : []),
                     [Dumbbell, countLabel(exerciseCount, "ejercicio")],
-                    [
+                    ...(!isSequentialRoutine(visibleRoutine) ? [[
                       LayoutGrid,
                       countLabel(
                         visibleRoutine.structure.sections.length,
                         "bloque",
                         "bloques",
                       ),
-                    ],
+                    ]] : []),
                   ].map(([Icon, value]) => {
                     const InfoIcon = Icon as typeof Clock3;
                     return (

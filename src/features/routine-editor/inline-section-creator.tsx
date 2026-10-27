@@ -9,8 +9,10 @@ import { cn } from "@/lib/utils";
 
 export function InlineSectionCreator({
   onCreate,
+  circuitOnly = false,
 }: {
   onCreate: (name: string, kind: SectionKind) => string;
+  circuitOnly?: boolean;
 }) {
   const [isCreating, setIsCreating] = useState(false);
   const [name, setName] = useState("");
@@ -32,7 +34,7 @@ export function InlineSectionCreator({
 
   function reset() {
     setName("");
-    setKind("sequential");
+    setKind(circuitOnly ? "rounds" : "sequential");
     setIsCreating(false);
   }
 
@@ -53,11 +55,14 @@ export function InlineSectionCreator({
       <button
         ref={triggerRef}
         type="button"
-        onClick={() => setIsCreating(true)}
+        onClick={() => {
+          setKind(circuitOnly ? "rounds" : "sequential");
+          setIsCreating(true);
+        }}
         className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-app-surface px-4 py-3 text-xs font-medium text-foreground/65 transition-colors hover:border-primary/35 hover:bg-app-elevated hover:text-foreground dark:border-violet-200/15 dark:bg-violet-300/[0.025] dark:text-violet-100/55 dark:hover:border-violet-200/30 dark:hover:bg-violet-300/[0.06] dark:hover:text-violet-100"
       >
         <Plus className="size-3.5" />
-        Crear bloque
+        {circuitOnly ? "Agregar circuito" : "Crear bloque"}
       </button>
     );
   }
@@ -71,12 +76,12 @@ export function InlineSectionCreator({
         autoFocus
         value={name}
         onChange={(event) => setName(event.target.value)}
-        placeholder="Nombre o enfoque del bloque (opcional)"
-        aria-label="Nombre opcional del nuevo bloque"
+        placeholder={circuitOnly ? "Nombre del circuito (opcional)" : "Nombre o enfoque del bloque (opcional)"}
+        aria-label={circuitOnly ? "Nombre opcional del circuito" : "Nombre opcional del nuevo bloque"}
         className="h-11 border-border bg-app-panel text-base dark:border-white/10 dark:bg-black/20"
       />
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      {!circuitOnly && <div className="mt-3 grid grid-cols-2 gap-2">
         {(["sequential", "rounds"] as const).map((option) => (
           <button
             key={option}
@@ -100,7 +105,13 @@ export function InlineSectionCreator({
             </span>
           </button>
         ))}
-      </div>
+      </div>}
+      {circuitOnly && (
+        <p className="mt-3 text-xs text-content-muted">
+          Los ejercicios del circuito se alternan por rondas. La rutina pasará
+          a combinar formatos.
+        </p>
+      )}
 
       <div className="mt-3 flex justify-end gap-2">
         <button
@@ -116,7 +127,7 @@ export function InlineSectionCreator({
           className="inline-flex h-9 items-center gap-1.5 rounded-full bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
         >
           <Check className="size-3.5" />
-          Crear bloque
+          {circuitOnly ? "Agregar circuito" : "Crear bloque"}
         </button>
       </div>
     </form>

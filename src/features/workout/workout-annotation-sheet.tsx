@@ -37,20 +37,22 @@ function appliesToStep(annotation: WorkoutAnnotation, step: RoutineStep) {
   return annotation.sectionId === step.sectionId;
 }
 
-function annotationScopeLabel(annotation: WorkoutAnnotation) {
+function annotationScopeLabel(annotation: WorkoutAnnotation, allowSectionScope: boolean) {
   if (annotation.scope === "set") return `Serie ${annotation.iteration}`;
   if (annotation.scope === "exercise") return "Ejercicio";
-  return "Bloque";
+  return allowSectionScope ? "Bloque" : "Aclaración general";
 }
 
 export function WorkoutAnnotationSheet({
   step,
+  allowSectionScope,
   annotations,
   onAdd,
   onUpdate,
   onDelete,
 }: {
   step: RoutineStep;
+  allowSectionScope: boolean;
   annotations: WorkoutAnnotation[];
   onAdd: (scope: WorkoutAnnotationScope, text: string) => void;
   onUpdate: (id: string, text: string) => void;
@@ -139,7 +141,7 @@ export function WorkoutAnnotationSheet({
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-[9px] font-semibold uppercase tracking-[0.12em] text-cyan-100/55">
-                      {annotationScopeLabel(annotation)}
+                      {annotationScopeLabel(annotation, allowSectionScope)}
                     </div>
                     <p className="mt-1.5 whitespace-pre-wrap text-xs leading-relaxed text-white/75">
                       {annotation.text}
@@ -215,7 +217,7 @@ export function WorkoutAnnotationSheet({
             </div>
           ) : (
             <div className="space-y-2">
-              {options.map((option) => (
+              {options.filter((option) => allowSectionScope || option.scope !== "block").map((option) => (
                 <button
                   key={option.scope}
                   type="button"

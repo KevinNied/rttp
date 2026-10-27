@@ -27,6 +27,7 @@ import {
   repeticionesObjetivo,
 } from "@/domain/routine/routine-metrics";
 import { pasosDeRutina } from "@/domain/routine/routine-steps";
+import { isSequentialRoutine } from "@/domain/routine/routine-structure";
 import {
   carryForwardSetResults,
   RestTimerState,
@@ -103,8 +104,7 @@ export function WorkoutMode({
     section.exercises.length > 1 &&
     (section.presentation === "compact" ||
       /entrada|activación|movilidad/i.test(section.name ?? ""));
-  const isSingleSequentialRoutine =
-    rutina.structure.sections.length === 1 && section.kind === "sequential";
+  const sequential = isSequentialRoutine(rutina);
   const registrosResueltos = pasos.filter((item) => {
     const itemRecord = registros[item.stepId];
     return itemRecord?.completed || itemRecord?.skipped;
@@ -496,7 +496,7 @@ export function WorkoutMode({
 
   function esInteractivo(target: EventTarget) {
     return (
-      target instanceof HTMLElement &&
+      target instanceof Element &&
       Boolean(target.closest("button, input, textarea, a"))
     );
   }
@@ -634,6 +634,7 @@ export function WorkoutMode({
             annotationAction={
               <WorkoutAnnotationSheet
                 step={paso}
+                allowSectionScope={!sequential}
                 annotations={annotations}
                 onAdd={agregarAclaracion}
                 onUpdate={(id, text) =>
@@ -699,12 +700,13 @@ export function WorkoutMode({
                       <div className="min-w-0 text-[10px] font-semibold uppercase tracking-[0.09em] text-content-secondary sm:text-[11px] sm:tracking-[0.12em]">
                         {registro.deferred
                           ? "Retomado para completar"
-                          : optionalBlockName(paso.sectionName) ||
+                          : (!sequential && optionalBlockName(paso.sectionName)) ||
                             "Ejercicio actual"}
                       </div>
                       <div className="flex shrink-0 items-center gap-2">
                         <WorkoutAnnotationSheet
                           step={paso}
+                          allowSectionScope={!sequential}
                           annotations={annotations}
                           onAdd={agregarAclaracion}
                           onUpdate={(id, text) =>
@@ -728,7 +730,7 @@ export function WorkoutMode({
                           rutina={rutina}
                           paso={paso}
                           registro={registro}
-                          allowSectionSkip={!isSingleSequentialRoutine}
+                          allowSectionSkip={!sequential}
                           posponerEjercicio={posponerEjercicio}
                           omitir={omitir}
                         />
@@ -758,7 +760,7 @@ export function WorkoutMode({
                       {paso.name}
                     </h1>
                     <div className="mt-3 flex flex-wrap gap-1.5 text-[10px] font-medium">
-                      {!isSingleSequentialRoutine && (
+                      {!sequential && (
                         <span className="rounded-full bg-white/[0.06] px-2.5 py-1 text-content-secondary">
                           Bloque {paso.sectionIndex + 1} de{" "}
                           {rutina.structure.sections.length}

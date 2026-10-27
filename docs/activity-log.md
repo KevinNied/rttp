@@ -111,17 +111,18 @@ la barra de estado y su efecto visual nativo. En escritorio se conserva la
 distribución sin ese margen extra. El contenido sigue desplazándose dentro de
 la rutina, sin agregar otra capa de blur ni cambiar el modo de instalación.
 
-Durante la ejecución, la vista general resume el avance por bloque y ejercicio
+Durante la ejecución, la vista general resume el avance por ejercicio y, en
+circuitos o rutinas mixtas, también por bloque,
 sin interrumpir el cronómetro. Un ejercicio temporalmente no disponible puede
 posponerse: sus series pendientes se conservan sin marcarlas como omitidas y
 vuelven a incorporarse al final de la rutina. Si el atleta decide omitirlas de
 forma definitiva, debe usar una de las acciones de salto explícitas.
 
-En rutinas secuenciales de un único bloque, el menú ofrece volver más tarde,
-saltar esta serie y saltar ejercicio. No ofrece saltar el bloque: en ese formato
-equivaldría a omitir todo lo que falta y terminar la rutina, aunque el bloque no
-se presenta como una entidad separada. Los circuitos y las rutinas con varios
-bloques conservan esa acción. Revisar un entrenamiento conserva sus registros,
+En rutinas completamente secuenciales, el menú ofrece volver más tarde,
+saltar esta serie y saltar ejercicio. No ofrece saltar el bloque: las secciones
+internas no se presentan como entidades separadas. Los circuitos y las rutinas mixtas
+conservan esa acción. La lista plana también se usa en el historial según el
+snapshot guardado, sin ocultar las aclaraciones antiguas. Revisar un entrenamiento conserva sus registros,
 incluidas las omisiones; no deshace los saltos anteriores ni altera el historial.
 
 ## Actividades externas

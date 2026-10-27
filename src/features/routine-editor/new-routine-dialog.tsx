@@ -86,8 +86,7 @@ export function DialogoNuevaRutina({
         <DialogHeader>
           <DialogTitle>Crear rutina para {atleta.name}</DialogTitle>
           <DialogDescription className="text-content-muted">
-            Empezá con un bloque secuencial vacío y personalizalo cuando
-            quieras.
+            Sumá ejercicios y personalizá sus series, cargas y descansos.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
@@ -132,8 +131,8 @@ export function DialogoNuevaRutina({
                   Constructor flexible
                 </div>
                 <div className="mt-1 text-[10px] leading-relaxed text-content-muted">
-                  Mové ejercicios dentro de un bloque o arrastralos hacia
-                  otro.
+                  Ordená los ejercicios arrastrándolos. También podés sumar
+                  un circuito.
                 </div>
               </div>
             </div>

@@ -22,6 +22,7 @@ import { countLabel, formatDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { optionalBlockName } from "@/domain/routine/routine-metrics";
+import { isSequentialRoutine } from "@/domain/routine/routine-structure";
 
 type FiltroActividad = "todas" | "routines" | "externas";
 
@@ -67,8 +68,6 @@ function groupSections(actividad: CompletedActivity) {
 
   const snapshotSections =
     actividad.routineSnapshot?.structure.sections ?? [];
-  if (snapshotSections.length === 0) return fallbackGroups;
-
   const knownSectionIds = new Set(
     snapshotSections.map((section) => section.id),
   );
@@ -92,10 +91,15 @@ function groupSections(actividad: CompletedActivity) {
       : [];
   });
 
-  return [
+  const groups = [
     ...snapshotGroups,
     ...fallbackGroups.filter((section) => !knownSectionIds.has(section.id)),
   ];
+  return actividad.routineSnapshot &&
+    isSequentialRoutine(actividad.routineSnapshot) &&
+    groups.length > 0
+    ? [{ id: actividad.id, name: null, sets: groups.flatMap((group) => group.sets) }]
+    : groups;
 }
 
 function resumenActividad(actividad: CompletedActivity) {
@@ -111,7 +115,9 @@ function resumenActividad(actividad: CompletedActivity) {
       actividad.type === "routine"
         ? [
             countLabel(seriesCompletadas, "serie", "series"),
-            countLabel(sections.length, "bloque", "bloques"),
+            actividad.routineSnapshot && isSequentialRoutine(actividad.routineSnapshot)
+              ? countLabel(groupExerciseSets(actividad.sets).length, "ejercicio")
+              : countLabel(sections.length, "bloque", "bloques"),
           ]
         : [categoriaActividad(actividad.category) ?? "Actividad externa"],
   };
@@ -220,6 +226,9 @@ function ActivityCopy({
 
 function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
   const { sections, seriesCompletadas } = resumenActividad(actividad);
+  const sequential = actividad.routineSnapshot
+    ? isSequentialRoutine(actividad.routineSnapshot)
+    : false;
   const annotations =
     actividad.annotations ?? actividad.routineSnapshot?.annotations ?? [];
   const [openSectionId, setOpenSectionId] = useState(sections[0]?.id ?? "");
@@ -273,19 +282,21 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                 Detalle de la sesión
               </div>
               <div className="mt-1 text-xs text-foreground/50 dark:text-content-muted">
-                Abrí un bloque para revisar sus ejercicios y cargas.
+                {sequential
+                  ? "Ejercicios y cargas de esta sesión."
+                  : "Abrí un bloque para revisar sus ejercicios y cargas."}
               </div>
             </div>
           </div>
           {sections.map((section, sectionIndex) => {
             const exerciseGroups = groupExerciseSets(section.sets);
-            const isOpen = openSectionId === section.id;
+            const isOpen = sequential || openSectionId === section.id;
             const triggerId = `activity-${actividad.id}-section-${section.id}-trigger`;
             const panelId = `activity-${actividad.id}-section-${section.id}-panel`;
             const blockAnnotations = annotations.filter(
               (annotation) =>
                 annotation.scope === "block" &&
-                annotation.sectionId === section.id,
+                (sequential || annotation.sectionId === section.id),
             );
 
             return (
@@ -293,7 +304,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                 key={section.id}
                 className="overflow-hidden rounded-2xl border border-border bg-app-panel dark:border-white/[0.07] dark:bg-white/[0.02]"
               >
-                <button
+                {!sequential && <button
                   id={triggerId}
                   type="button"
                   aria-expanded={isOpen}
@@ -329,12 +340,13 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                       isOpen && "rotate-180",
                     )}
                   />
-                </button>
+                </button>}
 
                 <div
                   id={panelId}
                   role="region"
-                  aria-labelledby={triggerId}
+                  aria-labelledby={sequential ? undefined : triggerId}
+                  aria-label={sequential ? "Ejercicios realizados" : undefined}
                   hidden={!isOpen}
                   className="divide-y divide-border border-t border-border dark:divide-white/[0.05] dark:border-white/[0.06]"
                 >
@@ -352,7 +364,7 @@ function DetalleRutina({ actividad }: { actividad: CompletedActivity }) {
                         const exerciseAnnotations = annotations.filter(
                           (annotation) =>
                             annotation.scope === "exercise" &&
-                            annotation.sectionId === section.id &&
+                            (sequential || annotation.sectionId === section.id) &&
                             annotation.exerciseId === exercise.id,
                         );
                         const setAnnotations = annotations.filter(

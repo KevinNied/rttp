@@ -22,6 +22,10 @@ import {
   repeticionesObjetivo,
   sectionKindLabel,
 } from "@/domain/routine/routine-metrics";
+import {
+  isSequentialRoutine,
+  routineExerciseEntries,
+} from "@/domain/routine/routine-structure";
 import { TextWithLinks } from "@/features/shared/text-with-links";
 
 export function OverviewRutina({
@@ -34,6 +38,7 @@ export function OverviewRutina({
   className?: string;
 }) {
   const ejercicios = cantidadEjercicios(rutina);
+  const sequential = isSequentialRoutine(rutina);
 
   return (
     <Dialog>
@@ -72,12 +77,12 @@ export function OverviewRutina({
           </DialogTitle>
           <DialogDescription className="text-content-muted">
             <span className="mb-1 block text-cyan-100/60">{authorLabel}</span>
-            {countLabel(
+            {!sequential && <>{countLabel(
               rutina.structure.sections.length,
               "bloque",
               "bloques",
-            )}{" "}
-            · {countLabel(ejercicios, "ejercicio")}
+            )} · </>}
+            {countLabel(ejercicios, "ejercicio")}
             {rutina.durationMinutes ? ` · ${rutina.durationMinutes} min` : ""}
           </DialogDescription>
         </DialogHeader>
@@ -99,6 +104,32 @@ export function OverviewRutina({
                 </p>
               </div>
             </div>
+          ) : sequential ? (
+            <ol aria-label="Ejercicios de la rutina" className="space-y-3">
+              {routineExerciseEntries(rutina).map(({ exercise }, index) => (
+                <li
+                  key={exercise.id}
+                  className="flex items-start gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4"
+                >
+                  <span className="grid size-7 shrink-0 place-items-center rounded-full bg-cyan-300/10 text-xs font-semibold text-cyan-100">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="break-words text-sm font-medium">{exercise.name}</h3>
+                    <div className="mt-1 text-xs text-content-muted">
+                      {exercise.sets}×{repeticionesObjetivo(exercise)}
+                      {exercise.weight > 0 ? ` · ${exercise.weight} kg` : ""}
+                      {exercise.restSeconds !== null ? ` · ${exercise.restSeconds} s` : ""}
+                    </div>
+                    {exercise.instructions && (
+                      <div className="mt-2 text-xs text-content-secondary">
+                        <TextWithLinks>{exercise.instructions}</TextWithLinks>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
           ) : (
             <div className="relative before:absolute before:bottom-5 before:left-[19px] before:top-5 before:w-px before:bg-gradient-to-b before:from-cyan-300/60 before:via-violet-400/45 before:to-blue-400/25 md:before:left-1/2">
               {rutina.structure.sections.map((section, index) => (

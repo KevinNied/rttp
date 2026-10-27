@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 import { RoutineStep } from "@/domain/routine/routine-steps";
 import { optionalBlockName } from "@/domain/routine/routine-metrics";
+import { isSequentialRoutine } from "@/domain/routine/routine-structure";
 import { TrainingSetRecords } from "@/domain/workout/workout-session";
 
 export function WorkoutOverviewSheet({
@@ -34,6 +35,7 @@ export function WorkoutOverviewSheet({
   registrosResueltos: number;
   registrosPospuestos: number;
 }) {
+  const sequential = isSequentialRoutine(rutina);
   return (
     <Sheet>
       <SheetTrigger
@@ -61,27 +63,27 @@ export function WorkoutOverviewSheet({
               : ""}
           </SheetDescription>
         </SheetHeader>
-        <div className="space-y-3 px-4">
+        <div className={sequential ? "flex flex-col gap-2 px-4" : "space-y-3 px-4"}>
           {rutina.structure.sections.map((itemBlock, blockIndex) => (
             <div
               key={itemBlock.id}
               className={cn(
-                "rounded-2xl border p-4",
-                itemBlock.id === paso.sectionId
+                sequential ? "contents" : "rounded-2xl border p-4",
+                !sequential && (itemBlock.id === paso.sectionId
                   ? "border-cyan-200/20 bg-cyan-300/[0.06]"
-                  : "border-white/[0.07] bg-white/[0.025]",
+                  : "border-white/[0.07] bg-white/[0.025]"),
               )}
             >
-              <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-cyan-100/65">
+              {!sequential && <div className="text-[10px] font-semibold uppercase tracking-[0.13em] text-cyan-100/65">
                 Bloque {blockIndex + 1} de{" "}
                 {rutina.structure.sections.length}
-              </div>
-              {optionalBlockName(itemBlock.name) && (
+              </div>}
+              {!sequential && optionalBlockName(itemBlock.name) && (
                 <div className="mt-1 text-sm font-medium text-white">
                   {optionalBlockName(itemBlock.name)}
                 </div>
               )}
-              <div className="mt-3 space-y-2">
+              <div className={sequential ? "contents" : "mt-3 space-y-2"}>
                 {itemBlock.exercises.map((exercise) => {
                   const exerciseSteps = pasos.filter(
                     (item) => item.id === exercise.id,
@@ -122,7 +124,7 @@ export function WorkoutOverviewSheet({
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-[13px] font-medium text-white/85">
+                        <div className="break-words text-[13px] font-medium text-white/85">
                           {exercise.name}
                         </div>
                         <div className="mt-0.5 text-[10px] text-white/50">

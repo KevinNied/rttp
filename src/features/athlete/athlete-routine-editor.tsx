@@ -11,11 +11,13 @@ import { Routine, User } from "@/lib/rttp-data";
 
 import { SyncState } from "@/application/sync/sync-state";
 import { cantidadEjercicios } from "@/domain/routine/routine-metrics";
+import { isSequentialRoutine } from "@/domain/routine/routine-structure";
 import { routineDndAccessibility } from "@/features/routine-editor/dnd-accessibility";
 import { FilaEjercicio } from "@/features/routine-editor/exercise-row";
 import { InlineSectionCreator } from "@/features/routine-editor/inline-section-creator";
 import { RoutineDetailsFields } from "@/features/routine-editor/routine-details-fields";
 import { SeccionEditor } from "@/features/routine-editor/section-editor";
+import { SequentialExerciseEditor } from "@/features/routine-editor/sequential-exercise-editor";
 import { useRoutineEditor } from "@/features/routine-editor/use-routine-editor";
 import { ConfirmationDialog } from "@/features/shared/confirmation-dialog";
 import { desktopPageShellClassName } from "@/features/shared/page-shell";
@@ -51,12 +53,15 @@ export function AthleteRoutineEditor({
     updateSectionName,
     agregarEjercicioVacio,
     addSection,
+    addSequentialExercise,
+    addCircuit,
     moverEjercicio,
   } = editor;
   const [closeConfirmationOpen, setCloseConfirmationOpen] = useState(false);
   const hasChanges =
     isDraft || JSON.stringify(rutina) !== JSON.stringify(savedRoutine);
   const exerciseCount = cantidadEjercicios(rutina);
+  const sequential = isSequentialRoutine(rutina);
   const hasUnnamedExercises = rutina.structure.sections.some((section) =>
     section.exercises.some((exercise) => !exercise.name.trim()),
   );
@@ -188,14 +193,25 @@ export function AthleteRoutineEditor({
           )}
         </CardHeader>
 
-        <CardContent className="p-0">
+        <CardContent
+          className={hasChanges
+            ? "p-0 pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-0"
+            : "p-0"}
+        >
           <DndContext
             accessibility={routineDndAccessibility}
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={moverEjercicio}
           >
-            {rutina.structure.sections.map((section, index) => (
+            {sequential ? (
+              <SequentialExerciseEditor
+                routine={rutina}
+                onUpdateExercise={actualizarEjercicio}
+                onDeleteExercise={eliminarEjercicio}
+                onAddExercise={addSequentialExercise}
+              />
+            ) : rutina.structure.sections.map((section, index) => (
               <SeccionEditor
                 key={section.id}
                 section={section}
@@ -236,7 +252,10 @@ export function AthleteRoutineEditor({
             ))}
 
             <div className="border-t border-white/[0.06] p-3">
-              <InlineSectionCreator onCreate={addSection} />
+              <InlineSectionCreator
+                circuitOnly={sequential}
+                onCreate={sequential ? addCircuit : addSection}
+              />
             </div>
           </DndContext>
         </CardContent>
